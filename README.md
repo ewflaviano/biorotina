@@ -10,6 +10,13 @@ Projeto em fase de definição. A intenção é criar um aplicativo web gratuito
 - Sem banco de dados central dos idealizadores na primeira fase.
 - Integrações com Apple Health e Health Connect fora do escopo inicial.
 
+## Nome e posicionamento em exploração
+
+- **Araviva** é o candidato favorito no momento, ainda sem decisão final. É um nome criado a partir de *ara* (dia/tempo em guarani) e “viva”; não é uma expressão guarani.
+- O nome deve ser marcante, associado a saúde e estilo de vida, funcionar internacionalmente e não criar conotação negativa evidente em inglês. Comunicar propriedade dos dados pelo nome não é necessário.
+- Explorar uma segunda direção baseada no papel do aplicativo como companhia para os cuidados cotidianos: lembrar de beber água, tomar medicamentos e cumprir outras rotinas escolhidas pelo usuário.
+- Antes da escolha final, verificar significado e grafia de eventuais raízes indígenas, usos no setor, marcas, domínios e redes sociais.
+
 ## Decisões em aberto
 
 1. Nome e identidade do produto.
@@ -18,6 +25,7 @@ Projeto em fase de definição. A intenção é criar um aplicativo web gratuito
 4. Privacidade e segurança dos dados de saúde e das chaves de IA no navegador.
 5. Escopo da primeira versão, páginas, fluxos e design.
 6. Viabilidade e limites reais das opções de hospedagem, Google Drive e provedores de IA.
+7. Se lembretes entram na primeira versão e como funcionam de modo confiável nos navegadores e dispositivos pretendidos.
 
 Esta documentação registra hipóteses para discussão; ainda não define arquitetura final nem inicia a implementação.
 
