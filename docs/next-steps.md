@@ -2,11 +2,11 @@
 
 Estas etapas começam depois do esqueleto local. O app continua utilizável sem conta. Dados de saúde permanecem no navegador e, se a pessoa optar, em seu próprio Google Drive.
 
-## 1. Conectar Google e fazer backup no Drive (`YTF-11099`)
+## 1. Conectar Google e fazer backup no Drive (`YTF-11099`) — implementado
 
 **Experiência:** “Conectar Google” é uma opção em Configurações. A pessoa vê qual conta está conectada, quando houve a última sincronização confirmada, o que está apenas local, erros e a opção de desconectar. Importar/exportar JSON continua disponível sem login.
 
-**Implementação prevista:** Google Identity Services com escopo mínimo `drive.appdata`, documento versionado em `appDataFolder` e adaptador de sincronização isolado do domínio. Apenas o OAuth client ID público entra no build; token fica em memória pelo menor tempo possível. Não usar client secret nem credenciais de serviço no frontend. Configurar origens locais e de produção no projeto OAuth sem colocar segredos no repositório.
+**Implementação atual:** Google Identity Services com `openid`, `email` e `drive.appdata`, snapshots JSON versionados em `appDataFolder` e adaptador isolado do domínio. Apenas o OAuth client ID público entra no build; o token fica em memória. Não usar client secret nem credenciais de serviço no frontend. Origens locais e de produção estão configuradas no projeto OAuth sem segredos no repositório.
 
 **Critérios de entrega:**
 
@@ -17,7 +17,9 @@ Estas etapas começam depois do esqueleto local. O app continua utilizável sem 
 5. Backups das versões 1 e 2 são migrados para a versão 3; versão futura incompatível gera erro sem substituir registros.
 6. Testes unitários do adaptador e dos estados de sincronização; teste manual em dois navegadores/dispositivos com conta de teste. Falhas de rede e autorização expirada têm caminho de recuperação.
 
-**Preparação externa:** criar projeto OAuth no Google Cloud e informar o OAuth client ID público e as origens autorizadas para o ambiente local. Revisar se o fluxo de consentimento exige verificação antes de abrir o app ao público.
+**Validação concluída:** conexão OAuth no navegador, listagem e criação de backup real no Drive da conta de teste; sincronização repetida confirmou que não duplica uma cópia idêntica. Testes unitários cobrem o adaptador, erros e decisões de conflito.
+
+**Ainda falta:** validar restauração e conflito entre dois dispositivos reais, oferecer recuperação de versões antigas pela interface e preparar a publicação do consentimento OAuth para usuários fora da lista de teste.
 
 ## 2. Validar lembretes opcionais em dispositivos reais (`YTF-11103`)
 

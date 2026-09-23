@@ -1,6 +1,6 @@
 # Arquitetura inicial da Biorotina
 
-**Estado:** app local funcional, serviço Web Push e infraestrutura AWS implementados. A sincronização Google Drive segue planejada.
+**Estado:** app local funcional, serviço Web Push e infraestrutura AWS implementados. Login opcional e backup manual no Google Drive implementados.
 
 ## Decisão principal
 
@@ -11,7 +11,7 @@ Celular / navegador
   ├─ Interface React
   ├─ IndexedDB: perfil e registros
   ├─ Exportar/importar JSON
-  └─ Google Drive da pessoa (fase seguinte, consentimento opcional)
+  └─ Google Drive da pessoa (consentimento opcional)
 
 CloudFront ── S3 privado: apenas os arquivos públicos do aplicativo
 
@@ -31,13 +31,13 @@ EventBridge Scheduler ── Lambda Rust de envio ── Web Push
 - Backup JSON com `schemaVersion: 3`, validação na importação e confirmação antes de substituir dados locais. Backups e documentos IndexedDB das versões 1 e 2 são migrados sem apagar registros, inclusive o antigo horário único de medicação.
 - A interface funciona sem conta. O código do domínio (`src/domain`) fica separado da interface para facilitar uma futura adaptação a React Native. IndexedDB é específico do navegador e será substituído por outro adaptador de armazenamento no app nativo.
 
-## Sincronização Google Drive: próxima fase
+## Sincronização Google Drive
 
 Usar a biblioteca oficial **Google Identity Services** no navegador, com consentimento no momento de conectar o Drive. Pedir apenas o escopo `drive.appdata` e guardar o JSON em `appDataFolder`, uma pasta de dados do aplicativo que não aparece na interface normal do Drive. O [modelo de token do Google](https://developers.google.com/identity/oauth2/web/guides/use-token-model) permite chamar a API pelo navegador sem guardar refresh token em backend; os tokens de acesso são curtos e a pessoa poderá precisar autorizar novamente. A [documentação do Drive](https://developers.google.com/workspace/drive/api/guides/appdata) descreve o escopo e a pasta.
 
-O botão de conexão ainda não está ativo: precisamos configurar o projeto OAuth, suas origens autorizadas e testar conflitos entre dispositivos antes de liberar uma sincronização real. A pessoa sempre poderá usar o app localmente e exportar JSON.
+O botão de conexão está ativo quando `VITE_GOOGLE_CLIENT_ID` está definido. O cliente OAuth Web e a API do Drive estão configurados no projeto Google Cloud `biorotina`; a aplicação está em modo de teste com a conta do proprietário. O token de acesso fica apenas em memória. Cada sincronização cria um novo snapshot JSON na pasta privada do app, preservando as versões anteriores. O IndexedDB guarda, por conta Google, o ID do último snapshot sincronizado e o hash SHA-256 do conteúdo local. A pessoa pode continuar usando o app sem conta e exportar JSON.
 
-**Regra para conflitos:** não substituir silenciosamente. Comparar versão remota e revisão local; se ambos mudaram desde a última sincronização, apresentar as duas versões, permitir baixar uma cópia e pedir uma escolha explícita. Também definir o que acontece ao conectar outra conta Google no mesmo navegador. O JSON deve ser versionado e migrável.
+**Regra para conflitos:** comparar o último snapshot remoto e o hash do conteúdo local. Quando ambos mudaram, mostrar a quantidade de registros e a data da versão do Drive, sem substituir os dados automaticamente. A pessoa pode manter a versão local, criando outro snapshot, ou restaurar a remota após confirmar e iniciar o download de um JSON da versão local. O armazenamento de metadados separado por identificador da conta impede misturar estados de contas Google diferentes. A restauração verifica a revisão local antes de gravar, para recusar mudanças concorrentes. O JSON permanece versionado e migrável.
 
 O **OAuth client ID** de aplicativo web é um identificador público e poderá entrar em uma configuração `VITE_`. **Client secret, tokens e credenciais AWS jamais entram no bundle.** O [Vite informa](https://vite.dev/guide/env-and-mode) que variáveis `VITE_` são expostas no código enviado ao navegador. O arquivo `.env.example` contém apenas um exemplo de identificador público; arquivos `.env` locais estão ignorados pelo Git.
 

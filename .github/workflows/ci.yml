@@ -133,6 +133,8 @@ jobs:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: sa-east-1
       - name: Build frontend against deployed API
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
         run: |
           API_URL="$(aws cloudformation describe-stacks --stack-name biorotina-dev --query "Stacks[0].Outputs[?OutputKey=='PushApiUrl'].OutputValue | [0]" --output text)"
           test -n "$API_URL" && test "$API_URL" != None

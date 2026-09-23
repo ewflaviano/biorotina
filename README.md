@@ -8,16 +8,16 @@ Biorotina é um aplicativo web gratuito em desenvolvimento para acompanhar saúd
 
 - Uso inicial sem conta, com dados guardados localmente no navegador.
 - Exportação e importação de arquivo JSON para cópia e recuperação dos registros.
-- Sincronização opcional com o **Google Drive da própria pessoa** está planejada para usar os dados em outro navegador ou dispositivo.
+- Sincronização opcional com o **Google Drive da própria pessoa** para usar os dados em outro navegador ou dispositivo.
 - Sem banco de dados central de registros pessoais operado pelo projeto na primeira fase.
 
-O armazenamento local e a cópia JSON já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação permitem usar uma entrada como modelo, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. Água e medicamentos permitem vários horários de lembrete. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; falta validar a entrega em dispositivos reais. A sincronização com o Google Drive ainda é uma próxima etapa.
+O armazenamento local, a cópia JSON e a sincronização manual com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação permitem usar uma entrada como modelo, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. Água e medicamentos permitem vários horários de lembrete. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; falta validar a entrega em dispositivos reais.
 
 O [catálogo de atividades e a fórmula de estimativa](docs/activity-reference.md) documentam os valores usados no preenchimento automático.
 
 ## Executar localmente
 
-Requer Node.js recente compatível com Vite 8. Para testar o serviço de lembretes, configure `VITE_PUSH_API_URL` em `.env.local` com a URL pública da API.
+Requer Node.js recente compatível com Vite 8. Para testar o serviço de lembretes, configure `VITE_PUSH_API_URL` em `.env.local` com a URL pública da API. Para conectar o Drive, configure `VITE_GOOGLE_CLIENT_ID` com o identificador público de um cliente OAuth Web cujas origens incluam `http://127.0.0.1:5173` e `http://localhost:5173`. O cliente de produção deve autorizar `https://biorotina.app.br`; não use client secret no frontend.
 
 ```sh
 make install
@@ -34,6 +34,7 @@ Para manutenção, `make check` executa a checagem do frontend, Clippy e testes 
 
 - `src/domain`: modelo de dados versionado, validação de backup e cálculos básicos.
 - `src/storage`: adaptador IndexedDB.
+- `src/sync`: login Google, adaptador Drive e decisão de sincronização.
 - `src/pages`: áreas iniciais, com interface mobile first e menu “Mais” para manter cinco destinos na barra inferior.
 - `docs/architecture.md`: decisões de sincronização, notificações, backend futuro, hospedagem e segurança.
 
@@ -48,7 +49,7 @@ Para manutenção, `make check` executa a checagem do frontend, Clippy e testes 
 
 ## Decisões ainda abertas
 
-1. Login e sincronização opcional no Drive, incluindo resolução de conflitos e troca de conta.
+1. Validar a sincronização em dois dispositivos reais e completar a publicação do OAuth para além dos usuários de teste.
 2. Edição retroativa de peso, atividade, refeição e água, além de recuperação após perda do navegador. Exclusão com desfazer e migração de dados da versão 1 para a 2 já funcionam.
 3. Testes reais de entrega Web Push em Android, desktop e iPhone após a ativação da infraestrutura e do domínio.
 4. Viabilidade e limites de análise opcional de refeições por IA com chave fornecida pela pessoa.
@@ -61,7 +62,7 @@ Integrações com Apple Health e Health Connect estão fora do escopo inicial.
 Projeto: **Biorotina** (`82E-YHH`).
 
 - `YTF-11098` — Validar disponibilidade do nome Biorotina (pendente).
-- `YTF-11099` — Implementar acesso opcional com Google e backup no Drive (próxima etapa 1).
+- `YTF-11099` — Implementar acesso opcional com Google e backup no Drive (implementado; falta validação em dois dispositivos e publicação OAuth).
 - `YTF-11100` — Definir escopo inicial e mapa de páginas (concluída).
 - `YTF-11101` — Definir privacidade e análise opcional por IA (pendente, fora das próximas etapas).
 - `YTF-11102` — Criar direção visual e design das telas (concluída).

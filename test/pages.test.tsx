@@ -36,7 +36,7 @@ function ReadyMarker() {
 }
 
 beforeEach(async () => {
-  const db = await openDB("biorotina", 1);
+  const db = await openDB("biorotina", 2);
   await db.clear("app");
   db.close();
 });

@@ -5,7 +5,7 @@ import { loadData, saveData } from "./indexedDb";
 
 describe("persistência local", () => {
   beforeEach(async () => {
-    const db = await openDB("biorotina", 1);
+    const db = await openDB("biorotina", 2);
     await db.clear("app");
     db.close();
   });
@@ -19,7 +19,7 @@ describe("persistência local", () => {
   });
 
   it("recusa um documento inválido persistido em vez de apagar silenciosamente os dados", async () => {
-    const db = await openDB("biorotina", 1);
+    const db = await openDB("biorotina", 2);
     await db.put("app", { schemaVersion: 999 }, "main");
     db.close();
     await expect(loadData()).rejects.toThrow();
@@ -31,14 +31,14 @@ describe("persistência local", () => {
     const oldData = Object.fromEntries(
       Object.entries(current).filter(([key]) => !key.startsWith("hydration")),
     );
-    const db = await openDB("biorotina", 1);
+    const db = await openDB("biorotina", 2);
     await db.put("app", { ...oldData, schemaVersion: 1 }, "main");
     db.close();
     const loaded = await loadData();
     expect(loaded.schemaVersion).toBe(3);
     expect(loaded.profile.displayName).toBe("Bia");
     expect(
-      await (await openDB("biorotina", 1)).get("app", "main"),
+      await (await openDB("biorotina", 2)).get("app", "main"),
     ).toMatchObject({
       schemaVersion: 3,
     });

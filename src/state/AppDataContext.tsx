@@ -18,6 +18,7 @@ interface AppDataContextValue {
   error: string | null;
   mutate: (update: Update) => Promise<void>;
   replace: (next: AppData) => Promise<void>;
+  replaceIfRevision: (revision: number, next: AppData) => Promise<void>;
   removeWithUndo: (
     label: string,
     remove: Update,
@@ -91,6 +92,20 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [mutate],
   );
 
+  const replaceIfRevision = useCallback(
+    async (revision: number, next: AppData): Promise<void> => {
+      await mutate((current) => {
+        if (current.revision !== revision)
+          throw new Error(
+            "Os dados deste navegador mudaram. Sincronize novamente antes de restaurar.",
+          );
+        return next;
+      });
+      setUndoActions([]);
+    },
+    [mutate],
+  );
+
   const removeWithUndo = useCallback(
     async (label: string, remove: Update, restore: Update): Promise<void> => {
       let removed = false;
@@ -129,6 +144,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         error,
         mutate,
         replace,
+        replaceIfRevision,
         removeWithUndo,
         undoLast,
         dismissUndo,

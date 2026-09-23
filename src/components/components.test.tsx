@@ -14,7 +14,7 @@ import { HydrationPage } from "../pages/HydrationPage";
 import { DateTimeField } from "./DateTimeField";
 
 beforeEach(async () => {
-  const db = await openDB("biorotina", 1);
+  const db = await openDB("biorotina", 2);
   await db.clear("app");
   db.close();
 });

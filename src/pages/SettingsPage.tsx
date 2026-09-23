@@ -19,20 +19,8 @@ import {
 } from "../domain/data";
 import { Notice, PageHeader } from "../components/Layout";
 import { useAppData } from "../state/AppDataContext";
-
-function downloadJson(data: AppData, suffix = "") {
-  const content = JSON.stringify(data, null, 2);
-  const url = URL.createObjectURL(
-    new Blob([content], { type: "application/json" }),
-  );
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `biorotina-${new Date().toISOString().slice(0, 10)}${suffix}.json`;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-}
+import { downloadJson } from "../sync/download";
+import { DriveBackup } from "../sync/DriveBackup";
 
 export function SettingsPage() {
   const { data, mutate, replace } = useAppData();
@@ -265,15 +253,14 @@ export function SettingsPage() {
               <p>Sincronização opcional entre seus dispositivos.</p>
             </div>
           </div>
-          <span className="pill-label">Próxima etapa</span>
-          <p className="muted">
-            A conexão com o seu Drive será ativada depois de configurarmos o
-            cliente OAuth. O uso local não exige login.
-          </p>
-          <p className="muted small">
-            Quando disponível, o app mostrará a última sincronização e pedirá
-            sua escolha antes de substituir versões em conflito.
-          </p>
+          <DriveBackup
+            onRestore={(restored) => {
+              setName(restored.profile.displayName);
+              setHeight(
+                restored.profile.heightCm?.toString().replace(".", ",") ?? "",
+              );
+            }}
+          />
         </section>
         <section className="panel">
           <div className="card-title">
