@@ -11,35 +11,70 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  changes:
     runs-on: ubuntu-latest
-    env:
-      CARGO_BUILD_JOBS: 2
+    outputs:
+      frontend: ${{ steps.detect.outputs.frontend }}
+      backend: ${{ steps.detect.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Test change selection
+        run: node --test scripts/changed-areas.check.mjs
+      - name: Detect affected areas
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/changed-areas.mjs
+      - name: Check for committed credentials
+        run: node scripts/check-secrets.mjs
+
+  validate_frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run check
+
+  validate_backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    env:
+      CARGO_BUILD_JOBS: 2
+    steps:
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: push
-      - run: npm ci
-      - run: npm audit --omit=dev --audit-level=high
-      - run: make check
+      - run: cargo fmt --manifest-path push/Cargo.toml --check
+      - run: cargo clippy --manifest-path push/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --manifest-path push/Cargo.toml
 
-  deploy:
-    if: github.event_name != 'pull_request'
-    needs: validate
+  deploy_backend:
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.backend == 'true'
+    needs: [changes, validate_backend]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     concurrency:
-      group: production-deploy
+      group: biorotina-production
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
@@ -68,6 +103,35 @@ jobs:
         run: npx serverless deploy
         env:
           ENABLE_CUSTOM_DOMAIN: ${{ vars.ENABLE_CUSTOM_DOMAIN || 'true' }}
+
+  deploy_frontend:
+    if: >-
+      always() &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.frontend == 'true' &&
+      needs.validate_frontend.result == 'success' &&
+      (needs.deploy_backend.result == 'success' || needs.deploy_backend.result == 'skipped')
+    needs: [changes, validate_frontend, deploy_backend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: biorotina-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Assume AWS role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: sa-east-1
       - name: Build frontend against deployed API
         run: |
           API_URL="$(aws cloudformation describe-stacks --stack-name biorotina-dev --query "Stacks[0].Outputs[?OutputKey=='PushApiUrl'].OutputValue | [0]" --output text)"
