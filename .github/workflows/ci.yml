@@ -93,7 +93,16 @@ jobs:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: sa-east-1
       - name: Install Lambda build tool
-        run: cargo install cargo-lambda --locked
+        run: |
+          cargo_lambda_asset=cargo-lambda-v1.9.2.x86_64-unknown-linux-musl.tar.gz
+          curl -fsSL --retry 3 \
+            "https://github.com/cargo-lambda/cargo-lambda/releases/download/v1.9.2/$cargo_lambda_asset" \
+            -o "$RUNNER_TEMP/$cargo_lambda_asset"
+          echo "b5c258c424ebaef39541c3641f33c51137ee6c426016f365628fedb2c737271d  $RUNNER_TEMP/$cargo_lambda_asset" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/cargo-lambda-bin"
+          tar -xzf "$RUNNER_TEMP/$cargo_lambda_asset" -C "$RUNNER_TEMP/cargo-lambda-bin"
+          echo "$RUNNER_TEMP/cargo-lambda-bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/cargo-lambda-bin/cargo-lambda" lambda --version
       - name: Build push service
         run: |
           PATH="$PWD/node_modules/.bin:$PATH" CARGO_BUILD_JOBS=2 OPENSSL_STATIC=1 cargo lambda build --release --disable-optimizations --output-format zip --bins --manifest-path push/Cargo.toml
