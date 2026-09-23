@@ -1,0 +1,307 @@
+import {
+  Cloud,
+  Download,
+  FileJson2,
+  ShieldCheck,
+  Upload,
+  UserRound,
+} from "lucide-react";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  dateTimePt,
+  parseBackup,
+  parseDecimal,
+  totalRecords,
+  validateAnthropometrics,
+  MIN_HEIGHT_CM,
+  MAX_HEIGHT_CM,
+  type AppData,
+} from "../domain/data";
+import { Notice, PageHeader } from "../components/Layout";
+import { useAppData } from "../state/AppDataContext";
+
+function downloadJson(data: AppData, suffix = "") {
+  const content = JSON.stringify(data, null, 2);
+  const url = URL.createObjectURL(
+    new Blob([content], { type: "application/json" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `biorotina-${new Date().toISOString().slice(0, 10)}${suffix}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+export function SettingsPage() {
+  const { data, mutate, replace } = useAppData();
+  const [name, setName] = useState(data.profile.displayName);
+  const [height, setHeight] = useState(
+    data.profile.heightCm?.toString().replace(".", ",") ?? "",
+  );
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [preview, setPreview] = useState<AppData | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  async function saveProfile(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    try {
+      const heightCm = height.trim()
+        ? parseDecimal(height, "uma altura")
+        : null;
+      if (
+        heightCm !== null &&
+        (heightCm < MIN_HEIGHT_CM || heightCm > MAX_HEIGHT_CM)
+      )
+        throw new Error(
+          `Confira a altura: informe entre ${MIN_HEIGHT_CM} e ${MAX_HEIGHT_CM} cm.`,
+        );
+      await mutate((current) => ({
+        ...current,
+        profile: { displayName: name.trim(), heightCm },
+      }));
+      setMessage("Perfil salvo neste navegador.");
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível salvar o perfil.",
+      );
+    }
+  }
+
+  async function chooseFile(event: ChangeEvent<HTMLInputElement>) {
+    setPreview(null);
+    setError("");
+    setMessage("");
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      if (file.size > 10_000_000)
+        throw new Error(
+          "O arquivo é grande demais para esta importação inicial (limite de 10 MB).",
+        );
+      const parsed = parseBackup(JSON.parse(await file.text()));
+      validateAnthropometrics(parsed);
+      setPreview(parsed);
+    } catch (cause) {
+      setError(
+        cause instanceof Error &&
+          (cause.message.startsWith("O arquivo é grande") ||
+            cause.message.startsWith("O arquivo contém"))
+          ? cause.message
+          : "Arquivo incompatível. Selecione um backup JSON da Biorotina em uma versão compatível.",
+      );
+    }
+  }
+
+  async function importBackup() {
+    if (!preview) return;
+    const existing = totalRecords(data);
+    const incoming = totalRecords(preview);
+    if (
+      !window.confirm(
+        `Este arquivo tem ${incoming} registros. Ele substituirá os ${existing} registros e o perfil deste navegador. Deseja continuar?`,
+      )
+    )
+      return;
+    setError("");
+    try {
+      if (existing) downloadJson(data, "-antes-da-importacao");
+      await replace(preview);
+      setName(preview.profile.displayName);
+      setHeight(preview.profile.heightCm?.toString().replace(".", ",") ?? "");
+      setPreview(null);
+      if (fileInput.current) fileInput.current.value = "";
+      setMessage(
+        "Importação concluída. Uma cópia dos dados anteriores foi preparada para download quando havia registros locais.",
+      );
+    } catch {
+      setError(
+        "Não foi possível importar. Os dados anteriores continuam neste navegador.",
+      );
+    }
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Preferências"
+        title="Configurações"
+        description="Ajuste seu perfil e mantenha uma cópia dos seus dados."
+      />
+      <div className="settings-grid">
+        <section className="panel">
+          <div className="card-title">
+            <span className="list-icon">
+              <UserRound size={20} aria-hidden="true" />
+            </span>
+            <div>
+              <h2>Perfil</h2>
+              <p>
+                Essas informações ficam no navegador e ajudam a contextualizar
+                seus registros.
+              </p>
+            </div>
+          </div>
+          <form onSubmit={saveProfile} className="form-grid">
+            <div className="field">
+              <label htmlFor="profile-name">
+                Como você quer ser chamado?{" "}
+                <span className="optional">opcional</span>
+              </label>
+              <input
+                id="profile-name"
+                maxLength={80}
+                placeholder="Seu nome"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="profile-height">
+                Altura em cm <span className="optional">opcional</span>
+              </label>
+              <input
+                id="profile-height"
+                inputMode="decimal"
+                placeholder="Ex.: 168"
+                value={height}
+                onChange={(event) => setHeight(event.target.value)}
+              />
+              <small>Usada apenas para calcular o IMC.</small>
+            </div>
+            <button className="button primary">Salvar perfil</button>
+          </form>
+        </section>
+        <section className="panel">
+          <div className="card-title">
+            <span className="list-icon">
+              <FileJson2 size={20} aria-hidden="true" />
+            </span>
+            <div>
+              <h2>Backup JSON</h2>
+              <p>Guarde uma cópia dos seus dados em um lugar seguro.</p>
+            </div>
+          </div>
+          <div className="backup-actions">
+            <button
+              className="button primary"
+              type="button"
+              onClick={() => {
+                try {
+                  downloadJson(data);
+                  setError("");
+                  setMessage(
+                    "Download do backup iniciado. Confira o arquivo na pasta de downloads.",
+                  );
+                } catch {
+                  setError("Não foi possível iniciar o download do backup.");
+                }
+              }}
+            >
+              <Download size={18} />
+              Exportar dados
+            </button>
+            <input
+              ref={fileInput}
+              id="backup-file"
+              type="file"
+              accept="application/json,.json"
+              onChange={chooseFile}
+            />
+            <label
+              className="button secondary upload-button"
+              htmlFor="backup-file"
+            >
+              <Upload size={18} />
+              Escolher backup
+            </label>
+          </div>
+          {preview && (
+            <div className="import-preview">
+              <strong>Arquivo pronto para importar</strong>
+              <p>
+                {totalRecords(preview)} registros · perfil{" "}
+                {preview.profile.displayName ? "preenchido" : "sem nome"}. A
+                importação substitui os dados deste navegador.
+              </p>
+              <p>
+                Última alteração no arquivo: {dateTimePt(preview.updatedAt)}.
+              </p>
+              <ul className="backup-preview-list">
+                <li>Peso: {preview.weights.length}</li>
+                <li>Atividades: {preview.activities.length}</li>
+                <li>Refeições: {preview.meals.length}</li>
+                <li>Água: {preview.hydrationEntries.length}</li>
+                <li>Medicamentos: {preview.medications.length}</li>
+                <li>Registros de uso: {preview.medicationLogs.length}</li>
+              </ul>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={importBackup}
+              >
+                Importar este arquivo
+              </button>
+            </div>
+          )}
+          <Notice kind="warning">
+            O JSON contém seus dados pessoais em texto legível. Armazene a cópia
+            com cuidado.
+          </Notice>
+        </section>
+        <section className="panel">
+          <div className="card-title">
+            <span className="list-icon">
+              <Cloud size={20} aria-hidden="true" />
+            </span>
+            <div>
+              <h2>Google Drive</h2>
+              <p>Sincronização opcional entre seus dispositivos.</p>
+            </div>
+          </div>
+          <span className="pill-label">Próxima etapa</span>
+          <p className="muted">
+            A conexão com o seu Drive será ativada depois de configurarmos o
+            cliente OAuth. O uso local não exige login.
+          </p>
+          <p className="muted small">
+            Quando disponível, o app mostrará a última sincronização e pedirá
+            sua escolha antes de substituir versões em conflito.
+          </p>
+        </section>
+        <section className="panel">
+          <div className="card-title">
+            <span className="list-icon">
+              <ShieldCheck size={20} aria-hidden="true" />
+            </span>
+            <div>
+              <h2>Seus dados</h2>
+              <p>
+                {totalRecords(data)}{" "}
+                {totalRecords(data) === 1
+                  ? "registro salvo"
+                  : "registros salvos"}{" "}
+                neste navegador.
+              </p>
+            </div>
+          </div>
+          <p className="muted">
+            Limpar os dados do navegador pode apagar estes registros. Exporte um
+            backup regularmente.
+          </p>
+        </section>
+      </div>
+      {(message || error) && (
+        <div className="floating-feedback" role={error ? "alert" : "status"}>
+          {error || message}
+        </div>
+      )}
+    </>
+  );
+}

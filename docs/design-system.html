@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Catálogo visual do Biorotina Design System: fundamentos, componentes e exemplos de saúde e bem-estar.">
+  <title>Biorotina · Design System</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/biorotina-mark.svg">
+  <link rel="stylesheet" href="./tokens.css">
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-size: 16px; line-height: 1.5; }
+    a { color: var(--color-action); text-underline-offset: 3px; }
+    svg { flex: none; }
+    .shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+    .sidebar { position: sticky; top: 0; height: 100vh; overflow: auto; background: var(--color-surface); border-right: 1px solid var(--color-border); padding: 28px 18px; }
+    .brand { display: flex; align-items: center; gap: 10px; color: var(--color-text); text-decoration: none; font-size: 20px; font-weight: 700; letter-spacing: -.03em; margin: 0 8px 28px; }
+    .mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--color-action); color: white; }
+    .brand small { display: block; color: var(--color-text-secondary); font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+    .nav-group { color: var(--color-text-secondary); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; padding: 10px 12px 6px; }
+    .sidebar nav a { display: block; border-radius: var(--radius-sm); color: var(--color-text-secondary); text-decoration: none; padding: 9px 12px; margin: 2px 0; font-size: 14px; }
+    .sidebar nav a:hover, .sidebar nav a:focus-visible { color: var(--color-action); background: var(--color-action-soft); }
+    .sidebar-note { margin: 30px 10px 0; border-top: 1px solid var(--color-border); padding-top: 20px; color: var(--color-text-secondary); font-size: 12px; }
+    main { min-width: 0; }
+    .wrap { max-width: 1232px; margin: 0 auto; padding: 0 40px; }
+    .hero { background: linear-gradient(125deg, var(--green-100) 0%, var(--color-canvas) 62%, var(--blue-50) 100%); border-bottom: 1px solid var(--color-border); }
+    .hero-inner { display: grid; grid-template-columns: 1.1fr .9fr; align-items: center; gap: 40px; min-height: 410px; padding-top: 64px; padding-bottom: 64px; }
+    .eyebrow { color: var(--color-action); font-size: 12px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+    h1, h2, h3, h4, p { margin-top: 0; }
+    h1 { font-size: clamp(38px, 5vw, 58px); line-height: 1.08; letter-spacing: -.045em; max-width: 640px; margin: 16px 0 20px; }
+    h2 { font-size: clamp(25px, 2.7vw, 32px); line-height: 1.2; letter-spacing: -.028em; margin-bottom: 10px; }
+    h3 { font-size: 20px; line-height: 1.35; letter-spacing: -.02em; margin-bottom: 10px; }
+    h4 { font-size: 16px; margin-bottom: 8px; }
+    .lead { color: var(--color-text-secondary); font-size: 18px; line-height: 1.55; max-width: 580px; margin-bottom: 24px; }
+    .hero-actions, .row, .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .hero-art { position: relative; min-height: 310px; border-radius: 30px; background: rgba(255,255,255,.64); border: 1px solid rgba(255,255,255,.9); box-shadow: var(--shadow-md); display: grid; place-items: center; overflow: hidden; }
+    .hero-art::before, .hero-art::after { content: ''; position: absolute; width: 270px; height: 270px; border: 1px solid var(--green-300); border-radius: 50%; }
+    .hero-art::before { transform: translate(-110px, 30px); }
+    .hero-art::after { transform: translate(110px, -30px); }
+    .hero-mark { width: 154px; height: 154px; border-radius: 44px; background: var(--color-action); color: white; display: grid; place-items: center; box-shadow: 0 24px 52px rgb(32 92 79 / 22%); z-index: 1; }
+    .hero-art span { position: absolute; bottom: 24px; z-index: 1; color: var(--color-text-secondary); font-size: 13px; font-weight: 600; }
+    .section { padding-top: 72px; padding-bottom: 72px; border-bottom: 1px solid var(--color-border); scroll-margin-top: 20px; }
+    .section-intro { max-width: 740px; color: var(--color-text-secondary); margin-bottom: 30px; }
+    .grid { display: grid; gap: 20px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-sm); min-width: 0; }
+    .panel p:last-child { margin-bottom: 0; }
+    .panel.soft { background: var(--color-surface-tint); }
+    .principle-no { color: var(--color-action); font-weight: 700; font-size: 13px; letter-spacing: .1em; margin-bottom: 14px; }
+    .muted { color: var(--color-text-secondary); }
+    .small { font-size: 13px; }
+    .swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .swatch { min-width: 0; }
+    .swatch-color { height: 72px; border-radius: 12px; border: 1px solid rgb(29 52 46 / 8%); }
+    .swatch strong, .swatch code { display: block; font-size: 12px; margin-top: 6px; }
+    .swatch code { color: var(--color-text-secondary); font-family: var(--font-ui); }
+    .semantic { display: flex; flex-wrap: wrap; gap: 10px; }
+    .semantic span { border-radius: var(--radius-pill); padding: 9px 13px; font-size: 13px; font-weight: 700; }
+    .type-row { display: grid; grid-template-columns: 130px 1fr auto; align-items: baseline; gap: 20px; border-top: 1px solid var(--color-border); padding: 18px 0; }
+    .type-row:last-child { border-bottom: 1px solid var(--color-border); }
+    .type-row > :last-child { color: var(--color-text-secondary); font-size: 13px; white-space: nowrap; }
+    .display-sample { font-size: 44px; font-weight: 700; line-height: 1.12; letter-spacing: -.04em; }
+    .h1-sample { font-size: 32px; font-weight: 700; line-height: 1.2; letter-spacing: -.025em; }
+    .h2-sample { font-size: 24px; font-weight: 700; line-height: 1.28; letter-spacing: -.025em; }
+    .metric-sample { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .space-list { display: flex; flex-direction: column; gap: 13px; }
+    .space-item { display: grid; grid-template-columns: 70px 1fr 45px; gap: 14px; align-items: center; font-size: 13px; }
+    .space-bar { height: 14px; max-width: 100%; border-radius: 4px; background: var(--green-300); }
+    .icon-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+    .icon-cell { border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-md); padding: 19px 8px; display: grid; place-items: center; gap: 9px; text-align: center; color: var(--color-action); }
+    .icon-cell span { color: var(--color-text-secondary); font-size: 12px; }
+    .icon { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .btn { min-height: 48px; padding: 0 18px; border-radius: var(--radius-sm); border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 700; line-height: 1.2; text-decoration: none; cursor: pointer; transition: background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard); }
+    .btn.primary { color: white; background: var(--color-action); }
+    .btn.primary:hover { background: var(--color-action-hover); }
+    .btn.secondary { color: var(--color-action); background: var(--color-surface); border-color: var(--color-border-strong); }
+    .btn.secondary:hover { background: var(--color-action-soft); }
+    .btn.tonal { color: var(--color-action); background: var(--color-action-soft); }
+    .btn.text { color: var(--color-action); background: transparent; padding-left: 8px; padding-right: 8px; }
+    .btn.danger { color: white; background: var(--color-danger); }
+    .btn:disabled { background: var(--color-disabled-bg); color: var(--color-disabled-text); cursor: not-allowed; }
+    .field { display: grid; gap: 8px; margin-bottom: 16px; }
+    .field label { font-size: 14px; font-weight: 700; }
+    .field input, .field select { width: 100%; height: 48px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: white; padding: 0 13px; color: var(--color-text); }
+    .field small { color: var(--color-text-secondary); }
+    .field.error input { border-color: var(--color-danger); }
+    .field.error small { color: var(--color-danger); }
+    .mini-divider { height: 1px; background: var(--color-border); margin: 22px 0; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-pill); padding: 7px 12px; font-size: 13px; font-weight: 600; background: white; color: var(--color-text-secondary); }
+    .chip.selected { background: var(--color-action-soft); border-color: var(--green-200); color: var(--color-action); }
+    .notice { display: flex; align-items: flex-start; gap: 11px; border-radius: var(--radius-md); padding: 14px 16px; font-size: 14px; }
+    .notice.info { color: var(--color-info); background: var(--color-info-soft); }
+    .notice.success { color: var(--color-success); background: var(--color-success-soft); }
+    .notice.warning { color: var(--color-warning); background: var(--color-warning-soft); }
+    .notice.danger { color: var(--color-danger); background: var(--color-danger-soft); }
+    .notice strong { display: block; }
+    .demo { background: var(--neutral-100); border: 1px solid var(--color-border); border-radius: 28px; padding: 20px; }
+    .app { display: grid; grid-template-columns: 200px minmax(0, 1fr); background: var(--color-canvas); border: 1px solid var(--color-border); border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-lg); min-height: 660px; }
+    .app-nav { background: white; border-right: 1px solid var(--color-border); padding: 23px 14px; }
+    .app-nav .brand { font-size: 17px; margin: 0 6px 27px; }
+    .app-nav .mark { width: 30px; height: 30px; border-radius: 10px; }
+    .app-nav .brand svg { width: 23px; height: 23px; }
+    .app-nav a { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--color-text-secondary); font-weight: 600; font-size: 13px; border-radius: 10px; padding: 10px 11px; margin-bottom: 3px; }
+    .app-nav a.active { color: var(--color-action); background: var(--color-action-soft); }
+    .app-nav a .icon { width: 18px; height: 18px; }
+    .app-mobile-nav { display: none; }
+    .app-content { padding: 30px; min-width: 0; }
+    .app-top { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+    .app-top h3 { font-size: 26px; margin: 5px 0 2px; }
+    .app-hero { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-radius: 20px; padding: 23px 25px; background: var(--green-100); margin-bottom: 20px; }
+    .app-hero h4 { font-size: 21px; margin-bottom: 5px; }
+    .app-hero p { max-width: 460px; color: var(--color-text-secondary); font-size: 14px; margin: 0; }
+    .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; }
+    .metric-card { background: white; border: 1px solid var(--color-border); border-radius: 16px; padding: 17px; }
+    .metric-card .top { display: flex; align-items: center; justify-content: space-between; color: var(--color-text-secondary); font-size: 12px; font-weight: 700; }
+    .metric-card .icon { width: 18px; height: 18px; color: var(--color-action); }
+    .metric-card b { display: block; margin: 14px 0 3px; font-size: 27px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .metric-card b small { font-size: 14px; }
+    .metric-card p { color: var(--color-text-secondary); font-size: 11px; margin: 0; }
+    .app-bottom { display: grid; grid-template-columns: 1.15fr .85fr; gap: 13px; margin-top: 13px; }
+    .app-bottom .panel { border-radius: 16px; padding: 19px; }
+    .app-bottom h4 { margin-bottom: 14px; }
+    .record { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--color-border); font-size: 12px; }
+    .record-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--color-action-soft); color: var(--color-action); }
+    .record-icon .icon { width: 17px; height: 17px; }
+    .record span:last-child { margin-left: auto; color: var(--color-text-secondary); white-space: nowrap; }
+    .status-list { display: grid; gap: 12px; }
+    .status-item { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+    .status-item .icon { color: var(--color-action); width: 18px; height: 18px; }
+    .status-item strong { display: block; }
+    .status-item small { display: block; color: var(--color-text-secondary); }
+    .callout { border-left: 4px solid var(--color-info); background: var(--color-info-soft); border-radius: 0 12px 12px 0; padding: 18px 20px; }
+    .footer { padding-top: 38px; padding-bottom: 50px; color: var(--color-text-secondary); font-size: 13px; }
+    @media (max-width: 1120px) { .shell { grid-template-columns: 190px minmax(0, 1fr); } .wrap { padding-left: 28px; padding-right: 28px; } .hero-inner { gap: 25px; } .icon-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 850px) { .shell { display: block; } .sidebar { position: static; width: 100%; height: auto; padding: 12px 18px; display: flex; align-items: center; gap: 18px; border-right: 0; border-bottom: 1px solid var(--color-border); } .sidebar .brand { margin: 0; white-space: nowrap; } .sidebar nav { display: flex; overflow-x: auto; gap: 2px; } .sidebar nav a { white-space: nowrap; } .nav-group, .sidebar-note { display: none; } .hero-inner { grid-template-columns: 1fr; min-height: 0; } .hero-art { display: none; } .grid.four { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 620px) { .wrap { padding-left: 18px; padding-right: 18px; } .hero-inner { padding-top: 54px; padding-bottom: 54px; } .section { padding-top: 55px; padding-bottom: 55px; } .grid.two, .grid.three, .grid.four { grid-template-columns: 1fr; } .swatches { grid-template-columns: repeat(2, 1fr); } .type-row { grid-template-columns: 1fr; gap: 5px; } .type-row > :last-child { white-space: normal; } .icon-grid { grid-template-columns: repeat(3, 1fr); } .demo { padding: 8px; border-radius: 18px; } .app { display: block; } .app-nav { display: none; } .app-content { padding: 16px; } .app-top { align-items: center; } .app-top h3 { font-size: 22px; } .app-top .btn { font-size: 0; width: 46px; padding: 0; } .app-top .btn .icon { width: 21px; height: 21px; } .app-hero { padding: 18px; display: block; } .app-hero .btn { margin-top: 14px; } .metrics { grid-template-columns: 1fr; } .app-bottom { grid-template-columns: 1fr; } .app-mobile-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--color-border); background: var(--color-surface); padding: 8px 5px; } .app-mobile-nav a { min-height: 48px; display: grid; justify-items: center; align-content: center; gap: 2px; color: var(--color-text-secondary); text-decoration: none; font-size: 10px; font-weight: 700; } .app-mobile-nav a.active { color: var(--color-action); } .app-mobile-nav .icon { width: 19px; height: 19px; } }
+  </style>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+    <symbol id="leaf" viewBox="0 0 64 64"><path d="M14 38C17 20 33 12 52 13c0 21-8 37-26 39-9 1-15-5-12-14Z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/><path d="M16 51c8-14 18-22 33-31" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><path d="M26 44c-1-5-1-10 1-15M35 36c4 0 8 0 12 1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+    <symbol id="home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z"/><path d="M9 21v-7h6v7"/></symbol>
+    <symbol id="scale" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 10a4 4 0 0 1 8 0M12 10l2-2"/></symbol>
+    <symbol id="activity" viewBox="0 0 24 24"><path d="M2 12h4l3-7 5 14 3-7h5"/></symbol>
+    <symbol id="food" viewBox="0 0 24 24"><path d="M4 3v7a3 3 0 0 0 6 0V3M7 3v18M17 21V3c3 2 4 5 4 9h-4"/></symbol>
+    <symbol id="pill" viewBox="0 0 24 24"><path d="M7 21a5 5 0 0 1-3.5-8.5l9-9a5 5 0 0 1 7 7l-9 9A5 5 0 0 1 7 21Z"/><path d="m8 8 8 8"/></symbol>
+    <symbol id="plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
+    <symbol id="calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></symbol>
+    <symbol id="cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-1-7.9A7 7 0 0 1 19 12a3 3 0 0 1 0 6H7Z"/></symbol>
+    <symbol id="download" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4"/></symbol>
+    <symbol id="shield" viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3 8 8 11 5-3 8-6 8-11V5l-8-3Z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+  </svg>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="#inicio"><span class="mark"><svg width="27" height="27" aria-hidden="true"><use href="#leaf"/></svg></span><span>Biorotina<small>Design system</small></span></a>
+      <nav aria-label="Seções do catálogo">
+        <div class="nav-group">Fundamentos</div>
+        <a href="#principios">Princípios</a><a href="#cores">Cores</a><a href="#tipografia">Tipografia</a><a href="#espacamento">Espaçamento</a><a href="#icones">Ícones</a>
+        <div class="nav-group">Interface</div>
+        <a href="#componentes">Componentes</a><a href="#produto">Aplicação</a><a href="#privacidade">Seus dados</a>
+      </nav>
+      <p class="sidebar-note">Direção visual v1.0 · Exemplos conceituais.<br><a href="./design-system.md">Ler especificação completa</a></p>
+    </aside>
+    <main id="inicio">
+      <header class="hero"><div class="wrap hero-inner"><div><span class="eyebrow">Biorotina · Identidade e interface</span><h1>Seu cuidado,<br>no seu ritmo.</h1><p class="lead">Um espaço leve para acompanhar corpo, movimento, alimentação e medicamentos. Clareza para registrar; tranquilidade para entender.</p><div class="hero-actions"><a class="btn primary" href="#produto">Ver aplicação conceitual</a><a class="btn secondary" href="./design-system.md">Ler o guia</a></div></div><div class="hero-art" aria-hidden="true"><div class="hero-mark"><svg width="100" height="100"><use href="#leaf"/></svg></div><span>Calma · Clareza · Controle</span></div></div></header>
+      <section id="principios" class="section wrap"><span class="eyebrow">01 · Direção</span><h2>Uma experiência que acolhe.</h2><p class="section-intro">A interface ajuda a entender a rotina sem transformar saúde em cobrança. Cada decisão visual apoia leitura rápida e controle sobre os dados.</p><div class="grid three"><article class="panel"><div class="principle-no">01 / CLAREZA</div><h3>Dados com contexto</h3><p class="muted">Toda métrica mostra unidade, período e origem. Tendências têm comparação explícita.</p></article><article class="panel"><div class="principle-no">02 / RESPEITO</div><h3>Sem julgamento</h3><p class="muted">Pausas e recomeços fazem parte da rotina. A linguagem não culpa nem diagnostica.</p></article><article class="panel"><div class="principle-no">03 / CONTROLE</div><h3>Seus dados, suas escolhas</h3><p class="muted">O local de armazenamento, o backup e a sincronização ficam visíveis e compreensíveis.</p></article></div></section>
+      <section id="cores" class="section wrap"><span class="eyebrow">02 · Cor</span><h2>Verde suave, contraste seguro.</h2><p class="section-intro">Branco e verde claro criam espaço. Verde profundo concentra ações e títulos; azul comunica informação e sincronização.</p><div class="panel"><h3>Escala de marca</h3><div class="swatches"><div class="swatch"><div class="swatch-color" style="background:var(--green-50)"></div><strong>Verde 50</strong><code>#F2F9F4</code></div><div class="swatch"><div class="swatch-color" style="background:var(--green-100)"></div><strong>Verde 100</strong><code>#E5F3E9</code></div><div class="swatch"><div class="swatch-color" style="background:var(--green-300)"></div><strong>Verde 300</strong><code>#A8D3B6</code></div><div class="swatch"><div class="swatch-color" style="background:var(--green-500)"></div><strong>Verde 500</strong><code>#4A9876</code></div><div class="swatch"><div class="swatch-color" style="background:var(--green-700)"></div><strong>Verde 700</strong><code>#205C4F</code></div></div><div class="mini-divider"></div><h4>Cores semânticas</h4><div class="semantic"><span style="color:var(--color-action);background:var(--color-action-soft)">Ação · verde</span><span style="color:var(--color-info);background:var(--color-info-soft)">Informação · azul</span><span style="color:var(--color-warning);background:var(--color-warning-soft)">Atenção · âmbar</span><span style="color:var(--color-danger);background:var(--color-danger-soft)">Erro · terracota</span></div></div></section>
+      <section id="tipografia" class="section wrap"><span class="eyebrow">03 · Texto</span><h2>Uma voz legível e humana.</h2><p class="section-intro">DM Sans oferece formas amigáveis e números claros. A família única reduz ruído e simplifica a implementação.</p><div class="panel"><div class="type-row"><span class="small muted">Display</span><span class="display-sample">Cuide do seu jeito.</span><span>44 / 700 / 1,12</span></div><div class="type-row"><span class="small muted">Título 1</span><span class="h1-sample">Sua rotina, em perspectiva.</span><span>32 / 700 / 1,2</span></div><div class="type-row"><span class="small muted">Título 2</span><span class="h2-sample">Registros recentes</span><span>24 / 700 / 1,28</span></div><div class="type-row"><span class="small muted">Corpo</span><span>Veja o que mudou ao longo dos dias e registre apenas o que fizer sentido para você.</span><span>16 / 400 / 1,5</span></div><div class="type-row"><span class="small muted">Métrica</span><span class="metric-sample">72,4 <small>kg</small></span><span>32 / 700 / 1,1</span></div></div></section>
+      <section id="espacamento" class="section wrap"><span class="eyebrow">04 · Ritmo</span><h2>Espaço para respirar.</h2><p class="section-intro">Base de 4 px, cartões amplos e separações consistentes. A borda orienta mais do que a sombra.</p><div class="grid two"><div class="panel"><h3>Escala de espaçamento</h3><div class="space-list"><div class="space-item"><strong>1</strong><div class="space-bar" style="width:4px"></div><span>4 px</span></div><div class="space-item"><strong>2</strong><div class="space-bar" style="width:8px"></div><span>8 px</span></div><div class="space-item"><strong>3</strong><div class="space-bar" style="width:12px"></div><span>12 px</span></div><div class="space-item"><strong>4</strong><div class="space-bar" style="width:16px"></div><span>16 px</span></div><div class="space-item"><strong>6</strong><div class="space-bar" style="width:24px"></div><span>24 px</span></div><div class="space-item"><strong>8</strong><div class="space-bar" style="width:32px"></div><span>32 px</span></div><div class="space-item"><strong>12</strong><div class="space-bar" style="width:48px"></div><span>48 px</span></div><div class="space-item"><strong>16</strong><div class="space-bar" style="width:64px"></div><span>64 px</span></div></div></div><div class="panel soft"><h3>Formas e dimensões</h3><p><strong>10 px</strong> para campos e botões<br><strong>14–20 px</strong> para cartões<br><strong>28 px</strong> para destaques</p><div class="mini-divider"></div><p class="muted">Controles têm 48 px de altura. Áreas de toque importantes têm pelo menos 44 × 44 px. O conteúdo principal chega a 1200 px no desktop e mantém margens de 16 px no mobile.</p></div></div></section>
+      <section id="icones" class="section wrap"><span class="eyebrow">05 · Sinalização</span><h2>Ícones que ajudam a encontrar.</h2><p class="section-intro">Traço arredondado de aproximadamente 2 px em uma grade de 24 px. Ações importantes conservam texto ao lado do símbolo.</p><div class="icon-grid"><div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="#home"/></svg><span>Hoje</span></div><div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="#scale"/></svg><span>Peso</span></div><div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="#activity"/></svg><span>Atividades</span></div><div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="#food"/></svg><span>Alimentação</span></div><div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="#pill"/></svg><span>Medicamentos</span></div><div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="#plus"/></svg><span>Registrar</span></div><div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="#calendar"/></svg><span>Histórico</span></div><div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="#cloud"/></svg><span>Sincronização</span></div><div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="#download"/></svg><span>Exportar</span></div><div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="#shield"/></svg><span>Seus dados</span></div><div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="#info"/></svg><span>Informação</span></div><div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="#check"/></svg><span>Concluído</span></div></div></section>
+      <section id="componentes" class="section wrap"><span class="eyebrow">06 · Componentes</span><h2>Peças pequenas, decisões claras.</h2><p class="section-intro">Cada componente precisa comunicar função, estado e resultado. Os exemplos abaixo mostram aparência; os comportamentos estão detalhados no guia.</p><div class="grid two"><div class="panel"><h3>Botões</h3><div class="actions"><button class="btn primary" type="button">Salvar registro</button><button class="btn secondary" type="button">Ver histórico</button><button class="btn tonal" type="button">Editar</button><button class="btn text" type="button">Saiba mais</button><button class="btn danger" type="button">Excluir</button><button class="btn" type="button" disabled>Indisponível</button></div><div class="mini-divider"></div><h4>Filtros</h4><div class="row"><span class="chip selected">✓ Semana</span><span class="chip">Mês</span><span class="chip">Ano</span></div></div><div class="panel"><h3>Formulário de peso</h3><div class="field"><label for="peso">Peso</label><input id="peso" type="text" inputmode="decimal" placeholder="Ex.: 72,4 kg"><small>Informe o valor na unidade escolhida.</small></div><div class="field error"><label for="dose">Dose</label><input id="dose" type="text" inputmode="decimal" aria-describedby="dose-error" placeholder="Ex.: 500"><small id="dose-error">Informe uma dose maior que zero.</small></div><div class="row"><div class="field" style="flex:1;margin-bottom:0"><label for="unidade">Unidade</label><select id="unidade"><option>mg</option><option>ml</option><option>comprimido</option></select></div><div class="field" style="flex:1;margin-bottom:0"><label for="horario">Horário</label><input id="horario" type="time" value="08:00"></div></div></div></div><div class="grid two" style="margin-top:20px"><div class="panel"><h3>Feedback</h3><div class="grid"><div class="notice success"><svg class="icon" aria-hidden="true"><use href="#check"/></svg><div><strong>Registro salvo</strong> Você pode editar este item no histórico.</div></div><div class="notice info"><svg class="icon" aria-hidden="true"><use href="#cloud"/></svg><div><strong>Salvo neste navegador</strong> Conecte o Google Drive se quiser sincronizar.</div></div><div class="notice warning"><svg class="icon" aria-hidden="true"><use href="#info"/></svg><div><strong>Backup recomendado</strong> Exporte seus dados antes de limpar o navegador.</div></div><div class="notice danger"><svg class="icon" aria-hidden="true"><use href="#info"/></svg><div><strong>Não foi possível importar</strong> Confira o arquivo e tente novamente.</div></div></div></div><div class="panel"><h3>Resumo de medicamento</h3><p class="muted small">Registro planejado · Hoje, 08:00</p><p style="font-size:20px;font-weight:700;margin-bottom:4px">Medicamento de exemplo</p><p>500 mg · via oral</p><div class="mini-divider"></div><p class="small muted">O uso só é registrado após uma ação da pessoa.</p><button class="btn primary" type="button">Registrar uso</button></div></div></section>
+      <section id="produto" class="section wrap"><span class="eyebrow">07 · Aplicação</span><h2>Uma visão para o dia a dia.</h2><p class="section-intro">Tela inicial conceitual, com valores fictícios. A pessoa pode escolher o que acompanhar; não há pontuação única de saúde.</p><div class="demo"><div class="app"><aside class="app-nav"><div class="brand"><span class="mark"><svg aria-hidden="true"><use href="#leaf"/></svg></span>Biorotina</div><nav aria-label="Navegação do exemplo"><a class="active" href="#produto"><svg class="icon" aria-hidden="true"><use href="#home"/></svg>Hoje</a><a href="#produto"><svg class="icon" aria-hidden="true"><use href="#calendar"/></svg>Registros</a><a href="#produto"><svg class="icon" aria-hidden="true"><use href="#activity"/></svg>Histórico</a><a href="#privacidade"><svg class="icon" aria-hidden="true"><use href="#shield"/></svg>Seus dados</a></nav></aside><div class="app-content"><div class="app-top"><div><div class="eyebrow">Quarta-feira, 23 de setembro</div><h3>Seu dia, do seu jeito.</h3><span class="muted small">Veja o que você escolheu acompanhar.</span></div><button class="btn primary" type="button" aria-label="Registrar novo item"><svg class="icon" aria-hidden="true"><use href="#plus"/></svg>Registrar</button></div><div class="app-hero"><div><h4>Pequenos registros contam.</h4><p>Você pode registrar uma atividade, refeição, medida ou medicamento quando fizer sentido.</p></div><button class="btn secondary" type="button">Adicionar registro</button></div><div class="metrics"><div class="metric-card"><div class="top">PESO <svg class="icon" aria-hidden="true"><use href="#scale"/></svg></div><b>72,4 <small>kg</small></b><p>Último registro · 22 set</p></div><div class="metric-card"><div class="top">MOVIMENTO <svg class="icon" aria-hidden="true"><use href="#activity"/></svg></div><b>35 <small>min</small></b><p>Atividades registradas hoje</p></div><div class="metric-card"><div class="top">MEDICAMENTOS <svg class="icon" aria-hidden="true"><use href="#pill"/></svg></div><b>1 <small>de 2</small></b><p>Registros de uso hoje</p></div></div><div class="app-bottom"><div class="panel"><h4>Registros recentes</h4><div class="record"><span class="record-icon"><svg class="icon" aria-hidden="true"><use href="#activity"/></svg></span><strong>Caminhada · 35 min</strong><span>Hoje, 07:30</span></div><div class="record"><span class="record-icon"><svg class="icon" aria-hidden="true"><use href="#food"/></svg></span><strong>Café da manhã</strong><span>Hoje, 08:15</span></div><div class="record"><span class="record-icon"><svg class="icon" aria-hidden="true"><use href="#scale"/></svg></span><strong>Peso · 72,4 kg</strong><span>Ontem</span></div></div><div class="panel"><h4>Seus dados</h4><div class="status-list"><div class="status-item"><svg class="icon" aria-hidden="true"><use href="#shield"/></svg><div><strong>Salvos neste navegador</strong><small>Os registros ficam neste dispositivo.</small></div></div><div class="status-item"><svg class="icon" aria-hidden="true"><use href="#cloud"/></svg><div><strong>Drive não conectado</strong><small>Sincronização opcional.</small></div></div><div class="status-item"><svg class="icon" aria-hidden="true"><use href="#download"/></svg><div><strong>Exportar cópia</strong><small>Baixe seus registros em JSON.</small></div></div></div></div></div></div><nav class="app-mobile-nav" aria-label="Navegação mobile do exemplo"><a class="active" href="#produto"><svg class="icon" aria-hidden="true"><use href="#home"/></svg>Hoje</a><a href="#produto"><svg class="icon" aria-hidden="true"><use href="#calendar"/></svg>Registros</a><a href="#produto"><svg class="icon" aria-hidden="true"><use href="#activity"/></svg>Histórico</a><a href="#privacidade"><svg class="icon" aria-hidden="true"><use href="#shield"/></svg>Seus dados</a></nav></div></div></section>
+      <section id="privacidade" class="section wrap"><span class="eyebrow">08 · Confiança</span><h2>O estado dos dados está à vista.</h2><p class="section-intro">Saúde é informação pessoal. A interface precisa dizer onde cada registro está e o que a próxima ação fará.</p><div class="grid three"><div class="panel"><svg class="icon" style="color:var(--color-action);margin-bottom:12px" aria-hidden="true"><use href="#shield"/></svg><h3>Neste navegador</h3><p class="muted">Os registros permanecem locais. Limpar dados do navegador ou trocar de dispositivo pode removê-los.</p></div><div class="panel"><svg class="icon" style="color:var(--color-info);margin-bottom:12px" aria-hidden="true"><use href="#cloud"/></svg><h3>Seu Google Drive</h3><p class="muted">Conexão opcional. Exibir data da última sincronização e resolver conflitos antes de substituir versões.</p></div><div class="panel"><svg class="icon" style="color:var(--color-action);margin-bottom:12px" aria-hidden="true"><use href="#download"/></svg><h3>Arquivo JSON</h3><p class="muted">Exportar, conferir e importar cópias com resumo claro dos registros antes de aplicar.</p></div></div><div class="callout" style="margin-top:20px"><strong>Nota de produto</strong><br>Este catálogo demonstra a direção de design. As ações e a sincronização ainda não foram implementadas neste repositório.</div></section>
+      <footer class="footer wrap">Biorotina Design System 1.0 · <a href="./design-system.md">Especificação completa</a> · <a href="./tokens.css">Tokens CSS</a></footer>
+    </main>
+  </div>
+</body>
+</html>

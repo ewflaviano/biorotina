@@ -1,0 +1,85 @@
+name: Validate and deploy
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      CARGO_BUILD_JOBS: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: push
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: make check
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: push
+      - run: npm ci
+      - name: Assume AWS role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: sa-east-1
+      - name: Install Lambda build tool
+        run: cargo install cargo-lambda --locked
+      - name: Build push service
+        run: |
+          PATH="$PWD/node_modules/.bin:$PATH" CARGO_BUILD_JOBS=2 OPENSSL_STATIC=1 cargo lambda build --release --disable-optimizations --output-format zip --bins --manifest-path push/Cargo.toml
+          cp push/target/lambda/biorotina-api/bootstrap.zip push/target/lambda/biorotina-api.zip
+          cp push/target/lambda/biorotina-tick/bootstrap.zip push/target/lambda/biorotina-tick.zip
+      - name: Deploy AWS stack
+        run: npx serverless deploy
+        env:
+          ENABLE_CUSTOM_DOMAIN: ${{ vars.ENABLE_CUSTOM_DOMAIN || 'true' }}
+      - name: Build frontend against deployed API
+        run: |
+          API_URL="$(aws cloudformation describe-stacks --stack-name biorotina-dev --query "Stacks[0].Outputs[?OutputKey=='PushApiUrl'].OutputValue | [0]" --output text)"
+          test -n "$API_URL" && test "$API_URL" != None
+          VITE_PUSH_API_URL="$API_URL" npm run build
+      - name: Publish frontend
+        run: |
+          BUCKET="$(aws cloudformation describe-stacks --stack-name biorotina-dev --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue | [0]" --output text)"
+          DISTRIBUTION="$(aws cloudformation describe-stacks --stack-name biorotina-dev --query "Stacks[0].Outputs[?OutputKey=='FrontendDistributionId'].OutputValue | [0]" --output text)"
+          test -n "$BUCKET" && test "$BUCKET" != None
+          test -n "$DISTRIBUTION" && test "$DISTRIBUTION" != None
+          aws s3 sync dist/ "s3://$BUCKET/" --delete --cache-control 'public,max-age=300'
+          aws s3 cp dist/index.html "s3://$BUCKET/index.html" --cache-control 'no-cache'
+          aws s3 cp dist/sw.js "s3://$BUCKET/sw.js" --cache-control 'no-cache'
+          aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION" --paths '/*'

@@ -1,0 +1,74 @@
+# Arquitetura inicial da Biorotina
+
+**Estado:** app local funcional, serviço Web Push e infraestrutura AWS implementados. A sincronização Google Drive segue planejada.
+
+## Decisão principal
+
+O primeiro aplicativo é **React + TypeScript + Vite**, com interface mobile first e dados em **IndexedDB**. O site pode ser distribuído como arquivos estáticos por **S3 privado + CloudFront com Origin Access Control**. Um backend não é necessário para registrar dados nem para uma futura sincronização direta com o Google Drive da pessoa. [Vite](https://vite.dev/guide/) produz os arquivos estáticos; [AWS](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/GettingStarted.SimpleDistribution.html) documenta o uso de S3 com OAC.
+
+```
+Celular / navegador
+  ├─ Interface React
+  ├─ IndexedDB: perfil e registros
+  ├─ Exportar/importar JSON
+  └─ Google Drive da pessoa (fase seguinte, consentimento opcional)
+
+CloudFront ── S3 privado: apenas os arquivos públicos do aplicativo
+
+Notificações com opt-in por dispositivo:
+Service Worker / PushSubscription ── API Gateway ── Lambda Rust com Axum
+                                                    ├─ DynamoDB: inscrição técnica e horários
+                                                    └─ Secrets Manager: segredo VAPID
+EventBridge Scheduler ── Lambda Rust de envio ── Web Push
+```
+
+## O que existe no esqueleto
+
+- Rotas para Hoje, Peso, Atividades, Alimentação, Medicação, Hidratação e Configurações. No celular, “Mais” reúne áreas secundárias em uma barra inferior de cinco destinos.
+- Registros locais de peso, atividade, refeição, água, medicamento e uso de medicamento; perfil com nome opcional e altura para IMC. Hidratação e medicamentos permitem vários horários diários de lembrete.
+- Exclusão individual com opção de desfazer durante a sessão; exclusão de medicamento pede confirmação e remove também seus registros de uso, com restauração conjunta. Repetição de água usa o horário atual; Peso, Atividade e Refeição preenchem um novo formulário com os dados anteriores. Medicamento pode ser editado sem perder o histórico de uso.
+- Calorias de refeições são **valores informados pela pessoa**. Para atividades escolhidas no catálogo, a interface sugere calorias a partir de MET do [Compêndio de 2024](https://pacompendium.com/adult-compendium/), duração e peso, identificando o valor como estimativa e mantendo edição livre. Atividades digitadas livremente não recebem estimativa automática.
+- Backup JSON com `schemaVersion: 3`, validação na importação e confirmação antes de substituir dados locais. Backups e documentos IndexedDB das versões 1 e 2 são migrados sem apagar registros, inclusive o antigo horário único de medicação.
+- A interface funciona sem conta. O código do domínio (`src/domain`) fica separado da interface para facilitar uma futura adaptação a React Native. IndexedDB é específico do navegador e será substituído por outro adaptador de armazenamento no app nativo.
+
+## Sincronização Google Drive: próxima fase
+
+Usar a biblioteca oficial **Google Identity Services** no navegador, com consentimento no momento de conectar o Drive. Pedir apenas o escopo `drive.appdata` e guardar o JSON em `appDataFolder`, uma pasta de dados do aplicativo que não aparece na interface normal do Drive. O [modelo de token do Google](https://developers.google.com/identity/oauth2/web/guides/use-token-model) permite chamar a API pelo navegador sem guardar refresh token em backend; os tokens de acesso são curtos e a pessoa poderá precisar autorizar novamente. A [documentação do Drive](https://developers.google.com/workspace/drive/api/guides/appdata) descreve o escopo e a pasta.
+
+O botão de conexão ainda não está ativo: precisamos configurar o projeto OAuth, suas origens autorizadas e testar conflitos entre dispositivos antes de liberar uma sincronização real. A pessoa sempre poderá usar o app localmente e exportar JSON.
+
+**Regra para conflitos:** não substituir silenciosamente. Comparar versão remota e revisão local; se ambos mudaram desde a última sincronização, apresentar as duas versões, permitir baixar uma cópia e pedir uma escolha explícita. Também definir o que acontece ao conectar outra conta Google no mesmo navegador. O JSON deve ser versionado e migrável.
+
+O **OAuth client ID** de aplicativo web é um identificador público e poderá entrar em uma configuração `VITE_`. **Client secret, tokens e credenciais AWS jamais entram no bundle.** O [Vite informa](https://vite.dev/guide/env-and-mode) que variáveis `VITE_` são expostas no código enviado ao navegador. O arquivo `.env.example` contém apenas um exemplo de identificador público; arquivos `.env` locais estão ignorados pelo Git.
+
+## Lembretes e backend mínimo
+
+Uma sessão de navegador não basta para entregar notificações depois que a página fecha. Web Push usa **Service Worker + PushSubscription**: o navegador entrega um endpoint e chaves de inscrição para aquela instalação, e o servidor usa esses dados para enviar a notificação. Esse endpoint é sensível e deve ser protegido. [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Push_API) descreve o fluxo. O envio requer permissão explícita; no iPhone, a [Apple documenta](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers) Web Push para apps web adicionados à Tela de Início.
+
+Fluxo implementado, sem conta pessoal:
+
+1. A pessoa ativa lembretes em um gesto claro e concede permissão ao navegador.
+2. O navegador cria uma inscrição de push e recebe um **identificador de instalação** e uma credencial opaca de administração. A credencial fica só no dispositivo; o servidor armazena seu hash para permitir alterar ou cancelar aquela inscrição.
+3. O servidor guarda apenas endpoint/chaves de push, união dos horários, fuso horário e prazo de expiração. Não guarda nome do medicamento, dose, refeições, peso, volume de água ou histórico.
+4. **EventBridge Scheduler** aciona uma **Lambda em Rust** a cada cinco minutos. Cada inscrição mantém seu próximo horário em UTC em um índice secundário do DynamoDB, dividido em 16 partições. A Lambda consulta somente horários vencidos, recupera avisos com até dez minutos de atraso e descarta os mais antigos; depois calcula o próximo horário. Uma marcação condicional impede envio duplicado. A [AWS documenta](https://docs.aws.amazon.com/lambda/latest/dg/with-eventbridge-scheduler.html) esse tipo de invocação. O texto do push é genérico: a informação detalhada permanece no dispositivo.
+5. A pessoa pode desativar e revogar a inscrição. Endpoint inválido é removido. Logs não incluem endpoint, credencial ou dados de saúde.
+
+Isso dispensa identificar a pessoa por nome ou e-mail **para o envio por dispositivo**, mas ainda há dados técnicos pessoais, como endpoint e IP em trânsito. A inscrição técnica expira após 180 dias sem atualização; marcas de envio expiram após três dias. Em mais de um dispositivo, cada instalação escolhe separadamente receber notificações. O índice de próximos horários faz o custo de leitura crescer com os avisos devidos, em vez de crescer com todas as inscrições cadastradas. Há 16 consultas pequenas por execução mesmo sem avisos, além de uma leitura consistente por aviso candidato. Se o volume de envios simultâneos aumentar muito, o processamento pode ser distribuído por fila sem mudar o armazenamento local dos dados de saúde. Quando houver métricas reais de uso e custo, comparar essa solução com PostgreSQL para o armazenamento do serviço de notificações.
+
+## Quando um backend adicional faria sentido
+
+- Integrações com **client secret**, webhooks, filas ou dados que precisem ser processados fora do navegador.
+- Notificações opt-in, como acima.
+- Métricas operacionais agregadas do serviço, com desenho de privacidade próprio. Nunca enviar eventos que incluam peso, refeições, medicamentos, dose ou outros registros pessoais por padrão.
+- Recursos de IA que exijam chave mantida pelo projeto; nesse caso, os dados enviados e o consentimento precisarão ser explícitos. Uma chave fornecida pela pessoa exige um desenho separado de armazenamento e risco.
+
+Evitar um backend para dados pessoais só por antecipação. A migração de uma arquitetura estática para API Gateway + Lambda pode acontecer quando um recurso concreto precisar dela.
+
+## Segurança e futuro código aberto
+
+- Não registrar chaves, tokens, payloads de saúde, URLs de push ou arquivos JSON em logs.
+- Não colocar dados pessoais em URL, query string ou título da página; URLs podem aparecer em histórico e logs do CloudFront.
+- Credenciais de deploy pertencem ao ambiente de CI/IAM; segredos de Lambda a um gerenciador de segredos, nunca ao repositório ou ao build do navegador.
+- Manter `.env`, certificados e arquivos de credenciais fora do Git. Antes de publicar o repositório, fazer varredura **do histórico inteiro**, não apenas dos arquivos atuais, e definir uma licença de código aberto.
+- Backup JSON é texto legível. Uma opção de criptografia de backup pode ser estudada antes de sincronizar dados sensíveis no Drive; não afirmar que os dados estão criptografados de ponta a ponta sem implementar e auditar isso.
+- O aplicativo em produção deve ter HTTPS, Content Security Policy e dependências revisadas. Evitar serviços de analytics ou fontes externas que recebam dados de navegação sem decisão explícita.

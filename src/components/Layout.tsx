@@ -1,0 +1,245 @@
+import {
+  Activity,
+  Apple,
+  CalendarDays,
+  Droplets,
+  HeartPulse,
+  House,
+  LayoutGrid,
+  Pill,
+  Scale,
+  Settings2,
+  ShieldCheck,
+  X,
+} from "lucide-react";
+import { useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useAppData } from "../state/AppDataContext";
+
+const desktopNav = [
+  { to: "/", label: "Hoje", mobileLabel: "Hoje", icon: House },
+  { to: "/peso", label: "Peso", mobileLabel: "Peso", icon: Scale },
+  {
+    to: "/atividades",
+    label: "Atividades",
+    mobileLabel: "Atividade",
+    icon: Activity,
+  },
+  {
+    to: "/alimentacao",
+    label: "Alimentação",
+    mobileLabel: "Refeições",
+    icon: Apple,
+  },
+  {
+    to: "/medicamentos",
+    label: "Medicação",
+    mobileLabel: "Remédios",
+    icon: Pill,
+  },
+  {
+    to: "/hidratacao",
+    label: "Hidratação",
+    mobileLabel: "Água",
+    icon: Droplets,
+  },
+] as const;
+
+const mobileNav = [
+  desktopNav[0],
+  desktopNav[1],
+  desktopNav[2],
+  desktopNav[5],
+  { to: "/mais", label: "Mais áreas", mobileLabel: "Mais", icon: LayoutGrid },
+] as const;
+
+export function Layout() {
+  const { data, undoLabel, undoCount, undoLast, dismissUndo } = useAppData();
+  const location = useLocation();
+  const [undoFailure, setUndoFailure] = useState<{
+    label: string;
+    count: number;
+    message: string;
+  } | null>(null);
+  const name = data.profile.displayName.trim();
+  const undoError =
+    undoFailure?.label === undoLabel && undoFailure.count === undoCount
+      ? undoFailure.message
+      : "";
+
+  async function handleUndo() {
+    setUndoFailure(null);
+    try {
+      await undoLast();
+    } catch {
+      setUndoFailure({
+        label: undoLabel ?? "",
+        count: undoCount,
+        message: "Não foi possível restaurar o registro. Tente novamente.",
+      });
+    }
+  }
+
+  return (
+    <div className="app-shell">
+      <aside className="side-nav" aria-label="Navegação principal">
+        <div className="brand">
+          <img src="/biorotina-mark.svg" alt="" />
+          <span>
+            Biorotina<small>Seu cuidado, no seu ritmo</small>
+          </span>
+        </div>
+        <nav className="side-links">
+          {desktopNav.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === "/"}
+              className={({ isActive }) =>
+                `nav-link${isActive ? " active" : ""}`
+              }
+            >
+              <Icon size={20} aria-hidden="true" />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+        <div className="side-bottom">
+          <NavLink
+            to="/configuracoes"
+            className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
+          >
+            <Settings2 size={20} aria-hidden="true" />
+            Configurações
+          </NavLink>
+          <div className="storage-note">
+            <ShieldCheck size={18} aria-hidden="true" />
+            <span>Dados neste navegador</span>
+          </div>
+        </div>
+      </aside>
+      <div className="main-column">
+        <header className="topbar">
+          <div className="mobile-brand">
+            <img src="/biorotina-mark.svg" alt="" />
+            <span>Biorotina</span>
+          </div>
+          <div className="topbar-copy">
+            <HeartPulse size={18} aria-hidden="true" />
+            <span>Seu espaço de cuidado{name ? `, ${name}` : ""}</span>
+          </div>
+          <NavLink
+            className="settings-link"
+            to="/configuracoes"
+            aria-label="Abrir configurações"
+          >
+            <Settings2 size={21} aria-hidden="true" />
+          </NavLink>
+        </header>
+        <main id="conteudo" className="main-content">
+          <Outlet />
+        </main>
+        {undoLabel && (
+          <div className="undo-banner" role="status">
+            <span>
+              {undoError || `Registro removido: ${undoLabel}.`}
+              {undoCount > 1 && !undoError
+                ? ` ${undoCount} exclusões para desfazer.`
+                : ""}
+            </span>
+            <button type="button" className="undo-button" onClick={handleUndo}>
+              Desfazer
+            </button>
+            <button
+              type="button"
+              className="undo-dismiss"
+              aria-label="Dispensar opção de desfazer"
+              onClick={() => {
+                dismissUndo();
+                setUndoFailure(null);
+              }}
+            >
+              <X size={18} aria-hidden="true" />
+            </button>
+          </div>
+        )}
+        <nav className="bottom-nav" aria-label="Navegação principal no celular">
+          {mobileNav.map(({ to, label, mobileLabel, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              aria-label={label}
+              end={to === "/"}
+              className={({ isActive }) =>
+                `bottom-link${isActive || (to === "/mais" && ["/alimentacao", "/medicamentos", "/configuracoes"].includes(location.pathname)) ? " active" : ""}`
+              }
+            >
+              <Icon size={20} aria-hidden="true" />
+              <span>{mobileLabel}</span>
+            </NavLink>
+          ))}
+        </nav>
+      </div>
+    </div>
+  );
+}
+
+export function PageHeader({
+  eyebrow,
+  title,
+  description,
+  action,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="page-header">
+      <div>
+        <span className="eyebrow">{eyebrow}</span>
+        <h1>{title}</h1>
+        <p>{description}</p>
+      </div>
+      {action && <div className="page-action">{action}</div>}
+    </div>
+  );
+}
+
+export function EmptyState({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: typeof CalendarDays;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="empty-state">
+      <span className="empty-icon">
+        <Icon size={25} aria-hidden="true" />
+      </span>
+      <h3>{title}</h3>
+      <p>{description}</p>
+    </div>
+  );
+}
+
+export function Notice({
+  children,
+  kind = "info",
+}: {
+  children: React.ReactNode;
+  kind?: "info" | "success" | "warning" | "danger";
+}) {
+  return (
+    <div
+      className={`notice ${kind}`}
+      role={kind === "danger" ? "alert" : "status"}
+    >
+      {children}
+    </div>
+  );
+}

@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+.vite/
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+credentials.json
+service-account*.json
+*.log
+*.tsbuildinfo
+.serverless/
+push/target/
+.local/

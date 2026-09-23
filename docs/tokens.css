@@ -1,0 +1,119 @@
+/* Biorotina Design System 1.0 — tema claro. Valores de cor ficam aqui;
+   componentes consomem apenas tokens semânticos. */
+@font-face {
+  font-family: 'DM Sans';
+  src: url('./assets/DMSans-variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  --font-ui: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-numeric: var(--font-ui);
+
+  --green-50: #f2f9f4;
+  --green-100: #e5f3e9;
+  --green-200: #cce6d4;
+  --green-300: #a8d3b6;
+  --green-400: #76b993;
+  --green-500: #4a9876;
+  --green-600: #3c755f;
+  --green-700: #205c4f;
+  --green-800: #174b41;
+  --green-900: #123b34;
+
+  --neutral-0: #ffffff;
+  --neutral-50: #f6faf7;
+  --neutral-100: #eef4f0;
+  --neutral-200: #d9e4dc;
+  --neutral-300: #bdcfc3;
+  --neutral-500: #49645b;
+  --neutral-700: #314b42;
+  --neutral-900: #1d342e;
+
+  --blue-50: #edf6fa;
+  --blue-200: #c7e2ec;
+  --blue-700: #286482;
+  --amber-50: #fff7ea;
+  --amber-700: #9c5a18;
+  --red-50: #fff0ed;
+  --red-700: #a8513b;
+  --purple-700: #69558a;
+
+  --color-canvas: var(--neutral-50);
+  --color-surface: var(--neutral-0);
+  --color-surface-tint: var(--green-50);
+  --color-surface-raised: var(--neutral-0);
+  --color-text: var(--neutral-900);
+  --color-text-secondary: var(--neutral-500);
+  --color-text-on-brand: var(--neutral-0);
+  --color-border: var(--neutral-200);
+  --color-border-strong: var(--neutral-300);
+  --color-action: var(--green-700);
+  --color-action-hover: var(--green-800);
+  --color-action-pressed: var(--green-900);
+  --color-action-soft: var(--green-100);
+  --color-focus: var(--blue-700);
+  --color-info: var(--blue-700);
+  --color-info-soft: var(--blue-50);
+  --color-success: var(--green-700);
+  --color-success-soft: var(--green-100);
+  --color-warning: var(--amber-700);
+  --color-warning-soft: var(--amber-50);
+  --color-danger: var(--red-700);
+  --color-danger-soft: var(--red-50);
+  --color-disabled-bg: var(--neutral-100);
+  --color-disabled-text: var(--neutral-500);
+  --color-overlay: rgb(21 43 34 / 54%);
+
+  --chart-weight: var(--green-700);
+  --chart-activity: var(--blue-700);
+  --chart-food: var(--amber-700);
+  --chart-medication: var(--purple-700);
+  --chart-grid: var(--neutral-200);
+
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 3px rgb(20 54 39 / 6%);
+  --shadow-md: 0 8px 28px rgb(20 54 39 / 9%);
+  --shadow-lg: 0 20px 56px rgb(20 54 39 / 13%);
+
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 320ms;
+  --ease-standard: cubic-bezier(.2, 0, 0, 1);
+
+  --content-max: 1200px;
+  --article-max: 720px;
+  --control-height: 48px;
+  --touch-target-min: 44px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { font-family: var(--font-ui); }
+body { margin: 0; background: var(--color-canvas); color: var(--color-text); }
+button, input, select, textarea { font: inherit; }
+:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

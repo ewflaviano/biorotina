@@ -1,0 +1,312 @@
+service: biorotina
+frameworkVersion: '3'
+
+package:
+  individually: true
+
+provider:
+  name: aws
+  region: sa-east-1
+  stage: dev
+  runtime: provided.al2023
+  architecture: x86_64
+  memorySize: 512
+  timeout: 30
+  logRetentionInDays: 14
+  environment:
+    PUSH_TABLE_NAME:
+      Ref: PushTable
+    PUSH_SECRET_ARN:
+      Ref: PushVapidSeed
+    PUBLIC_APP_URL:
+      Fn::If:
+        - UseCustomDomain
+        - https://biorotina.app.br
+        - Fn::Join:
+            - ''
+            - - 'https://'
+              - Fn::GetAtt: [FrontendDistribution, DomainName]
+  httpApi:
+    cors:
+      allowedOrigins:
+        - http://127.0.0.1:5173
+        - http://localhost:5173
+        - https://biorotina.app.br
+      allowedHeaders:
+        - authorization
+        - content-type
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      maxAge: 3600
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+          Resource:
+            - Fn::GetAtt: [PushTable, Arn]
+            - Fn::Join:
+                - ''
+                - - Fn::GetAtt: [PushTable, Arn]
+                  - /index/DueIndex
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource:
+            Ref: PushVapidSeed
+
+functions:
+  api:
+    handler: bootstrap
+    timeout: 28
+    package:
+      artifact: push/target/lambda/biorotina-api.zip
+    events:
+      - httpApi:
+          path: /api/push/{proxy+}
+          method: ANY
+  tick:
+    handler: bootstrap
+    timeout: 120
+    package:
+      artifact: push/target/lambda/biorotina-tick.zip
+    events:
+      - schedule:
+          method: scheduler
+          rate: cron(0/5 * * * ? *)
+          input:
+            kind: tick
+
+resources:
+  extensions:
+    HttpApi:
+      Properties:
+        CorsConfiguration:
+          AllowOrigins:
+            - http://127.0.0.1:5173
+            - http://localhost:5173
+            - https://biorotina.app.br
+            - Fn::Join:
+                - ''
+                - - 'https://'
+                  - Fn::GetAtt: [FrontendDistribution, DomainName]
+          AllowHeaders: [authorization, content-type]
+          AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
+          MaxAge: 3600
+  Conditions:
+    UseCustomDomain:
+      Fn::Equals: ["${env:ENABLE_CUSTOM_DOMAIN, 'true'}", 'true']
+  Resources:
+    PushTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+          - AttributeName: nextSlot
+            AttributeType: S
+          - AttributeName: dueShard
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: DueIndex
+            KeySchema:
+              - AttributeName: dueShard
+                KeyType: HASH
+              - AttributeName: nextSlot
+                KeyType: RANGE
+            Projection:
+              ProjectionType: INCLUDE
+              NonKeyAttributes: [data]
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+        SSESpecification:
+          SSEEnabled: true
+    PushVapidSeed:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        GenerateSecretString:
+          PasswordLength: 64
+          ExcludePunctuation: true
+    FrontendBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: biorotina-${aws:accountId}-${aws:region}-${sls:stage}-web
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+    FrontendOac:
+      Type: AWS::CloudFront::OriginAccessControl
+      Properties:
+        OriginAccessControlConfig:
+          Name: biorotina-${sls:stage}-oac
+          OriginAccessControlOriginType: s3
+          SigningBehavior: always
+          SigningProtocol: sigv4
+    FrontendDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Enabled: true
+          IPV6Enabled: true
+          Aliases:
+            Fn::If:
+              - UseCustomDomain
+              - [biorotina.app.br]
+              - Ref: AWS::NoValue
+          ViewerCertificate:
+            Fn::If:
+              - UseCustomDomain
+              - AcmCertificateArn: arn:aws:acm:us-east-1:872515289365:certificate/40f659e6-f97a-4f8b-8f3d-3123a88fb6ac
+                SslSupportMethod: sni-only
+                MinimumProtocolVersion: TLSv1.2_2021
+              - CloudFrontDefaultCertificate: true
+          DefaultRootObject: index.html
+          HttpVersion: http2
+          PriceClass: PriceClass_All
+          Origins:
+            - Id: frontend-s3
+              DomainName:
+                Fn::GetAtt: [FrontendBucket, RegionalDomainName]
+              S3OriginConfig:
+                OriginAccessIdentity: ''
+              OriginAccessControlId:
+                Fn::GetAtt: [FrontendOac, Id]
+          DefaultCacheBehavior:
+            TargetOriginId: frontend-s3
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            CachedMethods: [GET, HEAD, OPTIONS]
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+            Compress: true
+          CustomErrorResponses:
+            - ErrorCode: 403
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+            - ErrorCode: 404
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+    FrontendBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket:
+          Ref: FrontendBucket
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: AllowCloudFrontRead
+              Effect: Allow
+              Principal:
+                Service: cloudfront.amazonaws.com
+              Action: s3:GetObject
+              Resource:
+                Fn::Join:
+                  - ''
+                  - - Fn::GetAtt: [FrontendBucket, Arn]
+                    - '/*'
+              Condition:
+                StringEquals:
+                  AWS:SourceArn:
+                    Fn::Join:
+                      - ''
+                      - - 'arn:aws:cloudfront::'
+                        - Ref: AWS::AccountId
+                        - ':distribution/'
+                        - Ref: FrontendDistribution
+    ApiCustomDomain:
+      Condition: UseCustomDomain
+      Type: AWS::ApiGatewayV2::DomainName
+      Properties:
+        DomainName: api.biorotina.app.br
+        DomainNameConfigurations:
+          - CertificateArn: arn:aws:acm:sa-east-1:872515289365:certificate/6d6233b4-1f36-46d4-ac2f-59f8c1d4a4e2
+            EndpointType: REGIONAL
+            SecurityPolicy: TLS_1_2
+    ApiMapping:
+      Condition: UseCustomDomain
+      Type: AWS::ApiGatewayV2::ApiMapping
+      DependsOn: HttpApiStage
+      Properties:
+        ApiId:
+          Ref: HttpApi
+        DomainName:
+          Ref: ApiCustomDomain
+        Stage: $default
+    FrontendDnsA:
+      Condition: UseCustomDomain
+      Type: AWS::Route53::RecordSet
+      Properties:
+        HostedZoneId: Z02497163GOJPTP9ASUEW
+        Name: biorotina.app.br.
+        Type: A
+        AliasTarget:
+          DNSName:
+            Fn::GetAtt: [FrontendDistribution, DomainName]
+          HostedZoneId: Z2FDTNDATAQYW2
+    FrontendDnsAAAA:
+      Condition: UseCustomDomain
+      Type: AWS::Route53::RecordSet
+      Properties:
+        HostedZoneId: Z02497163GOJPTP9ASUEW
+        Name: biorotina.app.br.
+        Type: AAAA
+        AliasTarget:
+          DNSName:
+            Fn::GetAtt: [FrontendDistribution, DomainName]
+          HostedZoneId: Z2FDTNDATAQYW2
+    ApiDnsA:
+      Condition: UseCustomDomain
+      Type: AWS::Route53::RecordSet
+      Properties:
+        HostedZoneId: Z02497163GOJPTP9ASUEW
+        Name: api.biorotina.app.br.
+        Type: A
+        AliasTarget:
+          DNSName:
+            Fn::GetAtt: [ApiCustomDomain, RegionalDomainName]
+          HostedZoneId:
+            Fn::GetAtt: [ApiCustomDomain, RegionalHostedZoneId]
+  Outputs:
+    FrontendBucketName:
+      Value:
+        Ref: FrontendBucket
+    FrontendDistributionId:
+      Value:
+        Ref: FrontendDistribution
+    FrontendUrl:
+      Value:
+        Fn::If:
+          - UseCustomDomain
+          - https://biorotina.app.br
+          - Fn::Join:
+              - ''
+              - - 'https://'
+                - Fn::GetAtt: [FrontendDistribution, DomainName]
+    PushApiUrl:
+      Value:
+        Fn::If:
+          - UseCustomDomain
+          - https://api.biorotina.app.br
+          - Fn::GetAtt: [HttpApi, ApiEndpoint]
