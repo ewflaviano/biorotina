@@ -52,7 +52,7 @@ export function AnalyticsChoice() {
       </div>
       {preference === "unset" && (
         <p className="muted small">
-          Nenhuma métrica é enviada sem sua escolha.
+          Não enviamos métricas ao Google Analytics sem sua escolha.
         </p>
       )}
       <p className="muted small">

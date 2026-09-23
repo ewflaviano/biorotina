@@ -16,7 +16,9 @@ describe("escolha de métricas", () => {
     );
 
     expect(
-      screen.getByText("Nenhuma métrica é enviada sem sua escolha."),
+      screen.getByText(
+        "Não enviamos métricas ao Google Analytics sem sua escolha.",
+      ),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Não permitir" }));
     expect(localStorage.getItem("biorotina.analytics.consent.v1")).toBe(
