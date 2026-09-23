@@ -2,6 +2,10 @@ import {
   Activity,
   Apple,
   CalendarDays,
+  Cloud,
+  CloudAlert,
+  CloudCheck,
+  CloudUpload,
   Droplets,
   HeartPulse,
   House,
@@ -15,6 +19,7 @@ import {
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAppData } from "../state/AppDataContext";
+import { useDriveSync } from "../sync/DriveSyncContext";
 
 const desktopNav = [
   { to: "/", label: "Hoje", mobileLabel: "Hoje", icon: House },
@@ -55,6 +60,7 @@ const mobileNav = [
 
 export function Layout() {
   const { data, undoLabel, undoCount, undoLast, dismissUndo } = useAppData();
+  const drive = useDriveSync();
   const location = useLocation();
   const [undoFailure, setUndoFailure] = useState<{
     label: string;
@@ -128,14 +134,70 @@ export function Layout() {
             <HeartPulse size={18} aria-hidden="true" />
             <span>Seu espaço de cuidado{name ? `, ${name}` : ""}</span>
           </div>
-          <NavLink
-            className="settings-link"
-            to="/configuracoes"
-            aria-label="Abrir configurações"
-          >
-            <Settings2 size={21} aria-hidden="true" />
-          </NavLink>
+          <div className="topbar-actions">
+            {drive.account ? (
+              <NavLink
+                className={`drive-topbar ${drive.status}`}
+                to="/configuracoes"
+                aria-label={`Google Drive: ${drive.status === "synced" ? "sincronizado" : drive.status === "syncing" ? "sincronizando" : drive.status === "pending" ? "alterações pendentes" : "atenção necessária"}`}
+                title={drive.account.email}
+              >
+                {drive.status === "synced" ? (
+                  <CloudCheck size={18} aria-hidden="true" />
+                ) : drive.status === "pending" || drive.status === "syncing" ? (
+                  <CloudUpload size={18} aria-hidden="true" />
+                ) : (
+                  <CloudAlert size={18} aria-hidden="true" />
+                )}
+                <span>
+                  {drive.status === "syncing"
+                    ? "Enviando…"
+                    : drive.status === "pending"
+                      ? "Pendente"
+                      : drive.status === "conflict" || drive.status === "error"
+                        ? "Atenção"
+                        : "Drive"}
+                </span>
+              </NavLink>
+            ) : (
+              <button
+                className="drive-topbar"
+                type="button"
+                onClick={() => void drive.connect()}
+                disabled={!drive.available || drive.busy}
+                aria-label="Entrar com Google para sincronizar"
+                title={
+                  drive.available
+                    ? "Entrar com Google"
+                    : "Google Drive indisponível nesta instalação"
+                }
+              >
+                <Cloud size={18} aria-hidden="true" />
+                <span>{drive.busy ? "Entrando…" : "Entrar"}</span>
+              </button>
+            )}
+            <NavLink
+              className="settings-link"
+              to="/configuracoes"
+              aria-label="Abrir configurações"
+            >
+              <Settings2 size={21} aria-hidden="true" />
+            </NavLink>
+          </div>
         </header>
+        {location.pathname !== "/configuracoes" &&
+          (drive.error || drive.status === "conflict") && (
+            <div
+              className="sync-banner"
+              role={drive.error ? "alert" : "status"}
+            >
+              <span>
+                {drive.error ||
+                  "Há versões diferentes dos seus dados no Drive."}
+              </span>
+              <NavLink to="/configuracoes">Ver detalhes</NavLink>
+            </div>
+          )}
         <main id="conteudo" className="main-content">
           <Outlet />
         </main>

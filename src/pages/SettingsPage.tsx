@@ -3,6 +3,7 @@ import {
   Download,
   FileJson2,
   ShieldCheck,
+  ChartNoAxesCombined,
   Upload,
   UserRound,
 } from "lucide-react";
@@ -21,13 +22,22 @@ import { Notice, PageHeader } from "../components/Layout";
 import { useAppData } from "../state/AppDataContext";
 import { downloadJson } from "../sync/download";
 import { DriveBackup } from "../sync/DriveBackup";
+import { AnalyticsChoice } from "../analytics/AnalyticsChoice";
 
 export function SettingsPage() {
   const { data, mutate, replace } = useAppData();
-  const [name, setName] = useState(data.profile.displayName);
-  const [height, setHeight] = useState(
-    data.profile.heightCm?.toString().replace(".", ",") ?? "",
-  );
+  const profileKey = JSON.stringify(data.profile);
+  const [draft, setDraft] = useState({
+    profileKey,
+    name: data.profile.displayName,
+    height: data.profile.heightCm?.toString().replace(".", ",") ?? "",
+  });
+  const name =
+    draft.profileKey === profileKey ? draft.name : data.profile.displayName;
+  const height =
+    draft.profileKey === profileKey
+      ? draft.height
+      : (data.profile.heightCm?.toString().replace(".", ",") ?? "");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<AppData | null>(null);
@@ -101,8 +111,6 @@ export function SettingsPage() {
     try {
       if (existing) downloadJson(data, "-antes-da-importacao");
       await replace(preview);
-      setName(preview.profile.displayName);
-      setHeight(preview.profile.heightCm?.toString().replace(".", ",") ?? "");
       setPreview(null);
       if (fileInput.current) fileInput.current.value = "";
       setMessage(
@@ -147,7 +155,9 @@ export function SettingsPage() {
                 maxLength={80}
                 placeholder="Seu nome"
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) =>
+                  setDraft({ profileKey, name: event.target.value, height })
+                }
               />
             </div>
             <div className="field">
@@ -159,7 +169,9 @@ export function SettingsPage() {
                 inputMode="decimal"
                 placeholder="Ex.: 168"
                 value={height}
-                onChange={(event) => setHeight(event.target.value)}
+                onChange={(event) =>
+                  setDraft({ profileKey, name, height: event.target.value })
+                }
               />
               <small>Usada apenas para calcular o IMC.</small>
             </div>
@@ -253,14 +265,7 @@ export function SettingsPage() {
               <p>Sincronização opcional entre seus dispositivos.</p>
             </div>
           </div>
-          <DriveBackup
-            onRestore={(restored) => {
-              setName(restored.profile.displayName);
-              setHeight(
-                restored.profile.heightCm?.toString().replace(".", ",") ?? "",
-              );
-            }}
-          />
+          <DriveBackup />
         </section>
         <section className="panel">
           <div className="card-title">
@@ -282,6 +287,18 @@ export function SettingsPage() {
             Limpar os dados do navegador pode apagar estes registros. Exporte um
             backup regularmente.
           </p>
+        </section>
+        <section className="panel">
+          <div className="card-title">
+            <span className="list-icon">
+              <ChartNoAxesCombined size={20} aria-hidden="true" />
+            </span>
+            <div>
+              <h2>Métricas de acesso</h2>
+              <p>Ajude a entender quantas pessoas usam a Biorotina.</p>
+            </div>
+          </div>
+          <AnalyticsChoice />
         </section>
       </div>
       {(message || error) && (

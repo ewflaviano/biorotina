@@ -4,7 +4,7 @@ Estas etapas começam depois do esqueleto local. O app continua utilizável sem 
 
 ## 1. Conectar Google e fazer backup no Drive (`YTF-11099`) — implementado
 
-**Experiência:** “Conectar Google” é uma opção em Configurações. A pessoa vê qual conta está conectada, quando houve a última sincronização confirmada, o que está apenas local, erros e a opção de desconectar. Importar/exportar JSON continua disponível sem login.
+**Experiência:** “Entrar” aparece no topo de todas as telas, com detalhes e resolução de conflitos em Configurações. Após conectar, alterações sincronizam automaticamente enquanto a página está aberta; a pessoa vê a conta, o estado do Drive, erros e a opção de desconectar. Importar/exportar JSON continua disponível sem login.
 
 **Implementação atual:** Google Identity Services com `openid`, `email` e `drive.appdata`, snapshots JSON versionados em `appDataFolder` e adaptador isolado do domínio. Apenas o OAuth client ID público entra no build; o token fica em memória. Não usar client secret nem credenciais de serviço no frontend. Origens locais e de produção estão configuradas no projeto OAuth sem segredos no repositório.
 
@@ -12,7 +12,7 @@ Estas etapas começam depois do esqueleto local. O app continua utilizável sem 
 
 1. Conectar, desconectar e trocar de conta com estados e mensagens claros; autenticação não bloqueia o uso local.
 2. Primeira sincronização cobre documento local vazio, documento remoto vazio e dados existentes em ambos.
-3. Alterações offline são mantidas e enviadas quando a pessoa sincronizar novamente.
+3. Alterações offline são mantidas e reenviadas quando a conexão volta ou a pessoa sincroniza novamente.
 4. Conflito entre revisões em dispositivos diferentes é detectado; a pessoa pode baixar cópias e escolher conscientemente qual versão usar. Nada é substituído silenciosamente.
 5. Backups das versões 1 e 2 são migrados para a versão 3; versão futura incompatível gera erro sem substituir registros.
 6. Testes unitários do adaptador e dos estados de sincronização; teste manual em dois navegadores/dispositivos com conta de teste. Falhas de rede e autorização expirada têm caminho de recuperação.

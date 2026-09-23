@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Biorotina</title>
+  <desc id="desc">Folha formada por um caminho curvo, com margem para ícones adaptativos.</desc>
+  <rect width="64" height="64" fill="#205C4F"/>
+  <g transform="translate(6.4 6.4) scale(0.8)" fill="none" stroke="#fff">
+    <path d="M14 38C17 20 33 12 52 13c0 21-8 37-26 39-9 1-15-5-12-14Z" stroke-width="3.5" stroke-linejoin="round"/>
+    <path d="M16 51c8-14 18-22 33-31M26 44c-1-5-1-10 1-15M35 36c4 0 8 0 12 1" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>

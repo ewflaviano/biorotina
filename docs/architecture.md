@@ -1,6 +1,6 @@
 # Arquitetura inicial da Biorotina
 
-**Estado:** app local funcional, serviço Web Push e infraestrutura AWS implementados. Login opcional e backup manual no Google Drive implementados.
+**Estado:** app local funcional, serviço Web Push e infraestrutura AWS implementados. Login opcional no topo e sincronização automática com o Google Drive implementados.
 
 ## Decisão principal
 
@@ -35,11 +35,15 @@ EventBridge Scheduler ── Lambda Rust de envio ── Web Push
 
 Usar a biblioteca oficial **Google Identity Services** no navegador, com consentimento no momento de conectar o Drive. Pedir apenas o escopo `drive.appdata` e guardar o JSON em `appDataFolder`, uma pasta de dados do aplicativo que não aparece na interface normal do Drive. O [modelo de token do Google](https://developers.google.com/identity/oauth2/web/guides/use-token-model) permite chamar a API pelo navegador sem guardar refresh token em backend; os tokens de acesso são curtos e a pessoa poderá precisar autorizar novamente. A [documentação do Drive](https://developers.google.com/workspace/drive/api/guides/appdata) descreve o escopo e a pasta.
 
-O botão de conexão está ativo quando `VITE_GOOGLE_CLIENT_ID` está definido. O cliente OAuth Web e a API do Drive estão configurados no projeto Google Cloud `biorotina`; a aplicação está em modo de teste com a conta do proprietário. O token de acesso fica apenas em memória. Cada sincronização cria um novo snapshot JSON na pasta privada do app, preservando as versões anteriores. O IndexedDB guarda, por conta Google, o ID do último snapshot sincronizado e o hash SHA-256 do conteúdo local. A pessoa pode continuar usando o app sem conta e exportar JSON.
+O botão de conexão no topo está ativo quando `VITE_GOOGLE_CLIENT_ID` está definido. O cliente OAuth Web e a API do Drive estão configurados no projeto Google Cloud `biorotina`; a aplicação está em modo de teste com a conta do proprietário. O token de acesso fica apenas em memória. Após conectar, o app compara as versões, sincroniza alterações locais automaticamente com breve espera para agrupar edições e tenta novamente ao recuperar conexão ou foco. Isso funciona enquanto a página está aberta e o token é válido; ao recarregar, a pessoa precisa conectar novamente. Cada sincronização cria um novo snapshot JSON na pasta privada do app, preservando as versões anteriores. O IndexedDB guarda, por conta Google, o ID do último snapshot sincronizado e o hash SHA-256 do conteúdo local. A pessoa pode continuar usando o app sem conta e exportar JSON.
 
 **Regra para conflitos:** comparar o último snapshot remoto e o hash do conteúdo local. Quando ambos mudaram, mostrar a quantidade de registros e a data da versão do Drive, sem substituir os dados automaticamente. A pessoa pode manter a versão local, criando outro snapshot, ou restaurar a remota após confirmar e iniciar o download de um JSON da versão local. O armazenamento de metadados separado por identificador da conta impede misturar estados de contas Google diferentes. A restauração verifica a revisão local antes de gravar, para recusar mudanças concorrentes. O JSON permanece versionado e migrável.
 
 O **OAuth client ID** de aplicativo web é um identificador público e poderá entrar em uma configuração `VITE_`. **Client secret, tokens e credenciais AWS jamais entram no bundle.** O [Vite informa](https://vite.dev/guide/env-and-mode) que variáveis `VITE_` são expostas no código enviado ao navegador. O arquivo `.env.example` contém apenas um exemplo de identificador público; arquivos `.env` locais estão ignorados pelo Git.
+
+## Métricas de acesso opcionais
+
+O Firebase Analytics está vinculado ao mesmo projeto Google Cloud `biorotina`. O app só carrega o SDK no domínio de produção e após a pessoa permitir em Configurações; a preferência não depende do login Google. O evento próprio `app_visit` usa URL canônica e referência reduzida ao domínio. O SDK pode registrar eventos básicos de sessão. Nenhum registro de saúde ou perfil é fornecido ao módulo. Uma falha do Firebase não bloqueia armazenamento local, sincronização, navegação ou notificações. Configuração do console e limitações de cobertura estão em [Métricas de acesso](analytics.md).
 
 ## Lembretes e backend mínimo
 

@@ -12,6 +12,7 @@ import { Layout } from "./Layout";
 import { ActivityWeekChart, WeightTrend } from "./ProgressCharts";
 import { HydrationPage } from "../pages/HydrationPage";
 import { DateTimeField } from "./DateTimeField";
+import { DriveSyncProvider } from "../sync/DriveSyncContext";
 
 beforeEach(async () => {
   const db = await openDB("biorotina", 2);
@@ -27,20 +28,22 @@ describe("navegação", () => {
     const user = userEvent.setup();
     render(
       <AppDataProvider>
-        <MemoryRouter initialEntries={["/"]}>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<p>Início de teste</p>} />
-              <Route path="/peso" element={<p>Área de peso</p>} />
-              <Route path="/hidratacao" element={<p>Área de hidratação</p>} />
-              <Route path="/mais" element={<p>Outras áreas</p>} />
-              <Route
-                path="/configuracoes"
-                element={<p>Área de configurações</p>}
-              />
-            </Route>
-          </Routes>
-        </MemoryRouter>
+        <DriveSyncProvider>
+          <MemoryRouter initialEntries={["/"]}>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/" element={<p>Início de teste</p>} />
+                <Route path="/peso" element={<p>Área de peso</p>} />
+                <Route path="/hidratacao" element={<p>Área de hidratação</p>} />
+                <Route path="/mais" element={<p>Outras áreas</p>} />
+                <Route
+                  path="/configuracoes"
+                  element={<p>Área de configurações</p>}
+                />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </DriveSyncProvider>
       </AppDataProvider>,
     );
     expect(
@@ -71,16 +74,18 @@ describe("navegação", () => {
     const user = userEvent.setup();
     render(
       <AppDataProvider>
-        <PushProvider>
-          <MemoryRouter initialEntries={["/hidratacao"]}>
-            <Routes>
-              <Route element={<Layout />}>
-                <Route path="/" element={<p>Painel de teste</p>} />
-                <Route path="/hidratacao" element={<HydrationPage />} />
-              </Route>
-            </Routes>
-          </MemoryRouter>
-        </PushProvider>
+        <DriveSyncProvider>
+          <PushProvider>
+            <MemoryRouter initialEntries={["/hidratacao"]}>
+              <Routes>
+                <Route element={<Layout />}>
+                  <Route path="/" element={<p>Painel de teste</p>} />
+                  <Route path="/hidratacao" element={<HydrationPage />} />
+                </Route>
+              </Routes>
+            </MemoryRouter>
+          </PushProvider>
+        </DriveSyncProvider>
       </AppDataProvider>,
     );
     await screen.findByRole("button", { name: /Excluir água de 330 ml/ });

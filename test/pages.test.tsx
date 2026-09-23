@@ -14,16 +14,19 @@ import { WeightPage } from "../src/pages/WeightPage";
 import { AppDataProvider, useAppData } from "../src/state/AppDataContext";
 import { PushProvider } from "../src/state/PushContext";
 import { loadData, saveData } from "../src/storage/indexedDb";
+import { DriveSyncProvider } from "../src/sync/DriveSyncContext";
 
 async function renderPage(page: React.ReactNode, initial?: AppData) {
   if (initial) await saveData(initial);
   const user = userEvent.setup();
   render(
     <AppDataProvider>
-      <PushProvider>
-        <ReadyMarker />
-        <MemoryRouter>{page}</MemoryRouter>
-      </PushProvider>
+      <DriveSyncProvider>
+        <PushProvider>
+          <ReadyMarker />
+          <MemoryRouter>{page}</MemoryRouter>
+        </PushProvider>
+      </DriveSyncProvider>
     </AppDataProvider>,
   );
   await screen.findByTestId("data-ready");
