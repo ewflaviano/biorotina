@@ -86,12 +86,10 @@ export function FoodPage() {
     accountPlanStatus.accountId === drive.account.id
       ? accountPlanStatus.value
       : null;
-  const selectedPhotoMode =
-    photoMode === "trial" &&
-    (planStatus?.active || !trialEnabled || !drive.account)
-      ? planStatus?.active
-        ? "plan"
-        : "key"
+  const selectedPhotoMode = planStatus?.active
+    ? "plan"
+    : photoMode === "trial" && (!trialEnabled || !drive.account)
+      ? "key"
       : photoMode;
 
   useEffect(() => {
@@ -445,40 +443,40 @@ export function FoodPage() {
                       onChange={choosePhoto}
                     />
                   </div>
-                  <div
-                    className="meal-ai-modes"
-                    role="group"
-                    aria-label="Como analisar a foto"
-                  >
-                    {trialEnabled && drive.account && !planStatus?.active && (
+                  {!planStatus?.active && (
+                    <div
+                      className="meal-ai-modes"
+                      role="group"
+                      aria-label="Como analisar a foto"
+                    >
+                      {trialEnabled && drive.account && planStatus && (
+                        <button
+                          type="button"
+                          aria-pressed={selectedPhotoMode === "trial"}
+                          onClick={() => setPhotoMode("trial")}
+                        >
+                          Testar grátis
+                        </button>
+                      )}
                       <button
                         type="button"
-                        aria-pressed={selectedPhotoMode === "trial"}
-                        onClick={() => setPhotoMode("trial")}
+                        aria-pressed={selectedPhotoMode === "plan"}
+                        onClick={() => setPhotoMode("plan")}
                       >
-                        Testar grátis
+                        Meu plano
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      aria-pressed={selectedPhotoMode === "plan"}
-                      onClick={() => setPhotoMode("plan")}
-                    >
-                      Meu plano
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={selectedPhotoMode === "key"}
-                      onClick={() => setPhotoMode("key")}
-                    >
-                      Minha chave Gemini
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        aria-pressed={selectedPhotoMode === "key"}
+                        onClick={() => setPhotoMode("key")}
+                      >
+                        Minha chave Gemini
+                      </button>
+                    </div>
+                  )}
                   {planStatus?.active ? (
                     <p className="muted small">
-                      {selectedPhotoMode === "plan"
-                        ? "Seu plano está ativo: até 10 análises por dia."
-                        : "Esta análise usará sua chave Gemini. Seu plano também está ativo."}
+                      Seu plano está ativo: até 10 análises por dia.
                     </p>
                   ) : trialEnabled &&
                     drive.account &&
