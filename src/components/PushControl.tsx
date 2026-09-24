@@ -1,6 +1,7 @@
 import { Bell } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePush } from "../state/PushContext";
+import { InfoDisclosure } from "./InfoDisclosure";
 
 export function PushControl() {
   const { status, message, scheduleCount, subscribed, enable, disable, test } =
@@ -24,8 +25,8 @@ export function PushControl() {
       <h2 id="push-title">Avisos neste dispositivo</h2>
       <p className="muted">
         {active
-          ? "Avisos ativados. Você pode recebê-los mesmo com a página fechada."
-          : "Ative para receber avisos nos horários escolhidos, mesmo com a página fechada."}
+          ? "Avisos ativados neste dispositivo."
+          : "Avisos desativados neste dispositivo."}
       </p>
       <p className="muted">
         {scheduleCount} horário{scheduleCount === 1 ? "" : "s"} de aviso
@@ -110,6 +111,12 @@ export function PushControl() {
           {message}
         </p>
       )}
+      <InfoDisclosure label="Sobre os avisos">
+        <p>
+          Os avisos podem chegar mesmo com a página fechada, nos horários que
+          você escolher. Você pode desligá-los a qualquer momento.
+        </p>
+      </InfoDisclosure>
     </section>
   );
 }

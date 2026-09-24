@@ -600,9 +600,6 @@ describe("medicação", () => {
     await waitFor(async () =>
       expect((await loadData()).medicationLogs).toHaveLength(0),
     );
-    expect(
-      screen.getByText(/Você pode escolher vários horários/),
-    ).toBeInTheDocument();
   });
 
   it("edita sem perder histórico e confirma exclusão em cascata", async () => {

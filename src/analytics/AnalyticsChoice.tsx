@@ -5,6 +5,7 @@ import {
   setAnalyticsPreference,
   type AnalyticsPreference,
 } from "./visits";
+import { InfoDisclosure } from "../components/InfoDisclosure";
 
 export function AnalyticsChoice() {
   const [preference, setPreference] = useState<AnalyticsPreference>(
@@ -24,13 +25,6 @@ export function AnalyticsChoice() {
 
   return (
     <div className="analytics-choice">
-      <p className="muted">
-        Medimos visitas, origem aproximada, região e tipo de dispositivo para
-        entender o uso do app. O Google Analytics usa identificadores do
-        navegador. Não usamos essas métricas para anúncios e nunca enviamos
-        peso, alimentação, medicamentos, perfil ou registros de saúde. Você pode
-        desativar a coleta aqui a qualquer momento.
-      </p>
       <div className="backup-actions">
         <button
           className={`button ${preference === "accepted" ? "primary" : "secondary"}`}
@@ -52,6 +46,15 @@ export function AnalyticsChoice() {
       <p className="muted small">
         <Link to="/privacidade">Entenda como usamos seus dados</Link>
       </p>
+      <InfoDisclosure label="Como usamos as métricas">
+        <p>
+          Medimos visitas, origem aproximada, região e tipo de dispositivo para
+          entender o uso do app. O Google Analytics usa identificadores do
+          navegador. Não usamos essas métricas para anúncios e nunca enviamos
+          peso, alimentação, medicamentos, perfil ou registros de saúde. Você
+          pode desativar a coleta aqui a qualquer momento.
+        </p>
+      </InfoDisclosure>
       {message && <p role="status">{message}</p>}
     </div>
   );
