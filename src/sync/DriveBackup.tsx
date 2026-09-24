@@ -6,13 +6,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useState } from "react";
-import { dateTimePt, totalRecords } from "../domain/data";
+import { dateTimePt, totalRecords, type AppData } from "../domain/data";
 import { useAppData } from "../state/AppDataContext";
-import {
-  loadData,
-  loadLegacyData,
-  loadOtherAccountData,
-} from "../storage/indexedDb";
 import { downloadJson } from "./download";
 import { useDriveSync } from "./DriveSyncContext";
 
@@ -20,7 +15,7 @@ type ExitBackup = {
   id: string;
   label: string;
   suffix: string;
-  data: Awaited<ReturnType<typeof loadData>>;
+  data: AppData;
 };
 
 function containsRecords(data: ExitBackup["data"]): boolean {
@@ -44,40 +39,10 @@ export function DriveBackup() {
   async function startSignOut() {
     setExitError("");
     try {
-      const guest = await loadData(null);
-      const legacy = await loadLegacyData();
-      const otherAccounts = drive.account
-        ? await loadOtherAccountData(drive.account.id)
-        : [];
       const backups: ExitBackup[] = [
         { id: "account", label: "Dados desta conta", suffix: "-conta", data },
-        {
-          id: "guest",
-          label: "Dados sem conta",
-          suffix: "-sem-conta",
-          data: guest,
-        },
-        ...(legacy
-          ? [
-              {
-                id: "legacy",
-                label: "Registros antigos",
-                suffix: "-antigos",
-                data: legacy,
-              },
-            ]
-          : []),
-        ...otherAccounts.map((other, index) => ({
-          id: `other-${index}`,
-          label: `Dados de outra conta ${index + 1}`,
-          suffix: `-outra-conta-${index + 1}`,
-          data: other,
-        })),
       ].filter((entry) => containsRecords(entry.data));
-      if (
-        drive.status === "synced" &&
-        backups.every((entry) => entry.id === "account")
-      ) {
+      if (!drive.hasPendingChanges) {
         await drive.disconnect();
       } else {
         setDownloaded([]);
@@ -129,7 +94,8 @@ export function DriveBackup() {
               disabled={drive.busy}
               onClick={() => void startSignOut()}
             >
-              <LogOut size={17} aria-hidden="true" /> Sair e apagar dados
+              <LogOut size={17} aria-hidden="true" /> Sair e apagar dados desta
+              conta
             </button>
           </div>
           {exitBackups && (
@@ -142,8 +108,8 @@ export function DriveBackup() {
                 Há dados neste navegador que podem não estar no Drive
               </strong>
               <p>
-                Escolha como sair. O app removerá os registros locais, a chave
-                Gemini e a sessão Google deste navegador.
+                Escolha como sair. O app removerá apenas os registros desta
+                conta, a chave Gemini e a sessão Google deste navegador.
               </p>
               <button
                 type="button"

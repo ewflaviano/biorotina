@@ -56,6 +56,7 @@ interface DriveSyncValue {
   conflict: Conflict | null;
   status: DriveSyncStatus;
   busy: boolean;
+  hasPendingChanges: boolean;
   message: string;
   error: string;
   connect: () => Promise<void>;
@@ -156,6 +157,11 @@ export function DriveSyncProvider({
               ? await downloadDriveSnapshot(connected.token, remote)
               : null;
           const remoteHash = remoteData ? await contentHash(remoteData) : null;
+          if (
+            accountRef.current?.id !== connected.id ||
+            currentGoogleAccount()?.id !== connected.id
+          )
+            return;
           const decision = decideSync({
             remoteId: remote?.id ?? null,
             remoteHash,
@@ -171,6 +177,11 @@ export function DriveSyncProvider({
             );
           } else if (decision === "upload") {
             const saved = await uploadDriveSnapshot(connected.token, local);
+            if (
+              accountRef.current?.id !== connected.id ||
+              currentGoogleAccount()?.id !== connected.id
+            )
+              return;
             await saveDriveSync(connected.id, {
               snapshotId: saved.id,
               contentHash: localHash,
@@ -314,7 +325,7 @@ export function DriveSyncProvider({
           );
           return;
         }
-        await switchScope(null, { clearAll: true });
+        await switchScope(null, { clearCurrentAccount: true });
         disconnectGoogle(connected);
         accountRef.current = null;
         setAccount(null);
@@ -335,6 +346,17 @@ export function DriveSyncProvider({
     },
     [data, push, settledRevision, status, switchScope],
   );
+
+  useEffect(() => {
+    if (loading || scope !== null || !accountRef.current) return;
+    forgetGoogleAccount();
+    accountRef.current = null;
+    setAccount(null);
+    setLatest(null);
+    setConflict(null);
+    setStatus("disconnected");
+    setGuestCopyAvailable(false);
+  }, [loading, scope]);
 
   useEffect(() => {
     if (previousRevision.current === data.revision) return;
@@ -542,7 +564,7 @@ export function DriveSyncProvider({
       if (!result.changed) return;
       if (
         !window.confirm(
-          `Juntar ${result.added} registros salvos sem conta aos registros de ${connected.email}? ${result.differing ? `${result.differing} registros com o mesmo identificador e conteúdo diferente manterão a versão da conta. ` : ""}Os registros sem conta permanecerão neste navegador até você sair. Continuar?`,
+          `Juntar ${result.added} registros salvos sem conta aos registros de ${connected.email}? ${result.differing ? `${result.differing} registros com o mesmo identificador e conteúdo diferente manterão a versão da conta. ` : ""}Os registros sem conta permanecerão neste navegador. Continuar?`,
         )
       )
         return;
@@ -575,6 +597,7 @@ export function DriveSyncProvider({
         conflict,
         status: visibleStatus,
         busy,
+        hasPendingChanges: visibleStatus !== "synced" && hasLocalContent(data),
         message,
         error,
         connect,

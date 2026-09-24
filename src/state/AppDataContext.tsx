@@ -9,12 +9,15 @@ import {
 } from "react";
 import { emptyData, type AppData } from "../domain/data";
 import {
-  clearLocalData,
-  loadData,
+  clearAccountData,
+  loadDataState,
   prepareAccountScopes,
-  saveData,
+  saveDataIfRevision,
+  SessionInvalidatedError,
+  StaleRevisionError,
 } from "../storage/indexedDb";
 import {
+  forgetGoogleAccount,
   hasRememberedGoogleAccount,
   rememberedGoogleAccountId,
 } from "../sync/google";
@@ -32,7 +35,7 @@ interface AppDataContextValue {
   replaceIfRevision: (revision: number, next: AppData) => Promise<void>;
   switchScope: (
     accountId: string | null,
-    options?: { clearAll?: boolean },
+    options?: { clearCurrentAccount?: boolean },
   ) => Promise<void>;
   removeWithUndo: (
     label: string,
@@ -60,17 +63,42 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [undoActions, setUndoActions] = useState<UndoAction[]>([]);
   const current = useRef(data);
   const scopeRef = useRef(scope);
+  const epochRef = useRef("initial");
+  const channelRef = useRef<BroadcastChannel | null>(null);
   const queue = useRef(Promise.resolve());
   const undoing = useRef(false);
+
+  const invalidateSession = useCallback(async (accountId: string | null) => {
+    if (scopeRef.current !== accountId) return;
+    scopeRef.current = null;
+    epochRef.current = "invalidated";
+    forgetGoogleAccount();
+    setLoading(true);
+    try {
+      const fresh = await loadDataState(null);
+      epochRef.current = fresh.epoch;
+      current.current = fresh.data;
+      setScope(null);
+      setData(fresh.data);
+      setUndoActions([]);
+      setError(null);
+    } catch {
+      reportClientError("storage", "local_storage_failed");
+      setError("Não foi possível abrir os dados sem conta neste navegador.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
     prepareAccountScopes(hasRememberedGoogleAccount())
-      .then(() => loadData(scopeRef.current))
+      .then(() => loadDataState(scopeRef.current))
       .then((saved) => {
         if (!active) return;
-        current.current = saved;
-        setData(saved);
+        current.current = saved.data;
+        epochRef.current = saved.epoch;
+        setData(saved.data);
         setLoading(false);
       })
       .catch(() => {
@@ -86,47 +114,142 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const mutate = useCallback((update: Update): Promise<void> => {
-    const task = queue.current.then(async () => {
-      const next = update(current.current);
-      if (next === current.current) return;
-      const stamped = {
-        ...next,
-        revision: current.current.revision + 1,
-        updatedAt: new Date().toISOString(),
+  useEffect(() => {
+    const channel =
+      typeof BroadcastChannel === "undefined"
+        ? null
+        : new BroadcastChannel("biorotina:data");
+    channelRef.current = channel;
+    const handleChange = (event: MessageEvent) => {
+      const message = event.data as {
+        type?: string;
+        scope?: string | null;
       };
-      try {
-        await saveData(stamped, scopeRef.current);
-      } catch (cause) {
-        reportClientError("storage", "local_storage_failed");
-        throw cause;
+      if (message?.type === "account-cleared") {
+        if (message.scope === scopeRef.current)
+          void invalidateSession(message.scope);
+      } else if (message?.type === "data-changed") {
+        if (message.scope !== scopeRef.current) return;
+        void queue.current
+          .then(async () => {
+            const fresh = await loadDataState(scopeRef.current);
+            if (fresh.epoch !== epochRef.current) {
+              await invalidateSession(scopeRef.current);
+            } else if (fresh.data.revision > current.current.revision) {
+              current.current = fresh.data;
+              setData(fresh.data);
+            }
+          })
+          .catch(() => reportClientError("storage", "local_storage_failed"));
       }
-      current.current = stamped;
-      setData(stamped);
-    });
-    queue.current = task.catch(() => undefined);
-    return task;
-  }, []);
+    };
+    if (channel) channel.onmessage = handleChange;
+    const onFocus = () =>
+      handleChange(
+        new MessageEvent("message", {
+          data: { type: "data-changed", scope: scopeRef.current },
+        }),
+      );
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      channel?.close();
+      channelRef.current = null;
+    };
+  }, [invalidateSession]);
+
+  const mutate = useCallback(
+    (update: Update): Promise<void> => {
+      const requestedScope = scopeRef.current;
+      const requestedEpoch = epochRef.current;
+      const task = queue.current.then(async () => {
+        if (
+          scopeRef.current !== requestedScope ||
+          epochRef.current !== requestedEpoch
+        )
+          throw new SessionInvalidatedError("A sessão mudou em outra aba.");
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          const base = current.current;
+          const next = update(base);
+          if (next === base) return;
+          const stamped = {
+            ...next,
+            revision: base.revision + 1,
+            updatedAt: new Date().toISOString(),
+          };
+          try {
+            await saveDataIfRevision(
+              stamped,
+              base.revision,
+              requestedEpoch,
+              requestedScope,
+            );
+            current.current = stamped;
+            setData(stamped);
+            channelRef.current?.postMessage({
+              type: "data-changed",
+              scope: requestedScope,
+            });
+            return;
+          } catch (cause) {
+            if (cause instanceof SessionInvalidatedError) {
+              await invalidateSession(requestedScope);
+              throw cause;
+            }
+            if (cause instanceof StaleRevisionError) {
+              const fresh = await loadDataState(requestedScope);
+              if (fresh.epoch !== requestedEpoch) {
+                await invalidateSession(requestedScope);
+                throw new SessionInvalidatedError(
+                  "A sessão foi encerrada em outra aba.",
+                );
+              }
+              current.current = fresh.data;
+              setData(fresh.data);
+              continue;
+            }
+            reportClientError("storage", "local_storage_failed");
+            throw cause;
+          }
+        }
+        throw new Error(
+          "Os registros mudaram em outra aba várias vezes. Tente salvar novamente.",
+        );
+      });
+      queue.current = task.catch(() => undefined);
+      return task;
+    },
+    [invalidateSession],
+  );
 
   const switchScope = useCallback(
     (
       accountId: string | null,
-      options?: { clearAll?: boolean },
+      options?: { clearCurrentAccount?: boolean },
     ): Promise<void> => {
       if (scopeRef.current === accountId) return queue.current;
       setLoading(true);
       setError(null);
       const task = queue.current.then(async () => {
-        const next = options?.clearAll
-          ? emptyData()
-          : await loadData(accountId);
-        if (options?.clearAll) await clearLocalData();
+        const oldScope = scopeRef.current;
+        if (options?.clearCurrentAccount) {
+          if (!oldScope)
+            throw new Error("Não há conta conectada para encerrar.");
+          await clearAccountData(oldScope);
+        }
+        const next = await loadDataState(accountId);
         scopeRef.current = accountId;
-        current.current = next;
+        epochRef.current = next.epoch;
+        current.current = next.data;
         setScope(accountId);
-        setData(next);
+        setData(next.data);
         setUndoActions([]);
         setLoading(false);
+        if (options?.clearCurrentAccount)
+          channelRef.current?.postMessage({
+            type: "account-cleared",
+            scope: oldScope,
+          });
       });
       queue.current = task.catch(() => undefined);
       return task.catch(() => {
@@ -143,7 +266,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const replace = useCallback(
     async (next: AppData): Promise<void> => {
-      await mutate(() => next);
+      const revision = current.current.revision;
+      await mutate((base) => {
+        if (base.revision !== revision)
+          throw new Error(
+            "Os dados deste navegador mudaram. Confira os registros antes de importar novamente.",
+          );
+        return next;
+      });
       setUndoActions([]);
     },
     [mutate],

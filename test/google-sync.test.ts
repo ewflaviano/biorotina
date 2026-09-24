@@ -54,7 +54,7 @@ describe("decisão de sincronização", () => {
     ).toBe("upload");
   });
 
-  it("restaura mudanças remotas quando este dispositivo não mudou", () => {
+  it("pede escolha após outro backup e restaura só no primeiro acesso vazio", () => {
     expect(
       decideSync({
         remoteId: "new",
@@ -63,7 +63,7 @@ describe("decisão de sincronização", () => {
         localHasContent: true,
         previous,
       }),
-    ).toBe("restore");
+    ).toBe("conflict");
     expect(
       decideSync({
         remoteId: "new",

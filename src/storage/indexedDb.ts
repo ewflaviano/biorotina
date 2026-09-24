@@ -23,6 +23,21 @@ const dbPromise = openDB<BiorotinaDb>("biorotina", 3, {
   },
 });
 
+const GLOBAL_EPOCH_KEY = "__session-epoch";
+
+function scopeEpochKey(accountId: string | null): string {
+  return `__session-epoch:${dataKey(accountId)}`;
+}
+
+function sessionEpoch(value: AppData | Record<string, unknown> | undefined) {
+  return value && "epoch" in value && typeof value.epoch === "string"
+    ? value.epoch
+    : "initial";
+}
+
+export class StaleRevisionError extends Error {}
+export class SessionInvalidatedError extends Error {}
+
 function dataKey(accountId: string | null): string {
   return accountId ? `account:${accountId}` : "main";
 }
@@ -69,20 +84,19 @@ export async function loadData(
   return data;
 }
 
-export async function loadOtherAccountData(
-  currentAccountId: string,
-): Promise<AppData[]> {
-  const db = await dbPromise;
-  const keys = await db.getAllKeys("app");
-  const otherIds = keys
-    .filter(
-      (key): key is string =>
-        typeof key === "string" &&
-        key.startsWith("account:") &&
-        key !== dataKey(currentAccountId),
-    )
-    .map((key) => key.slice("account:".length));
-  return Promise.all(otherIds.map((id) => loadData(id)));
+export async function loadDataState(accountId: string | null = null) {
+  const tx = (await dbPromise).transaction("app", "readonly");
+  const app = tx.objectStore("app");
+  const [saved, globalMarker, scopeMarker] = await Promise.all([
+    app.get(dataKey(accountId)),
+    app.get(GLOBAL_EPOCH_KEY),
+    app.get(scopeEpochKey(accountId)),
+  ]);
+  await tx.done;
+  return {
+    data: saved ? parseBackup(saved) : emptyData(),
+    epoch: `${sessionEpoch(globalMarker)}:${sessionEpoch(scopeMarker)}`,
+  };
 }
 
 export async function saveData(
@@ -92,7 +106,53 @@ export async function saveData(
   await (await dbPromise).put("app", data, dataKey(accountId));
 }
 
-export async function clearLocalData(): Promise<void> {
+export async function saveDataIfRevision(
+  data: AppData,
+  expectedRevision: number,
+  expectedEpoch: string,
+  accountId: string | null = null,
+): Promise<void> {
+  const tx = (await dbPromise).transaction("app", "readwrite");
+  const app = tx.objectStore("app");
+  const [saved, globalMarker, scopeMarker] = await Promise.all([
+    app.get(dataKey(accountId)),
+    app.get(GLOBAL_EPOCH_KEY),
+    app.get(scopeEpochKey(accountId)),
+  ]);
+  if (
+    `${sessionEpoch(globalMarker)}:${sessionEpoch(scopeMarker)}` !==
+    expectedEpoch
+  ) {
+    await tx.done;
+    throw new SessionInvalidatedError("A sessão foi encerrada em outra aba.");
+  }
+  const revision = saved ? parseBackup(saved).revision : 0;
+  if (revision !== expectedRevision) {
+    await tx.done;
+    throw new StaleRevisionError("Os registros mudaram em outra aba.");
+  }
+  await app.put(data, dataKey(accountId));
+  await tx.done;
+}
+
+export async function clearAccountData(accountId: string): Promise<string> {
+  const epoch = crypto.randomUUID();
+  const tx = (await dbPromise).transaction(
+    ["app", "driveSync", "geminiKey"],
+    "readwrite",
+  );
+  await Promise.all([
+    tx.objectStore("app").delete(dataKey(accountId)),
+    tx.objectStore("app").put({ epoch }, scopeEpochKey(accountId)),
+    tx.objectStore("driveSync").delete(accountId),
+    tx.objectStore("geminiKey").clear(),
+  ]);
+  await tx.done;
+  return epoch;
+}
+
+export async function clearLocalData(): Promise<string> {
+  const epoch = crypto.randomUUID();
   const tx = (await dbPromise).transaction(
     ["app", "driveSync", "geminiKey"],
     "readwrite",
@@ -102,7 +162,9 @@ export async function clearLocalData(): Promise<void> {
     tx.objectStore("driveSync").clear(),
     tx.objectStore("geminiKey").clear(),
   ]);
+  await tx.objectStore("app").put({ epoch }, GLOBAL_EPOCH_KEY);
   await tx.done;
+  return epoch;
 }
 
 export async function loadDriveSync(accountId: string) {
