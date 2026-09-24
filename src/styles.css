@@ -181,7 +181,7 @@ h3 {
 .main-content {
   max-width: 1240px;
   margin: 0 auto;
-  padding: 28px 16px calc(124px + env(safe-area-inset-bottom));
+  padding: 28px 16px calc(156px + env(safe-area-inset-bottom));
 }
 .bottom-nav {
   position: fixed;
@@ -541,19 +541,49 @@ h3 {
   padding: 0;
 }
 .reminder-weekdays > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
 }
 .reminder-weekdays label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 46px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  padding: 7px;
+  background: var(--color-surface);
   font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 }
 .reminder-weekdays input {
-  accent-color: var(--color-action);
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.reminder-weekdays label:has(input:checked) {
+  border-color: var(--color-action);
+  background: var(--color-action);
+  color: white;
+}
+.reminder-weekdays label:has(input:checked)::after {
+  content: "✓";
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  font-size: 10px;
+}
+.reminder-weekdays label:has(input:focus-visible) {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 .push-actions {
   display: flex;
