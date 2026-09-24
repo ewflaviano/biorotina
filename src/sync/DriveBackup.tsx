@@ -202,8 +202,9 @@ export function DriveBackup() {
           {drive.canCopyGuest && (
             <div className="drive-guest-copy">
               <p>
-                Há registros salvos neste navegador sem conta. Eles não são
-                enviados automaticamente para {drive.account.email}.
+                Há registros salvos neste navegador sem conta. Você pode
+                juntá-los aos dados de {drive.account.email} sem apagar os
+                registros que já estão no Drive.
               </p>
               <button
                 className="button secondary"
@@ -211,7 +212,7 @@ export function DriveBackup() {
                 disabled={drive.busy}
                 onClick={() => void drive.copyGuest()}
               >
-                Copiar registros para esta conta
+                Juntar registros sem conta
               </button>
             </div>
           )}
@@ -243,6 +244,14 @@ export function DriveBackup() {
                 Escolha qual versão usar.
               </p>
               <div className="backup-actions">
+                <button
+                  className="button primary"
+                  type="button"
+                  disabled={drive.busy}
+                  onClick={() => void drive.resolveWithMerged()}
+                >
+                  Juntar registros
+                </button>
                 <button
                   className="button secondary"
                   type="button"

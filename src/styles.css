@@ -648,6 +648,8 @@ h3 {
 .push-prompt {
   position: relative;
   width: min(100%, 390px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
   border-radius: var(--radius-lg);
   padding: 24px;
   background: var(--color-surface);
@@ -687,6 +689,27 @@ h3 {
 }
 .photo-offer-actions .button {
   justify-content: center;
+}
+.guest-login-actions,
+.sync-conflict-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+.guest-login-actions .button,
+.sync-conflict-actions .button {
+  justify-content: center;
+}
+.guest-login-never {
+  justify-self: center;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 8px;
 }
 .more-links {
   display: grid;
