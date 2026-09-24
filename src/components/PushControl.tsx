@@ -55,7 +55,7 @@ export function PushControl() {
             Depois, abra pelo novo ícone, sem a barra de endereço, e volte aqui.
           </p>
           <Link className="button secondary" to="/instalar">
-            Ver como adicionar
+            Ver passo a passo
           </Link>
         </div>
       )}

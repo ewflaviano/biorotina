@@ -44,7 +44,12 @@ beforeEach(async () => {
   db.close();
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  Reflect.deleteProperty(navigator, "serviceWorker");
+  localStorage.removeItem("biorotina:push-device");
+});
 
 describe("painel", () => {
   it("resume apenas registros de hoje e identifica calorias como informadas", async () => {
@@ -92,6 +97,75 @@ describe("painel", () => {
 });
 
 describe("hidratação", () => {
+  it("substitui automaticamente uma inscrição antiga rejeitada pelo serviço", async () => {
+    localStorage.setItem(
+      "biorotina:push-device",
+      JSON.stringify({ id: "old-device", token: "old-token" }),
+    );
+    vi.stubGlobal("isSecureContext", true);
+    vi.stubGlobal("PushManager", function PushManager() {});
+    vi.stubGlobal("Notification", {
+      permission: "default",
+      requestPermission: vi.fn(async () => "granted"),
+    });
+    const subscription = {
+      endpoint: "https://fcm.googleapis.com/fcm/send/example",
+      toJSON: () => ({ keys: { p256dh: "key", auth: "key" } }),
+    };
+    const serviceWorker = {
+      register: vi.fn(async () => ({
+        pushManager: { getSubscription: async () => subscription },
+      })),
+    };
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: serviceWorker,
+    });
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push(`${init?.method ?? "GET"} ${url}`);
+        if (url.endsWith("/config"))
+          return new Response(JSON.stringify({ publicKey: "unused" }), {
+            status: 200,
+          });
+        if (init?.method === "PUT")
+          return new Response(
+            JSON.stringify({ error: "Inscrição não autorizada." }),
+            { status: 401 },
+          );
+        if (init?.method === "POST")
+          return new Response(
+            JSON.stringify({ id: "new-device", token: "new-token" }),
+            { status: 201 },
+          );
+        throw new Error("Pedido inesperado");
+      }),
+    );
+    const data = emptyData();
+    data.hydrationReminderTimes = ["09:00"];
+    const user = await renderPage(<HydrationPage />, data);
+    await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    await screen.findByText("Avisos ativados neste dispositivo.");
+    expect(
+      calls.some(
+        (call) =>
+          call.startsWith("PUT ") &&
+          call.endsWith("/api/push/subscriptions/old-device"),
+      ),
+    ).toBe(true);
+    expect(
+      calls.some(
+        (call) =>
+          call.startsWith("POST ") && call.endsWith("/api/push/subscriptions"),
+      ),
+    ).toBe(true);
+    expect(localStorage.getItem("biorotina:push-device")).toBe(
+      JSON.stringify({ id: "new-device", token: "new-token" }),
+    );
+  });
+
   it("orienta o usuário do Firefox no iPhone antes de pedir permissão", async () => {
     vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
       "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) FxiOS/130.0 Mobile",
@@ -109,7 +183,7 @@ describe("hidratação", () => {
       screen.getByRole("button", { name: "Abra pelo ícone para ativar" }),
     ).toBeDisabled();
     expect(
-      screen.getByRole("link", { name: "Ver como adicionar" }),
+      screen.getByRole("link", { name: "Ver passo a passo" }),
     ).toHaveAttribute("href", "/instalar");
   });
 

@@ -94,7 +94,7 @@ export function InstallPrompt({
             setVisible(false);
           }}
         >
-          Ver como instalar
+          Ver passo a passo
         </Link>
       </div>
       <button

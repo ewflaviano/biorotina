@@ -1299,32 +1299,108 @@ h3 {
 .install-dismiss:hover {
   background: var(--color-action-soft);
 }
-.install-guide {
-  max-width: 680px;
+.install-layout {
+  display: grid;
+  gap: 16px;
+  max-width: 980px;
 }
 .install-guide > .list-icon {
   margin-bottom: 18px;
 }
-.install-guide > p {
-  color: var(--color-text-secondary);
-}
 .install-guide .button {
-  margin: 5px 0 18px;
+  margin-top: 16px;
 }
-.install-benefits {
+.install-platforms {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+.install-platforms button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+.install-platforms button[aria-pressed="true"] {
+  border-color: var(--color-action);
+  background: var(--color-action-soft);
+  color: var(--color-action);
+}
+.install-steps {
+  margin: 20px 0 0;
+  padding-left: 25px;
+}
+.install-steps li {
+  padding-left: 5px;
+}
+.install-steps li + li {
+  margin-top: 18px;
+}
+.install-steps li::marker {
+  color: var(--color-action);
+  font-weight: 700;
+}
+.install-steps strong {
+  display: block;
+  color: var(--color-text);
+}
+.install-steps p {
+  margin: 5px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.install-steps a,
+.install-sources a {
+  color: var(--color-action);
+  font-weight: 700;
+}
+.install-note {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 22px 0 0;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-action-soft);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.install-note svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--color-action);
+}
+.install-next .reminder-icon {
+  margin-bottom: 12px;
+}
+.install-sources {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 20px;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
+  gap: 8px 18px;
+  padding: 0 4px;
   font-size: 12px;
 }
-.install-benefits span {
+.install-sources a {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+}
+@media (min-width: 900px) {
+  .install-layout {
+    grid-template-columns: 1.12fr 0.88fr;
+    align-items: start;
+  }
+  .install-sources {
+    grid-column: 1 / -1;
+  }
 }
 .support-layout {
   display: grid;

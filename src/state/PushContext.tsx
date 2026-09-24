@@ -111,6 +111,13 @@ function authHeader(session: DeviceSession): HeadersInit {
   return { authorization: "Bearer " + session.token };
 }
 
+function invalidSession(cause: unknown): boolean {
+  return (
+    cause instanceof PushApiError &&
+    (cause.status === 401 || cause.status === 404)
+  );
+}
+
 function publicKeyBytes(key: string): Uint8Array<ArrayBuffer> {
   const base64 = key.replace(/-/g, "+").replace(/_/g, "/");
   const decoded = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="));
@@ -191,10 +198,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
         }
       } catch (cause) {
         if (!cancelled) {
-          if (
-            cause instanceof PushApiError &&
-            (cause.status === 401 || cause.status === 404)
-          ) {
+          if (invalidSession(cause)) {
             saveSession(storageKey, null);
             setSession(null);
             setStatus("off");
@@ -225,11 +229,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
     }).then(
       () => saveSession(pendingRevokeKey, null),
       (cause: unknown) => {
-        if (
-          cause instanceof PushApiError &&
-          (cause.status === 401 || cause.status === 404)
-        )
-          saveSession(pendingRevokeKey, null);
+        if (invalidSession(cause)) saveSession(pendingRevokeKey, null);
       },
     );
   }, []);
@@ -277,13 +277,22 @@ export function PushProvider({ children }: { children: ReactNode }) {
         times,
         timeZone,
       };
-      if (session) {
-        await request("/subscriptions/" + session.id, {
-          method: "PUT",
-          headers: authHeader(session),
-          body: JSON.stringify(body),
-        });
-      } else {
+      let activeSession = session;
+      if (activeSession) {
+        try {
+          await request("/subscriptions/" + activeSession.id, {
+            method: "PUT",
+            headers: authHeader(activeSession),
+            body: JSON.stringify(body),
+          });
+        } catch (cause) {
+          if (!invalidSession(cause)) throw cause;
+          saveSession(storageKey, null);
+          setSession(null);
+          activeSession = null;
+        }
+      }
+      if (!activeSession) {
         const next = await request<DeviceSession>("/subscriptions", {
           method: "POST",
           body: JSON.stringify(body),
@@ -353,11 +362,20 @@ export function PushProvider({ children }: { children: ReactNode }) {
       });
       setMessage("Teste enviado. Confira as notificações deste dispositivo.");
     } catch (cause) {
-      setMessage(
-        cause instanceof Error
-          ? cause.message
-          : "Não foi possível enviar o teste.",
-      );
+      if (invalidSession(cause)) {
+        saveSession(storageKey, null);
+        setSession(null);
+        setStatus("off");
+        setMessage(
+          "A inscrição antiga expirou. Ative os avisos novamente neste dispositivo.",
+        );
+      } else {
+        setMessage(
+          cause instanceof Error
+            ? cause.message
+            : "Não foi possível enviar o teste.",
+        );
+      }
     } finally {
       busy.current = false;
     }

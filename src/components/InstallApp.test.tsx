@@ -27,7 +27,7 @@ describe("mobile install invitation", () => {
     act(() => vi.advanceTimersByTime(1800));
     expect(screen.getByLabelText("Instalar Biorotina")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Ver como instalar" }),
+      screen.getByRole("link", { name: "Ver passo a passo" }),
     ).toHaveAttribute("href", "/instalar");
     fireEvent.click(
       screen.getByRole("button", { name: "Dispensar convite para instalar" }),
