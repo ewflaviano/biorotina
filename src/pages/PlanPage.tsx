@@ -284,7 +284,7 @@ function PlanContents({ drive }: { drive: ReturnType<typeof useDriveSync> }) {
           )}
           {error && <Notice kind="info">{error}</Notice>}
         </section>
-        {!status?.active && (
+        {(!drive.account || (status && !status.active)) && (
           <section className="panel plan-alternative">
             <ShieldCheck size={20} aria-hidden="true" />
             <h2>Prefere usar sua própria chave?</h2>

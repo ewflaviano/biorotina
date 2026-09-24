@@ -93,6 +93,9 @@ describe("assinatura sem conta conectada", () => {
       </MemoryRouter>,
     );
     expect(
+      screen.queryByRole("link", { name: "Configurar chave Gemini" }),
+    ).toBeNull();
+    expect(
       await screen.findByText(
         "Plano ativo. Você pode analisar fotos de refeições.",
       ),
