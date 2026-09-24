@@ -81,10 +81,16 @@ async fn checkout(State(billing): State<Billing>, headers: HeaderMap) -> Respons
         Err(message) if message.contains("assinatura") || message.contains("plano ativo") => {
             error(StatusCode::CONFLICT, &message)
         }
-        Err(_) => error(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "Não foi possível abrir o pagamento agora.",
-        ),
+        Err(message) => {
+            eprintln!(
+                "billing checkout failed: {}",
+                message.chars().take(240).collect::<String>()
+            );
+            error(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Não foi possível abrir o pagamento agora.",
+            )
+        }
     }
 }
 
