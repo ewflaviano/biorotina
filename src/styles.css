@@ -147,6 +147,11 @@ h3 {
   border-color: var(--green-200);
   background: var(--green-50);
 }
+.drive-topbar.authorization-needed {
+  border-color: var(--blue-200);
+  background: var(--blue-50);
+  color: var(--blue-700);
+}
 .drive-topbar.pending,
 .drive-topbar.syncing {
   border-color: var(--blue-200);

@@ -4,9 +4,9 @@ O app continua utilizável sem conta. Dados de saúde permanecem no navegador e,
 
 ## 1. Conectar Google e fazer backup no Drive (`YTF-11099`) — implementado
 
-**Experiência:** “Entrar” aparece no topo de todas as telas, com detalhes e resolução de conflitos em Configurações. Após conectar, alterações sincronizam automaticamente enquanto a página está aberta; a pessoa vê a conta, o estado do Drive, erros e a opção de desconectar. Importar/exportar JSON continua disponível sem login.
+**Experiência:** “Entrar” aparece no topo de todas as telas. O login pede apenas a identidade Google; depois, um convite separado permite ativar o Drive ou deixar para mais tarde em Configurações. Só após a autorização adicional as alterações sincronizam automaticamente enquanto a página está aberta. A pessoa vê a conta, o estado do Drive, erros e a opção de desconectar. Importar/exportar JSON continua disponível sem login.
 
-**Implementação atual:** Google Identity Services com `openid`, `email` e `drive.appdata`, snapshots JSON versionados em `appDataFolder` e adaptador isolado do domínio. Apenas o OAuth client ID público entra no build; o token da pessoa fica no armazenamento do seu navegador para manter a conexão após recarregar. Não usar client secret nem credenciais de serviço no frontend. Origens locais e de produção estão configuradas no projeto OAuth sem segredos no repositório.
+**Implementação atual:** Google Identity Services com `openid` e `email` no login e autorização incremental de `drive.appdata` ao ativar sincronização, snapshots JSON versionados em `appDataFolder` e adaptador isolado do domínio. Apenas o OAuth client ID público entra no build; o token da pessoa fica no armazenamento do seu navegador para manter a conexão após recarregar. Não usar client secret nem credenciais de serviço no frontend. Origens locais e de produção estão configuradas no projeto OAuth sem segredos no repositório.
 
 **Critérios de entrega:**
 
