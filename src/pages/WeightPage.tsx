@@ -178,7 +178,7 @@ export function WeightPage() {
                         aria-label={`Usar peso de ${dateTimePt(item.measuredAt)} como modelo`}
                         onClick={() => repeatWeight(item)}
                       >
-                        Usar como modelo
+                        Repetir
                       </button>
                       <button
                         type="button"

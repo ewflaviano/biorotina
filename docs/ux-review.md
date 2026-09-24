@@ -14,7 +14,7 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 
 1. Informe a medida; a data e hora começam no momento de abertura da tela e o botão **Agora** atualiza esse valor se a página ficou aberta.
 2. O histórico e o gráfico mostram as medidas anteriores; o IMC só aparece com altura informada. A categoria usa faixas de referência para adultos de 18 a 59 anos, sem cor de julgamento ou diagnóstico. O botão de informação abre a fórmula, todas as faixas, a fonte oficial e a justificativa dos limites de entrada.
-3. **Usar como modelo** preenche o valor anterior, limpa a observação antiga e define data/hora atual. A pessoa confere antes de salvar um novo registro.
+3. **Repetir** preenche o valor anterior, limpa a observação antiga e define data/hora atual. A pessoa confere antes de salvar um novo registro.
 4. **Excluir** remove uma medida incorreta; **Desfazer** restaura exatamente o registro anterior.
 
 **Próxima melhoria possível:** edição direta de uma medida histórica, sem precisar excluir e recriar.
@@ -24,7 +24,7 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 1. Os atalhos mostram primeiro as atividades registradas mais recentemente, sem repetir nomes. Tocar em uma delas recupera duração e calorias do último registro para revisão. As vagas restantes mostram sugestões gerais; também é possível buscar no catálogo de mais de 50 atividades ou digitar livremente.
 2. Para uma atividade do catálogo, o app sugere calorias a partir de MET, duração e último peso; sem peso, indica a referência de 70 kg. A pessoa pode ajustar, limpar ou voltar à estimativa. O botão de informação mostra a fórmula, o MET e código da atividade escolhida e o link para a fonte.
 3. **Agora** corrige a hora sugerida quando necessário.
-4. O histórico oferece **Usar como modelo** para preencher nome, duração e calorias anteriores com data/hora atual; **Excluir** tem desfazer. Valores estimados e informados são identificados.
+4. O histórico oferece **Repetir** para preencher nome, duração e calorias anteriores com data/hora atual; **Excluir** tem desfazer. Valores estimados e informados são identificados.
 5. O resumo e o gráfico mostram tempo registrado, sem penalizar dias vazios.
 
 **Próxima melhoria possível:** filtros de período e edição de detalhes de uma atividade passada quando o histórico crescer.
