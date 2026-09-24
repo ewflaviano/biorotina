@@ -6,6 +6,18 @@ export function PushControl() {
   const { status, message, scheduleCount, subscribed, enable, disable, test } =
     usePush();
   const active = status === "active";
+  const activationLabel =
+    status === "connecting"
+      ? "Conectando…"
+      : status === "install_required"
+        ? "Abra pelo ícone para ativar"
+        : status === "unavailable"
+          ? "Avisos indisponíveis neste navegador"
+          : status === "denied"
+            ? "Permissão de avisos bloqueada"
+            : scheduleCount === 0
+              ? "Escolha um horário primeiro"
+              : "Ativar avisos";
   return (
     <section className="panel push-control" aria-labelledby="push-title">
       <Bell size={22} className="reminder-icon" aria-hidden="true" />
@@ -20,6 +32,13 @@ export function PushControl() {
         configurado
         {scheduleCount === 1 ? "" : "s"} entre água e medicação.
       </p>
+      {scheduleCount === 0 && (
+        <p className="push-setup-hint" id="push-setup-hint">
+          Para ativar os avisos, escolha primeiro um horário de lembrete em{" "}
+          <Link to="/hidratacao">Hidratação</Link> ou em um medicamento. Depois,
+          volte a este botão.
+        </p>
+      )}
       {status === "unavailable" && (
         <p className="muted">
           Este navegador não oferece avisos neste modo. Confira se você está
@@ -29,10 +48,11 @@ export function PushControl() {
       {status === "install_required" && (
         <div className="push-install-guide">
           <p>
-            No iPhone, os avisos só podem ser ativados ao abrir a Biorotina pelo
-            ícone da Tela de Início. Adicione o site pelo menu Compartilhar do
-            Firefox ou do Safari e abra o ícone criado. Depois, volte aqui para
-            ativar os avisos.
+            No iPhone, os avisos só podem ser ativados quando a Biorotina abre
+            como app pela Tela de Início. Esta janela ainda está no navegador.
+            Abra biorotina.app.br no Safari, toque em Compartilhar → Adicionar à
+            Tela de Início e mantenha “Abrir como App” ativado, se aparecer.
+            Depois, abra pelo novo ícone, sem a barra de endereço, e volte aqui.
           </p>
           <Link className="button secondary" to="/instalar">
             Ver como adicionar
@@ -41,7 +61,9 @@ export function PushControl() {
       )}
       {status === "denied" && (
         <p className="form-error" role="alert">
-          O navegador bloqueou as notificações deste site.
+          As notificações foram bloqueadas neste dispositivo. No iPhone, abra
+          Ajustes → Notificações → Biorotina e permita os avisos. Depois, volte
+          ao app.
         </p>
       )}
       <div className="push-actions">
@@ -80,12 +102,16 @@ export function PushControl() {
             disabled={
               status === "unavailable" ||
               status === "install_required" ||
+              status === "denied" ||
               status === "connecting" ||
               scheduleCount === 0
             }
+            aria-describedby={
+              scheduleCount === 0 ? "push-setup-hint" : undefined
+            }
             onClick={enable}
           >
-            {status === "connecting" ? "Conectando…" : "Ativar avisos"}
+            {activationLabel}
           </button>
         )}
       </div>

@@ -263,7 +263,7 @@ h3 {
   color: var(--color-text-on-brand);
   background: var(--color-action);
 }
-.button.primary:hover {
+.button.primary:hover:not(:disabled) {
   background: var(--color-action-hover);
 }
 .button.secondary {
@@ -271,7 +271,7 @@ h3 {
   color: var(--color-action);
   border-color: var(--color-border-strong);
 }
-.button.secondary:hover {
+.button.secondary:hover:not(:disabled) {
   background: var(--color-action-soft);
 }
 .button.compact {
@@ -550,6 +550,16 @@ h3 {
 }
 .push-install-guide p {
   margin: 0 0 12px;
+}
+.push-setup-hint {
+  border-radius: var(--radius-md);
+  background: var(--color-action-soft);
+  padding: 14px;
+  margin: 12px 0;
+}
+.push-setup-hint a {
+  color: var(--color-action);
+  font-weight: 700;
 }
 .push-message {
   color: var(--color-action);

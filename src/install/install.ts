@@ -79,6 +79,6 @@ export function dismissInstallPrompt() {
 
 export function installInstructions() {
   if (/iPad|iPhone|iPod/.test(navigator.userAgent))
-    return "No iPhone, toque em Compartilhar (quadrado com seta) e depois em Adicionar à Tela de Início. Se a opção não aparecer, abra a Biorotina no Safari.";
+    return "No iPhone, toque em Compartilhar (quadrado com seta) e depois em Adicionar à Tela de Início. Deixe ‘Abrir como App’ ativado, se aparecer. Se a opção de adicionar não estiver disponível, abra a Biorotina no Safari.";
   return "Abra o menu ⋮ do navegador e escolha Instalar app ou Adicionar à tela inicial. Se não encontrar, abra a página no Chrome.";
 }

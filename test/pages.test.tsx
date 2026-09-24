@@ -103,7 +103,10 @@ describe("hidratação", () => {
       screen.getByText(/No iPhone, os avisos só podem ser ativados/),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Ativar avisos" }),
+      screen.getByText(/Esta janela ainda está no navegador/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Abra pelo ícone para ativar" }),
     ).toBeDisabled();
     expect(
       screen.getByRole("link", { name: "Ver como adicionar" }),
@@ -112,6 +115,14 @@ describe("hidratação", () => {
 
   it("registra água, soma o dia e guarda vários horários sem ativar notificações", async () => {
     const user = await renderPage(<HydrationPage />);
+    expect(
+      screen.getByText(/Para ativar os avisos, escolha primeiro um horário/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Avisos indisponíveis neste navegador",
+      }),
+    ).toBeDisabled();
     await user.click(screen.getByRole("button", { name: /250 ml/ }));
     await waitFor(async () =>
       expect((await loadData()).hydrationEntries).toHaveLength(1),

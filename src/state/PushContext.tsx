@@ -246,7 +246,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
     }
     busy.current = true;
     setStatus("connecting");
-    setMessage("");
+    setMessage("Aguardando a permissão de notificações do dispositivo…");
     let createdSubscription: PushSubscription | null = null;
     try {
       const permission =
@@ -262,6 +262,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
         );
         return;
       }
+      setMessage("Permissão concedida. Conectando o serviço de avisos…");
       const config = await request<{ publicKey: string }>("/config");
       const registration = await navigator.serviceWorker.register("/sw.js");
       const existing = await registration.pushManager.getSubscription();

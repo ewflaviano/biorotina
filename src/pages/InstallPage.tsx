@@ -27,7 +27,9 @@ export function InstallPage() {
             <p className="muted small">
               No iPhone, abra a Biorotina pelo ícone criado na Tela de Início
               para poder ativar os avisos. A permissão não aparece dentro da aba
-              do Firefox ou do Safari. É necessário iOS 16.4 ou mais recente.
+              do Firefox ou do Safari. Ao adicionar, deixe “Abrir como App”
+              ativado, se essa opção aparecer. É necessário iOS 16.4 ou mais
+              recente.
             </p>
             <InstallButton />
             <p className="muted small">
