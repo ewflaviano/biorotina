@@ -1,4 +1,12 @@
-import { Apple, Camera, ImagePlus, Sparkles, Trash2, X } from "lucide-react";
+import {
+  Apple,
+  Camera,
+  ImagePlus,
+  LoaderCircle,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import {
   useEffect,
   useState,
@@ -57,6 +65,7 @@ export function FoodPage() {
   const [foods, setFoods] = useState<FoodDraft[]>([]);
   const [photo, setPhoto] = useState<PreparedImage | null>(null);
   const [photoExpanded, setPhotoExpanded] = useState(true);
+  const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [photoMode, setPhotoMode] = useState<"trial" | "plan" | "key">("trial");
   const [trialEnabled, setTrialEnabled] = useState(false);
@@ -65,6 +74,9 @@ export function FoodPage() {
     accountId: string;
     value: PlanStatus;
   } | null>(null);
+  const [planCheckFailedFor, setPlanCheckFailedFor] = useState<string | null>(
+    null,
+  );
   const [photoOffer, setPhotoOffer] = useState<"exhausted" | "access" | null>(
     null,
   );
@@ -86,12 +98,15 @@ export function FoodPage() {
     accountPlanStatus.accountId === drive.account.id
       ? accountPlanStatus.value
       : null;
-  const selectedPhotoMode =
-    photoMode === "trial" &&
-    (planStatus?.active || !trialEnabled || !drive.account)
-      ? planStatus?.active
-        ? "plan"
-        : "key"
+  const checkingPlan = Boolean(
+    drive.account?.token &&
+    !planStatus &&
+    planCheckFailedFor !== drive.account.id,
+  );
+  const selectedPhotoMode = planStatus?.active
+    ? "plan"
+    : photoMode === "trial" && (!trialEnabled || !drive.account)
+      ? "key"
       : photoMode;
 
   useEffect(() => {
@@ -130,9 +145,14 @@ export function FoodPage() {
     const accountId = drive.account.id;
     getPlanStatus(drive.account.token)
       .then((status) => {
-        if (active) setAccountPlanStatus({ accountId, value: status });
+        if (active) {
+          setAccountPlanStatus({ accountId, value: status });
+          setPlanCheckFailedFor(null);
+        }
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (active) setPlanCheckFailedFor(accountId);
+      });
     return () => {
       active = false;
     };
@@ -219,6 +239,8 @@ export function FoodPage() {
     event.target.value = "";
     if (!file) return;
     setError("");
+    setPhoto(null);
+    setPreparingPhoto(true);
     try {
       setPhoto(await prepareMealImage(file));
     } catch (cause) {
@@ -228,10 +250,16 @@ export function FoodPage() {
           ? cause.message
           : "Não foi possível abrir a foto.",
       );
+    } finally {
+      setPreparingPhoto(false);
     }
   }
 
   function guardPhotoPicker(event: MouseEvent<HTMLLabelElement>) {
+    if (preparingPhoto || analyzing) {
+      event.preventDefault();
+      return;
+    }
     const accountCanAnalyze = Boolean(
       drive.account?.token &&
       (!planStatus ||
@@ -429,6 +457,7 @@ export function FoodPage() {
                       accept="image/*"
                       capture="environment"
                       onChange={choosePhoto}
+                      disabled={preparingPhoto || analyzing}
                     />
                     <label
                       className="button secondary"
@@ -443,42 +472,63 @@ export function FoodPage() {
                       type="file"
                       accept="image/*"
                       onChange={choosePhoto}
+                      disabled={preparingPhoto || analyzing}
                     />
                   </div>
-                  <div
-                    className="meal-ai-modes"
-                    role="group"
-                    aria-label="Como analisar a foto"
-                  >
-                    {trialEnabled && drive.account && !planStatus?.active && (
+                  {preparingPhoto && (
+                    <p className="meal-photo-status" role="status">
+                      <LoaderCircle
+                        size={18}
+                        className="motion-spinner"
+                        aria-hidden="true"
+                      />
+                      Preparando foto…
+                    </p>
+                  )}
+                  {checkingPlan && (
+                    <p className="meal-photo-status" role="status">
+                      <LoaderCircle
+                        size={18}
+                        className="motion-spinner"
+                        aria-hidden="true"
+                      />
+                      Consultando seu plano…
+                    </p>
+                  )}
+                  {!checkingPlan && !planStatus?.active && (
+                    <div
+                      className="meal-ai-modes"
+                      role="group"
+                      aria-label="Como analisar a foto"
+                    >
+                      {trialEnabled && drive.account && planStatus && (
+                        <button
+                          type="button"
+                          aria-pressed={selectedPhotoMode === "trial"}
+                          onClick={() => setPhotoMode("trial")}
+                        >
+                          Testar grátis
+                        </button>
+                      )}
                       <button
                         type="button"
-                        aria-pressed={selectedPhotoMode === "trial"}
-                        onClick={() => setPhotoMode("trial")}
+                        aria-pressed={selectedPhotoMode === "plan"}
+                        onClick={() => setPhotoMode("plan")}
                       >
-                        Testar grátis
+                        Meu plano
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      aria-pressed={selectedPhotoMode === "plan"}
-                      onClick={() => setPhotoMode("plan")}
-                    >
-                      Meu plano
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={selectedPhotoMode === "key"}
-                      onClick={() => setPhotoMode("key")}
-                    >
-                      Minha chave Gemini
-                    </button>
-                  </div>
-                  {planStatus?.active ? (
+                      <button
+                        type="button"
+                        aria-pressed={selectedPhotoMode === "key"}
+                        onClick={() => setPhotoMode("key")}
+                      >
+                        Minha chave Gemini
+                      </button>
+                    </div>
+                  )}
+                  {checkingPlan ? null : planStatus?.active ? (
                     <p className="muted small">
-                      {selectedPhotoMode === "plan"
-                        ? "Seu plano está ativo: até 10 análises por dia."
-                        : "Esta análise usará sua chave Gemini. Seu plano também está ativo."}
+                      Seu plano está ativo: até 10 análises por dia.
                     </p>
                   ) : trialEnabled &&
                     drive.account &&
@@ -495,7 +545,10 @@ export function FoodPage() {
                     </p>
                   )}
                   {photo && (
-                    <div className="meal-photo-preview">
+                    <div
+                      className={`meal-photo-preview${analyzing ? " analyzing" : ""}`}
+                      aria-busy={analyzing}
+                    >
                       <img
                         src={photo.dataUrl}
                         alt="Foto selecionada da refeição"
@@ -503,10 +556,25 @@ export function FoodPage() {
                       <button
                         className="button primary"
                         type="button"
-                        disabled={analyzing}
+                        disabled={analyzing || checkingPlan}
                         onClick={analyzePhoto}
                       >
-                        {analyzing ? "Analisando foto…" : "Analisar foto"}
+                        {analyzing || checkingPlan ? (
+                          <LoaderCircle
+                            size={18}
+                            className="motion-spinner"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <Sparkles size={18} aria-hidden="true" />
+                        )}
+                        <span>
+                          {analyzing
+                            ? "Analisando foto…"
+                            : checkingPlan
+                              ? "Consultando plano…"
+                              : "Analisar foto"}
+                        </span>
                       </button>
                       <button
                         className="entry-action"
@@ -517,28 +585,36 @@ export function FoodPage() {
                       </button>
                     </div>
                   )}
-                  <p className="muted small">
-                    A foto é enviada{" "}
-                    {selectedPhotoMode === "key"
-                      ? "ao Google"
-                      : "à Biorotina e ao Google"}{" "}
-                    somente quando você toca em “Analisar foto”. Ela não é
-                    guardada no servidor, no diário ou no backup.{" "}
-                    {selectedPhotoMode === "trial" ? (
-                      <span>
-                        O teste grátis exige uma conta Google para contar as
-                        cinco análises.
-                      </span>
-                    ) : selectedPhotoMode === "plan" ? (
-                      !planStatus?.active && (
-                        <Link to="/assinatura">Ver plano de R$ 8,99/mês</Link>
-                      )
-                    ) : (
-                      <Link to="/configuracoes">
-                        Configurar minha chave Gemini
-                      </Link>
-                    )}
-                  </p>
+                  {analyzing && (
+                    <p className="meal-photo-status" role="status">
+                      Analisando a imagem. Você poderá revisar a sugestão antes
+                      de salvar.
+                    </p>
+                  )}
+                  {!checkingPlan && (
+                    <p className="muted small">
+                      A foto é enviada{" "}
+                      {selectedPhotoMode === "key"
+                        ? "ao Google"
+                        : "à Biorotina e ao Google"}{" "}
+                      somente quando você toca em “Analisar foto”. Ela não é
+                      guardada no servidor, no diário ou no backup.{" "}
+                      {selectedPhotoMode === "trial" ? (
+                        <span>
+                          O teste grátis exige uma conta Google para contar as
+                          cinco análises.
+                        </span>
+                      ) : selectedPhotoMode === "plan" ? (
+                        !planStatus?.active && (
+                          <Link to="/assinatura">Ver plano de R$ 8,99/mês</Link>
+                        )
+                      ) : (
+                        <Link to="/configuracoes">
+                          Configurar minha chave Gemini
+                        </Link>
+                      )}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -561,7 +637,9 @@ export function FoodPage() {
                 />
               </div>
               {foods.length > 0 && (
-                <div className="meal-foods full">
+                <div
+                  className={`meal-foods full${photoAssisted ? " from-photo" : ""}`}
+                >
                   <div className="meal-foods-title">
                     <strong>Alimentos sugeridos</strong>
                     <span>Confira as porções e as calorias</span>
