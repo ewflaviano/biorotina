@@ -124,6 +124,9 @@ functions:
 resources:
   extensions:
     HttpApiStage:
+      DependsOn:
+        - HttpApiRoutePostApiPushSubscriptions
+        - HttpApiRoutePostApiTelemetryError
       Properties:
         RouteSettings:
           'POST /api/push/subscriptions':
