@@ -17,6 +17,7 @@ import { DriveBackup } from "./DriveBackup";
 import { DriveSyncProvider } from "./DriveSyncContext";
 import { downloadJson } from "./download";
 import {
+  authorizeGoogleDrive,
   connectGoogle,
   downloadDriveSnapshot,
   forgetGoogleAccount,
@@ -30,6 +31,7 @@ vi.mock("./google", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./google")>();
   return {
     ...actual,
+    authorizeGoogleDrive: vi.fn(),
     connectGoogle: vi.fn(),
     downloadDriveSnapshot: vi.fn(),
     listDriveSnapshots: vi.fn(),
@@ -99,6 +101,7 @@ afterEach(() => {
 });
 
 beforeEach(async () => {
+  vi.clearAllMocks();
   const db = await openDB("biorotina", 3);
   await db.clear("app");
   await db.clear("driveSync");
@@ -108,6 +111,11 @@ beforeEach(async () => {
   forgetGoogleAccount();
   vi.mocked(connectGoogle).mockResolvedValue({
     ...account,
+    expiresAt: Date.now() + 3_600_000,
+  });
+  vi.mocked(authorizeGoogleDrive).mockResolvedValue({
+    ...account,
+    driveAuthorized: true,
     expiresAt: Date.now() + 3_600_000,
   });
   vi.mocked(renewGoogle).mockResolvedValue(null);
@@ -125,6 +133,104 @@ beforeEach(async () => {
 });
 
 describe("login e sincronização automática", () => {
+  it("entra sem Drive, oferece autorização adicional e só sincroniza após permitir", async () => {
+    vi.mocked(connectGoogle).mockResolvedValue({
+      ...account,
+      driveAuthorized: false,
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Entrar com Google para sincronizar",
+      }),
+    );
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Guardar sua rotina no Drive?",
+      }),
+    ).toBeInTheDocument();
+    expect(listDriveSnapshots).not.toHaveBeenCalled();
+    expect(uploadDriveSnapshot).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("link", { name: "Google Drive: ativação opcional" }),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Ativar sincronização" }),
+    );
+    await waitFor(() =>
+      expect(authorizeGoogleDrive).toHaveBeenCalledWith(
+        "test-client-id",
+        expect.objectContaining({ id: account.id, driveAuthorized: false }),
+      ),
+    );
+    await waitFor(() => expect(listDriveSnapshots).toHaveBeenCalled());
+    expect(
+      await screen.findByRole("link", { name: "Google Drive: sincronizado" }),
+    ).toBeInTheDocument();
+  });
+
+  it("permite adiar a autorização do Drive sem perder a conta", async () => {
+    vi.mocked(connectGoogle).mockResolvedValue({
+      ...account,
+      driveAuthorized: false,
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Entrar com Google para sincronizar",
+      }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Agora não" }));
+    expect(
+      screen.queryByRole("dialog", { name: "Guardar sua rotina no Drive?" }),
+    ).not.toBeInTheDocument();
+    expect(listDriveSnapshots).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Registrar água" }));
+    await screen.findByText("1 registros de água");
+    expect(listDriveSnapshots).not.toHaveBeenCalled();
+    await user.click(
+      screen.getByRole("link", { name: "Google Drive: ativação opcional" }),
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Ativar sincronização no Drive",
+      }),
+    );
+    await waitFor(() => expect(listDriveSnapshots).toHaveBeenCalled());
+  });
+
+  it("mantém o login e os dados locais quando o Drive é recusado", async () => {
+    vi.mocked(connectGoogle).mockResolvedValue({
+      ...account,
+      driveAuthorized: false,
+    });
+    vi.mocked(authorizeGoogleDrive).mockRejectedValue(
+      new Error("Autorize o acesso à área privada de backups do Drive."),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Entrar com Google para sincronizar",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Ativar sincronização",
+      }),
+    );
+    expect(
+      await screen.findByRole("link", {
+        name: "Google Drive: ativação opcional",
+      }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Agora não" }));
+    await user.click(screen.getByRole("button", { name: "Registrar água" }));
+    await screen.findByText("1 registros de água");
+    expect((await loadData(account.id)).hydrationEntries).toHaveLength(1);
+  });
   it("convida após o primeiro registro local, adia até outro dia e respeita nunca mais", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -495,11 +601,9 @@ describe("login e sincronização automática", () => {
     await user.click(
       screen.getByRole("button", { name: "Sair e apagar dados desta conta" }),
     );
-    await screen.findByRole("button", { name: "Conectar Google Drive" });
+    await screen.findByRole("button", { name: "Entrar com Google" });
     expect((await loadData(account.id)).hydrationEntries).toHaveLength(0);
-    await user.click(
-      screen.getByRole("button", { name: "Conectar Google Drive" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Entrar com Google" }));
     await screen.findByText(second.email);
     expect((await loadData(second.id)).hydrationEntries).toHaveLength(0);
     expect(uploadDriveSnapshot).toHaveBeenCalledTimes(1);
@@ -522,7 +626,7 @@ describe("login e sincronização automática", () => {
       screen.getByRole("button", { name: "Sair e apagar dados desta conta" }),
     );
     await user.click(
-      await screen.findByRole("button", { name: "Conectar Google Drive" }),
+      await screen.findByRole("button", { name: "Entrar com Google" }),
     );
     await screen.findByText(account.email);
     await waitFor(async () =>
@@ -589,7 +693,7 @@ describe("login e sincronização automática", () => {
       expect(downloadJson).toHaveBeenCalledOnce();
       expect(confirmed).toBeEnabled();
       await user.click(confirmed);
-      await screen.findByRole("button", { name: "Conectar Google Drive" });
+      await screen.findByRole("button", { name: "Entrar com Google" });
       expect((await loadData(account.id)).hydrationEntries).toHaveLength(0);
     } finally {
       Object.defineProperty(navigator, "onLine", {
@@ -629,7 +733,7 @@ describe("login e sincronização automática", () => {
       await user.click(
         screen.getByRole("button", { name: "Apagar sem backup e sair" }),
       );
-      await screen.findByRole("button", { name: "Conectar Google Drive" });
+      await screen.findByRole("button", { name: "Entrar com Google" });
       expect((await loadData(account.id)).hydrationEntries).toHaveLength(0);
       expect(downloadJson).not.toHaveBeenCalled();
     } finally {

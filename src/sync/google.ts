@@ -5,7 +5,8 @@ import {
 } from "../domain/data";
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
-const SCOPES = `openid email ${DRIVE_SCOPE}`;
+const IDENTITY_SCOPES = "openid email";
+const DRIVE_SCOPES = `${IDENTITY_SCOPES} ${DRIVE_SCOPE}`;
 const BACKUP_NAME = "biorotina-backup.json";
 const MAX_BACKUP_BYTES = 10_000_000;
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
@@ -70,6 +71,8 @@ export interface GoogleAccount {
   email: string;
   token: string;
   expiresAt: number;
+  // Contas salvas antes da separação já tinham autorização para o Drive.
+  driveAuthorized?: boolean;
 }
 
 let connectedAccount: GoogleAccount | null = null;
@@ -133,7 +136,8 @@ export function rememberGoogleAccount(account: GoogleAccount): void {
 
 async function requestGoogleAccount(
   clientId: string,
-  prompt: "select_account" | "none",
+  prompt: "select_account" | "none" | "",
+  requestDrive: boolean,
   loginHint?: string,
 ): Promise<GoogleAccount> {
   await preloadGoogleIdentity();
@@ -158,7 +162,7 @@ async function requestGoogleAccount(
     try {
       const client = oauth2.initTokenClient({
         client_id: clientId,
-        scope: SCOPES,
+        scope: requestDrive ? DRIVE_SCOPES : IDENTITY_SCOPES,
         login_hint: loginHint,
         callback: (response) =>
           finish(() =>
@@ -184,7 +188,10 @@ async function requestGoogleAccount(
       finish(() => reject(cause));
     }
   });
-  if (!token.access_token || !token.scope?.split(" ").includes(DRIVE_SCOPE)) {
+  if (!token.access_token) {
+    throw new Error("Não foi possível entrar com a conta Google.");
+  }
+  if (requestDrive && !token.scope?.split(" ").includes(DRIVE_SCOPE)) {
     throw new Error("Autorize o acesso à área privada de backups do Drive.");
   }
   const response = await fetch(
@@ -211,11 +218,27 @@ async function requestGoogleAccount(
     email: identity.email,
     token: token.access_token,
     expiresAt: Date.now() + (token.expires_in ?? 3600) * 1000,
+    driveAuthorized: Boolean(token.scope?.split(" ").includes(DRIVE_SCOPE)),
   };
 }
 
 export function connectGoogle(clientId: string): Promise<GoogleAccount> {
-  return requestGoogleAccount(clientId, "select_account");
+  return requestGoogleAccount(clientId, "select_account", false);
+}
+
+export async function authorizeGoogleDrive(
+  clientId: string,
+  account: GoogleAccount,
+): Promise<GoogleAccount> {
+  const authorized = await requestGoogleAccount(
+    clientId,
+    "",
+    true,
+    account.email,
+  );
+  if (authorized.id !== account.id)
+    throw new Error("Selecione a mesma conta Google para ativar o Drive.");
+  return authorized;
 }
 
 export async function renewGoogle(
@@ -224,7 +247,12 @@ export async function renewGoogle(
   const previous = readStoredAccount();
   if (!previous) return null;
   if (previous.expiresAt > Date.now() + 60_000) return previous;
-  const renewed = await requestGoogleAccount(clientId, "none", previous.email);
+  const renewed = await requestGoogleAccount(
+    clientId,
+    "none",
+    previous.driveAuthorized !== false,
+    previous.email,
+  );
   if (renewed.id !== previous.id)
     throw new Error("Confirme sua conta Google para continuar sincronizando.");
   return renewed;

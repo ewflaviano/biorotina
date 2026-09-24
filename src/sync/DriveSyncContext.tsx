@@ -16,6 +16,7 @@ import { downloadJson } from "./download";
 import { mergeAppData } from "./merge";
 import { reportClientError } from "../observability/client";
 import {
+  authorizeGoogleDrive,
   connectGoogle,
   contentHash,
   currentGoogleAccount,
@@ -47,7 +48,13 @@ interface Conflict {
 }
 
 export type DriveSyncStatus =
-  "disconnected" | "syncing" | "synced" | "pending" | "conflict" | "error";
+  | "disconnected"
+  | "authorization-needed"
+  | "syncing"
+  | "synced"
+  | "pending"
+  | "conflict"
+  | "error";
 
 interface DriveSyncValue {
   available: boolean;
@@ -59,7 +66,10 @@ interface DriveSyncValue {
   hasPendingChanges: boolean;
   message: string;
   error: string;
+  drivePermissionPrompt: boolean;
   connect: () => Promise<void>;
+  authorizeDrive: () => Promise<void>;
+  dismissDrivePermissionPrompt: () => void;
   disconnect: (discardPending?: boolean) => Promise<void>;
   sync: () => Promise<void>;
   resolveWithLocal: () => Promise<void>;
@@ -87,11 +97,16 @@ export function DriveSyncProvider({
   const [latest, setLatest] = useState<DriveSnapshot | null>(null);
   const [conflict, setConflict] = useState<Conflict | null>(null);
   const [status, setStatus] = useState<DriveSyncStatus>(
-    account ? "pending" : "disconnected",
+    account
+      ? account.driveAuthorized === false
+        ? "authorization-needed"
+        : "pending"
+      : "disconnected",
   );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [drivePermissionPrompt, setDrivePermissionPrompt] = useState(false);
   const [settledRevision, setSettledRevision] = useState<number | null>(null);
   const [guestCopyAvailable, setGuestCopyAvailable] = useState(false);
   const canCopyGuest = Boolean(
@@ -111,6 +126,10 @@ export function DriveSyncProvider({
 
   const syncAccount = useCallback(
     async (connected: GoogleAccount): Promise<void> => {
+      if (connected.driveAuthorized === false) {
+        setStatus("authorization-needed");
+        return;
+      }
       if (running.current) {
         rerun.current = true;
         return;
@@ -140,6 +159,10 @@ export function DriveSyncProvider({
               connected = refreshed;
               accountRef.current = refreshed;
               setAccount(refreshed);
+              if (refreshed.driveAuthorized === false) {
+                setStatus("authorization-needed");
+                return;
+              }
             } catch {
               throw new Error(
                 "A conexão com o Google expirou. Conecte novamente para sincronizar.",
@@ -262,6 +285,8 @@ export function DriveSyncProvider({
         rememberGoogleAccount(restored);
         accountRef.current = restored;
         setAccount(restored);
+        if (restored.driveAuthorized === false)
+          setStatus("authorization-needed");
       })
       .catch(() => {
         reportClientError("drive", "drive_sync_failed");
@@ -288,6 +313,12 @@ export function DriveSyncProvider({
       rememberGoogleAccount(connected);
       accountRef.current = connected;
       setAccount(connected);
+      setStatus(
+        connected.driveAuthorized === false
+          ? "authorization-needed"
+          : "pending",
+      );
+      setDrivePermissionPrompt(connected.driveAuthorized === false);
     } catch (cause) {
       reportClientError("drive", "drive_sync_failed");
       setError(
@@ -300,8 +331,35 @@ export function DriveSyncProvider({
       return;
     }
     setBusy(false);
-    if (accountRef.current) await syncAccount(accountRef.current);
+    if (accountRef.current?.driveAuthorized !== false && accountRef.current)
+      await syncAccount(accountRef.current);
   }, [googleClientId, switchScope, syncAccount]);
+
+  const authorizeDrive = useCallback(async () => {
+    const connected = accountRef.current;
+    if (!googleClientId || !connected || running.current || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const authorized = await authorizeGoogleDrive(googleClientId, connected);
+      rememberGoogleAccount(authorized);
+      accountRef.current = authorized;
+      setAccount(authorized);
+      setDrivePermissionPrompt(false);
+      setStatus("pending");
+      setBusy(false);
+      await syncAccount(authorized);
+    } catch (cause) {
+      reportClientError("drive", "drive_sync_failed");
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível ativar o Drive.",
+      );
+      setStatus("authorization-needed");
+      setBusy(false);
+    }
+  }, [busy, googleClientId, syncAccount]);
 
   const disconnect = useCallback(
     async (discardPending = false) => {
@@ -334,6 +392,7 @@ export function DriveSyncProvider({
         setError("");
         setMessage("");
         setStatus("disconnected");
+        setDrivePermissionPrompt(false);
         setGuestCopyAvailable(false);
       } catch {
         reportClientError("drive", "drive_sync_failed");
@@ -361,13 +420,13 @@ export function DriveSyncProvider({
   useEffect(() => {
     if (previousRevision.current === data.revision) return;
     previousRevision.current = data.revision;
-    if (!account) return;
+    if (!account || account.driveAuthorized === false) return;
     const timer = window.setTimeout(() => void sync(), 1_200);
     return () => window.clearTimeout(timer);
   }, [account, data.revision, sync]);
 
   useEffect(() => {
-    if (!account) return;
+    if (!account || account.driveAuthorized === false) return;
     const resume = () => void sync();
     const visible = () => {
       if (document.visibilityState === "visible") resume();
@@ -383,7 +442,13 @@ export function DriveSyncProvider({
   }, [account, sync]);
 
   useEffect(() => {
-    if (account && !loading && scope === account.id) void sync();
+    if (
+      account?.driveAuthorized !== false &&
+      account &&
+      !loading &&
+      scope === account.id
+    )
+      void sync();
   }, [account, loading, scope, sync]);
 
   const resolveWithLocal = useCallback(async () => {
@@ -600,7 +665,10 @@ export function DriveSyncProvider({
         hasPendingChanges: visibleStatus !== "synced" && hasLocalContent(data),
         message,
         error,
+        drivePermissionPrompt,
         connect,
+        authorizeDrive,
+        dismissDrivePermissionPrompt: () => setDrivePermissionPrompt(false),
         disconnect,
         sync,
         resolveWithLocal,
