@@ -84,7 +84,7 @@ function App() {
 }
 
 beforeEach(async () => {
-  const db = await openDB("biorotina", 2);
+  const db = await openDB("biorotina", 3);
   await db.clear("app");
   await db.clear("driveSync");
   db.close();
@@ -102,7 +102,7 @@ beforeEach(async () => {
       createdTime: new Date(Date.now() + snapshots.length).toISOString(),
     };
     snapshots.unshift(saved);
-    expect(data.schemaVersion).toBe(3);
+    expect(data.schemaVersion).toBe(4);
     return saved;
   });
   vi.mocked(downloadDriveSnapshot).mockReset();

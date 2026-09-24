@@ -1,9 +1,9 @@
-/** Aggregate visit measurement. This module never receives app records or account data. */
+/** Site visit measurement. This module never receives app records or account data. */
 
-const CONSENT_KEY = "biorotina.analytics.consent.v1";
+const PREFERENCE_KEY = "biorotina.analytics.consent.v1";
 const PRODUCTION_HOST = "biorotina.app.br";
 
-export type AnalyticsPreference = "accepted" | "declined" | "unset";
+export type AnalyticsPreference = "accepted" | "declined";
 
 let analyticsPromise: Promise<boolean> | null = null;
 let disableCollection: (() => void) | null = null;
@@ -12,22 +12,23 @@ let visitSent = false;
 
 export function getAnalyticsPreference(): AnalyticsPreference {
   try {
-    const saved = localStorage.getItem(CONSENT_KEY);
+    const saved = localStorage.getItem(PREFERENCE_KEY);
     if (saved === "accepted" || saved === "declined") return saved;
+    return "accepted";
   } catch {
-    // Private browsing or blocked storage leaves measurement off.
+    // If the choice cannot be stored, keep measurement off.
+    return "declined";
   }
-  return "unset";
 }
 
-/** Call only after the person makes an explicit choice in the app. */
+/** Change the local measurement preference from Settings. */
 export async function setAnalyticsPreference(
-  preference: Exclude<AnalyticsPreference, "unset">,
+  preference: AnalyticsPreference,
 ): Promise<boolean> {
   try {
-    localStorage.setItem(CONSENT_KEY, preference);
+    localStorage.setItem(PREFERENCE_KEY, preference);
   } catch {
-    // No durable consent means no collection.
+    // No durable preference means no collection.
     try {
       disableCollection?.();
     } catch {
@@ -47,7 +48,7 @@ export async function setAnalyticsPreference(
   return startVisitAnalytics();
 }
 
-/** Safe to call at startup; it does nothing without prior consent. */
+/** Safe to call at startup; it does nothing after opt-out. */
 export function startVisitAnalytics(): Promise<boolean> {
   if (getAnalyticsPreference() !== "accepted") return Promise.resolve(false);
   if (window.location.hostname !== PRODUCTION_HOST)
@@ -123,7 +124,7 @@ async function initializeVisitAnalytics(): Promise<boolean> {
     analyticsSdk.setAnalyticsCollectionEnabled(analytics, true);
   };
 
-  // Consent can be withdrawn while the SDK is loading.
+  // The person can turn off measurement while the SDK is loading.
   if (getAnalyticsPreference() !== "accepted") {
     disableCollection();
     return false;

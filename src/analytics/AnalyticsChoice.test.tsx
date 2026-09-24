@@ -7,7 +7,7 @@ import { AnalyticsChoice } from "./AnalyticsChoice";
 beforeEach(() => localStorage.clear());
 
 describe("escolha de métricas", () => {
-  it("começa desativada e permite recusar ou retirar uma permissão", async () => {
+  it("começa ativa, permite desativar e reativar a medição", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
@@ -16,23 +16,25 @@ describe("escolha de métricas", () => {
     );
 
     expect(
-      screen.getByText(
-        "Não enviamos métricas ao Google Analytics sem sua escolha.",
-      ),
+      screen.getByText(/Medimos visitas, origem aproximada/),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Não permitir" }));
+    await user.click(
+      screen.getByRole("button", { name: "Desativar métricas" }),
+    );
     expect(localStorage.getItem("biorotina.analytics.consent.v1")).toBe(
       "declined",
     );
     expect(
-      screen.getByRole("button", { name: "Não permitir" }),
+      screen.getByRole("button", { name: "Desativar métricas" }),
     ).toHaveAttribute("aria-pressed", "true");
 
-    await user.click(screen.getByRole("button", { name: "Permitir métricas" }));
+    await user.click(screen.getByRole("button", { name: "Ativar métricas" }));
     expect(localStorage.getItem("biorotina.analytics.consent.v1")).toBe(
       "accepted",
     );
-    await user.click(screen.getByRole("button", { name: "Não permitir" }));
+    await user.click(
+      screen.getByRole("button", { name: "Desativar métricas" }),
+    );
     expect(localStorage.getItem("biorotina.analytics.consent.v1")).toBe(
       "declined",
     );

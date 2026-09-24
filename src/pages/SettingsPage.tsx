@@ -23,6 +23,7 @@ import { useAppData } from "../state/AppDataContext";
 import { downloadJson } from "../sync/download";
 import { DriveBackup } from "../sync/DriveBackup";
 import { AnalyticsChoice } from "../analytics/AnalyticsChoice";
+import { GeminiSettings } from "../ai/GeminiSettings";
 
 export function SettingsPage() {
   const { data, mutate, replace } = useAppData();
@@ -131,6 +132,7 @@ export function SettingsPage() {
         description="Ajuste seu perfil e mantenha uma cópia dos seus dados."
       />
       <div className="settings-grid">
+        <GeminiSettings />
         <section className="panel">
           <div className="card-title">
             <span className="list-icon">
@@ -295,7 +297,7 @@ export function SettingsPage() {
             </span>
             <div>
               <h2>Métricas de acesso</h2>
-              <p>Ajude a entender quantas pessoas usam a Biorotina.</p>
+              <p>Veja e controle a medição de visitas da Biorotina.</p>
             </div>
           </div>
           <AnalyticsChoice />

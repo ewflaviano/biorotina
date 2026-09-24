@@ -1,13 +1,29 @@
 import { openDB } from "idb";
 import { beforeEach, describe, expect, it } from "vitest";
 import { emptyData } from "../domain/data";
-import { loadData, saveData } from "./indexedDb";
+import {
+  loadData,
+  loadGeminiKey,
+  removeGeminiKey,
+  saveData,
+  saveGeminiKey,
+} from "./indexedDb";
 
 describe("persistência local", () => {
   beforeEach(async () => {
-    const db = await openDB("biorotina", 2);
+    const db = await openDB("biorotina", 3);
     await db.clear("app");
+    await db.clear("geminiKey");
     db.close();
+  });
+
+  it("guarda a chave fora dos registros e do backup JSON", async () => {
+    await saveGeminiKey("  chave-pessoal  ");
+    await saveData(emptyData());
+    expect(await loadGeminiKey()).toBe("chave-pessoal");
+    expect(JSON.stringify(await loadData())).not.toContain("chave-pessoal");
+    await removeGeminiKey();
+    expect(await loadGeminiKey()).toBeNull();
   });
 
   it("inicia vazia e salva dados que podem ser lidos novamente", async () => {
@@ -19,7 +35,7 @@ describe("persistência local", () => {
   });
 
   it("recusa um documento inválido persistido em vez de apagar silenciosamente os dados", async () => {
-    const db = await openDB("biorotina", 2);
+    const db = await openDB("biorotina", 3);
     await db.put("app", { schemaVersion: 999 }, "main");
     db.close();
     await expect(loadData()).rejects.toThrow();
@@ -31,16 +47,16 @@ describe("persistência local", () => {
     const oldData = Object.fromEntries(
       Object.entries(current).filter(([key]) => !key.startsWith("hydration")),
     );
-    const db = await openDB("biorotina", 2);
+    const db = await openDB("biorotina", 3);
     await db.put("app", { ...oldData, schemaVersion: 1 }, "main");
     db.close();
     const loaded = await loadData();
-    expect(loaded.schemaVersion).toBe(3);
+    expect(loaded.schemaVersion).toBe(4);
     expect(loaded.profile.displayName).toBe("Bia");
     expect(
-      await (await openDB("biorotina", 2)).get("app", "main"),
+      await (await openDB("biorotina", 3)).get("app", "main"),
     ).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
     });
   });
 });
