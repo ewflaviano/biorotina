@@ -342,8 +342,8 @@ export function SettingsPage() {
               <ChartNoAxesCombined size={20} aria-hidden="true" />
             </span>
             <div>
-              <h2>Métricas de acesso</h2>
-              <p>Veja e controle a medição de visitas da Biorotina.</p>
+              <h2>Métricas e diagnóstico</h2>
+              <p>Controle a medição de visitas e o envio de erros técnicos.</p>
             </div>
           </div>
           <AnalyticsChoice />

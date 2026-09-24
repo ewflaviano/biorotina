@@ -33,6 +33,7 @@ import {
   type PlanStatus,
 } from "../billing/client";
 import { useDriveSync } from "../sync/DriveSyncContext";
+import { reportClientError } from "../observability/client";
 
 type FoodDraft = { id: string; name: string; amount: string; calories: string };
 
@@ -99,6 +100,7 @@ export function FoodPage() {
         if (active) setHasGeminiKey(Boolean(key));
       })
       .catch(() => {
+        reportClientError("storage", "local_storage_failed");
         if (active) setHasGeminiKey(false);
       });
     return () => {
@@ -288,7 +290,10 @@ export function FoodPage() {
           )
           .catch(() => undefined);
       } else {
-        const key = await loadGeminiKey();
+        const key = await loadGeminiKey().catch((cause: unknown) => {
+          reportClientError("storage", "local_storage_failed");
+          throw cause;
+        });
         if (!key)
           throw new Error(
             "Adicione sua chave Gemini nas Configurações para analisar fotos.",

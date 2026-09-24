@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { MealAnalysis, PreparedImage } from "../ai/gemini";
+import { reportClientError } from "../observability/client";
 
 const API = (import.meta.env.VITE_PUSH_API_URL || "").replace(/\/$/, "");
 const statusSchema = z.object({
@@ -49,14 +50,20 @@ async function request(
       cache: "no-store",
     });
   } catch {
+    reportClientError("billing", "network_failed");
     throw new Error(
       "Não foi possível conectar ao serviço do plano. Tente novamente mais tarde.",
     );
   }
   if (response.status === 404)
     throw new Error("O plano de IA ainda não está disponível. Volte em breve.");
-  const payload: unknown = await response.json().catch(() => ({}));
+  const payload: unknown = await response.json().catch(() => {
+    reportClientError("billing", "response_invalid", response.status);
+    return {};
+  });
   if (!response.ok) {
+    if (response.status >= 500)
+      reportClientError("billing", "billing_failed", response.status);
     const message = z.object({ error: z.string() }).safeParse(payload)
       .data?.error;
     throw new Error(message || "Não foi possível acessar o plano agora.");
@@ -65,23 +72,47 @@ async function request(
 }
 
 export async function getPlanStatus(googleToken: string): Promise<PlanStatus> {
-  return statusSchema.parse(await request("/api/billing/status", googleToken));
+  const parsed = statusSchema.safeParse(
+    await request("/api/billing/status", googleToken),
+  );
+  if (!parsed.success) {
+    reportClientError("billing", "response_invalid", 200);
+    throw parsed.error;
+  }
+  return parsed.data;
 }
 
 export async function getTrialConfig(): Promise<boolean> {
   const response = await fetch(API + "/api/ai/trial-config", {
     cache: "no-store",
+  }).catch((cause: unknown) => {
+    reportClientError("billing", "network_failed");
+    throw cause;
   });
-  if (!response.ok) throw new Error("Teste grátis indisponível.");
-  const payload: unknown = await response.json();
-  return z.object({ trialEnabled: z.boolean() }).parse(payload).trialEnabled;
+  if (!response.ok) {
+    if (response.status >= 500)
+      reportClientError("billing", "billing_failed", response.status);
+    throw new Error("Teste grátis indisponível.");
+  }
+  const payload: unknown = await response.json().catch(() => null);
+  const parsed = z.object({ trialEnabled: z.boolean() }).safeParse(payload);
+  if (!parsed.success) {
+    reportClientError("billing", "response_invalid", response.status);
+    throw parsed.error;
+  }
+  return parsed.data.trialEnabled;
 }
 export async function createPlanCheckout(googleToken: string): Promise<string> {
-  const value = z
+  const parsed = z
     .object({ url: z.string().url() })
-    .parse(
+    .safeParse(
       await request("/api/billing/checkout", googleToken, { method: "POST" }),
     );
+  if (!parsed.success) {
+    reportClientError("billing", "response_invalid", 200);
+    throw parsed.error;
+  }
+  const value = parsed.data;
   const url = new URL(value.url);
   if (!(
     ["asaas.com", "sandbox.asaas.com"].includes(url.hostname) &&
@@ -94,12 +125,17 @@ export async function analyzeWithPlan(
   googleToken: string,
   image: PreparedImage,
 ): Promise<MealAnalysis> {
-  return analysisSchema.parse(
+  const parsed = analysisSchema.safeParse(
     await request("/api/ai/meal", googleToken, {
       method: "POST",
       body: JSON.stringify({ image: image.base64 }),
     }),
   );
+  if (!parsed.success) {
+    reportClientError("photo", "response_invalid", 200);
+    throw parsed.error;
+  }
+  return parsed.data;
 }
 export async function cancelPlan(googleToken: string): Promise<PlanStatus> {
   return statusSchema.parse(

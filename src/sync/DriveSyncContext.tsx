@@ -13,6 +13,7 @@ import { useOptionalPush } from "../state/PushContext";
 import { loadData, loadDriveSync, saveDriveSync } from "../storage/indexedDb";
 import { decideSync } from "./decision";
 import { downloadJson } from "./download";
+import { reportClientError } from "../observability/client";
 import {
   connectGoogle,
   contentHash,
@@ -217,6 +218,7 @@ export function DriveSyncProvider({
             rerun.current = true;
         } while (rerun.current && accountRef.current?.id === connected.id);
       } catch (cause) {
+        reportClientError("drive", "drive_sync_failed");
         const description =
           cause instanceof Error
             ? cause.message
@@ -251,6 +253,7 @@ export function DriveSyncProvider({
         setAccount(restored);
       })
       .catch(() => {
+        reportClientError("drive", "drive_sync_failed");
         if (!cancelled && !accountRef.current)
           setMessage("Toque em Entrar para reconectar sua conta Google.");
       });
@@ -275,6 +278,7 @@ export function DriveSyncProvider({
       accountRef.current = connected;
       setAccount(connected);
     } catch (cause) {
+      reportClientError("drive", "drive_sync_failed");
       setError(
         cause instanceof Error
           ? cause.message
@@ -321,6 +325,7 @@ export function DriveSyncProvider({
         setStatus("disconnected");
         setGuestCopyAvailable(false);
       } catch {
+        reportClientError("drive", "drive_sync_failed");
         setError(
           "Não foi possível remover os dados desta conta do navegador. Tente novamente.",
         );
@@ -389,6 +394,7 @@ export function DriveSyncProvider({
         "Esta versão foi salva no Drive. O backup anterior continua disponível.",
       );
     } catch (cause) {
+      reportClientError("drive", "drive_sync_failed");
       setError(
         cause instanceof Error
           ? cause.message
@@ -438,6 +444,7 @@ export function DriveSyncProvider({
         "Backup do Drive restaurado. A versão local anterior foi baixada em JSON.",
       );
     } catch (cause) {
+      reportClientError("drive", "drive_sync_failed");
       setError(
         cause instanceof Error
           ? cause.message
@@ -463,6 +470,7 @@ export function DriveSyncProvider({
           );
       })
       .catch(() => {
+        reportClientError("storage", "local_storage_failed");
         if (active) setGuestCopyAvailable(false);
       });
     return () => {
@@ -488,6 +496,7 @@ export function DriveSyncProvider({
       setGuestCopyAvailable(false);
       await syncAccount(connected);
     } catch (cause) {
+      reportClientError("drive", "drive_sync_failed");
       setError(
         cause instanceof Error
           ? cause.message

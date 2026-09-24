@@ -8,6 +8,7 @@ use axum::{
     Json, Router,
 };
 use biorotina_push::billing::{Account, Billing, TRIAL_LIMIT};
+use biorotina_push::observability;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -22,12 +23,17 @@ fn reply(status: StatusCode, body: Value) -> Response {
 fn error(status: StatusCode, text: &str) -> Response {
     reply(status, json!({"error":text}))
 }
+fn failure(operation: &'static str, code: &'static str, text: &'static str) -> Response {
+    observability::error("billing_api", operation, code, Some(503));
+    error(StatusCode::SERVICE_UNAVAILABLE, text)
+}
 
 #[tokio::main]
 async fn main() -> Result<(), lambda_http::Error> {
-    let billing = Billing::load()
-        .await
-        .map_err(|e| lambda_http::Error::from(e.to_string()))?;
+    let billing = Billing::load().await.map_err(|_| {
+        observability::error("billing_api", "startup", "configuration_failed", None);
+        lambda_http::Error::from("billing configuration failed")
+    })?;
     lambda_http::run(router(billing)).await
 }
 
@@ -49,8 +55,9 @@ async fn preflight() -> StatusCode {
 async fn trial_config(State(billing): State<Billing>) -> Response {
     match billing.trial_enabled().await {
         Ok(enabled) => reply(StatusCode::OK, json!({"trialEnabled":enabled})),
-        Err(_) => error(
-            StatusCode::SERVICE_UNAVAILABLE,
+        Err(_) => failure(
+            "trial_config",
+            "database_failed",
             "Configuração indisponível.",
         ),
     }
@@ -67,6 +74,12 @@ async fn account_key(billing: &Billing, headers: &HeaderMap) -> Result<String, R
     let token = bearer_token(headers)
         .ok_or_else(|| error(StatusCode::UNAUTHORIZED, "Conecte sua conta Google."))?;
     billing.google_account_key(token).await.map_err(|_| {
+        observability::error(
+            "billing_api",
+            "account_key",
+            "google_verification_failed",
+            Some(401),
+        );
         error(
             StatusCode::UNAUTHORIZED,
             "Conecte novamente sua conta Google.",
@@ -78,7 +91,7 @@ async fn authorized(billing: &Billing, headers: &HeaderMap) -> Result<Account, R
     billing
         .account(&key)
         .await
-        .map_err(|_| error(StatusCode::SERVICE_UNAVAILABLE, "Assinatura indisponível."))?
+        .map_err(|_| failure("authorized", "database_failed", "Assinatura indisponível."))?
         .ok_or_else(|| error(StatusCode::UNAUTHORIZED, "Assinatura não encontrada."))
 }
 
@@ -92,16 +105,11 @@ async fn checkout(State(billing): State<Billing>, headers: HeaderMap) -> Respons
         Err(message) if message.contains("assinatura") || message.contains("plano ativo") => {
             error(StatusCode::CONFLICT, &message)
         }
-        Err(message) => {
-            eprintln!(
-                "billing checkout failed: {}",
-                message.chars().take(240).collect::<String>()
-            );
-            error(
-                StatusCode::SERVICE_UNAVAILABLE,
-                "Não foi possível abrir o pagamento agora.",
-            )
-        }
+        Err(_) => failure(
+            "checkout",
+            "checkout_failed",
+            "Não foi possível abrir o pagamento agora.",
+        ),
     }
 }
 
@@ -112,7 +120,13 @@ async fn status(State(billing): State<Billing>, headers: HeaderMap) -> Response 
     };
     let account = match billing.account(&key).await {
         Ok(account) => account,
-        Err(_) => return error(StatusCode::SERVICE_UNAVAILABLE, "Assinatura indisponível."),
+        Err(_) => {
+            return failure(
+                "status",
+                "account_lookup_failed",
+                "Assinatura indisponível.",
+            )
+        }
     };
     let (trial_enabled, trial_used, plan) = tokio::join!(
         billing.trial_enabled(),
@@ -133,8 +147,9 @@ async fn status(State(billing): State<Billing>, headers: HeaderMap) -> Response 
             value["trialLimit"] = json!(TRIAL_LIMIT);
             reply(StatusCode::OK, value)
         }
-        _ => error(
-            StatusCode::SERVICE_UNAVAILABLE,
+        _ => failure(
+            "status",
+            "status_lookup_failed",
             "Não foi possível consultar a assinatura.",
         ),
     }
@@ -148,13 +163,15 @@ async fn cancel(State(billing): State<Billing>, headers: HeaderMap) -> Response 
     match billing.cancel(&account).await {
         Ok(updated) => match billing.status(&updated).await {
             Ok(value) => reply(StatusCode::OK, value),
-            Err(_) => error(
-                StatusCode::SERVICE_UNAVAILABLE,
+            Err(_) => failure(
+                "cancel",
+                "status_lookup_failed",
                 "Assinatura cancelada, mas a atualização da tela falhou.",
             ),
         },
-        Err(_) => error(
-            StatusCode::SERVICE_UNAVAILABLE,
+        Err(_) => failure(
+            "cancel",
+            "cancel_failed",
             "Não foi possível cancelar no Asaas. Tente novamente.",
         ),
     }
@@ -173,10 +190,7 @@ async fn webhook(
     }
     match billing.webhook(&event).await {
         Ok(()) => reply(StatusCode::OK, json!({"received":true})),
-        Err(reason) => {
-            eprintln!("billing webhook processing failed: {reason}");
-            error(StatusCode::SERVICE_UNAVAILABLE, "Evento não processado.")
-        }
+        Err(_) => failure("webhook", "processing_failed", "Evento não processado."),
     }
 }
 
@@ -198,7 +212,13 @@ async fn analyze(
     }
     let account = match billing.account(&key).await {
         Ok(account) => account,
-        Err(_) => return error(StatusCode::SERVICE_UNAVAILABLE, "Assinatura indisponível."),
+        Err(_) => {
+            return failure(
+                "analyze",
+                "account_lookup_failed",
+                "Assinatura indisponível.",
+            )
+        }
     };
     let paid = account.as_ref().is_some_and(Account::active);
     if !paid {
@@ -211,8 +231,9 @@ async fn analyze(
                 )
             }
             Err(_) => {
-                return error(
-                    StatusCode::SERVICE_UNAVAILABLE,
+                return failure(
+                    "analyze",
+                    "trial_lookup_failed",
                     "Não foi possível verificar o teste grátis.",
                 )
             }
@@ -242,15 +263,22 @@ async fn analyze(
             )
         }
         Err(_) => {
-            return error(
-                StatusCode::SERVICE_UNAVAILABLE,
+            return failure(
+                "analyze",
+                "quota_reservation_failed",
                 "Não foi possível verificar a cota.",
             )
         }
     };
     match billing.analyze(&body.image).await {
         Ok(analysis) => reply(StatusCode::OK, json!(analysis)),
-        Err(_) => {
+        Err(reason) => {
+            observability::error(
+                "billing_api",
+                "analyze",
+                reason.code(),
+                reason.upstream_status(),
+            );
             billing.refund_reservation(&usage_key).await;
             error(
                 StatusCode::SERVICE_UNAVAILABLE,

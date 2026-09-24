@@ -93,6 +93,16 @@ functions:
       - httpApi:
           path: /api/push/{proxy+}
           method: ANY
+  telemetry:
+    handler: bootstrap
+    timeout: 5
+    memorySize: 128
+    package:
+      artifact: push/target/lambda/biorotina-telemetry.zip
+    events:
+      - httpApi:
+          path: /api/telemetry/error
+          method: POST
   tick:
     handler: bootstrap
     timeout: 120
