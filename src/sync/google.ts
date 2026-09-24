@@ -117,6 +117,10 @@ export function hasRememberedGoogleAccount(): boolean {
   return readStoredAccount() !== null;
 }
 
+export function rememberedGoogleAccountId(): string | null {
+  return currentGoogleAccount()?.id ?? null;
+}
+
 export function rememberGoogleAccount(account: GoogleAccount): void {
   connectedAccount = account;
   try {

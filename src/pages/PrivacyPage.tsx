@@ -62,9 +62,13 @@ export function PrivacyPage() {
             servidor nem usado para acessar seu Drive.
           </p>
           <p>
-            Você pode desconectar a conta no app, revogar o acesso nas
-            configurações da sua Conta Google e excluir o backup na área de
-            dados de apps do Drive. Os dados do Google não são vendidos nem
+            Ao sair da conta no app, os registros, a chave Gemini pessoal e a
+            sessão Google são removidos deste navegador. Se houver alterações
+            ainda não sincronizadas, você pode esperar a conexão voltar, baixar
+            um JSON antes de sair ou apagar os dados sem backup. A cópia no
+            Drive permanece na sua conta Google. Você também pode revogar o
+            acesso nas configurações da Conta Google e excluir o backup na área
+            de dados de apps do Drive. Os dados do Google não são vendidos nem
             usados para anúncios.
           </p>
         </section>

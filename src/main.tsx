@@ -56,13 +56,13 @@ function AppRoutes() {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AppDataProvider>
-      <DriveSyncProvider>
-        <PushProvider>
+      <PushProvider>
+        <DriveSyncProvider>
           <HashRouter>
             <AppRoutes />
           </HashRouter>
-        </PushProvider>
-      </DriveSyncProvider>
+        </DriveSyncProvider>
+      </PushProvider>
     </AppDataProvider>
   </React.StrictMode>,
 );

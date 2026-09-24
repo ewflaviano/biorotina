@@ -8,17 +8,31 @@ import {
   type ReactNode,
 } from "react";
 import { emptyData, type AppData } from "../domain/data";
-import { loadData, saveData } from "../storage/indexedDb";
+import {
+  clearLocalData,
+  loadData,
+  prepareAccountScopes,
+  saveData,
+} from "../storage/indexedDb";
+import {
+  hasRememberedGoogleAccount,
+  rememberedGoogleAccountId,
+} from "../sync/google";
 
 type Update = (current: AppData) => AppData;
 
 interface AppDataContextValue {
   data: AppData;
+  scope: string | null;
   loading: boolean;
   error: string | null;
   mutate: (update: Update) => Promise<void>;
   replace: (next: AppData) => Promise<void>;
   replaceIfRevision: (revision: number, next: AppData) => Promise<void>;
+  switchScope: (
+    accountId: string | null,
+    options?: { clearAll?: boolean },
+  ) => Promise<void>;
   removeWithUndo: (
     label: string,
     remove: Update,
@@ -38,17 +52,20 @@ interface UndoAction {
 const Context = createContext<AppDataContextValue | null>(null);
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
+  const [scope, setScope] = useState<string | null>(rememberedGoogleAccountId);
   const [data, setData] = useState<AppData>(emptyData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [undoActions, setUndoActions] = useState<UndoAction[]>([]);
   const current = useRef(data);
+  const scopeRef = useRef(scope);
   const queue = useRef(Promise.resolve());
   const undoing = useRef(false);
 
   useEffect(() => {
     let active = true;
-    loadData()
+    prepareAccountScopes(hasRememberedGoogleAccount())
+      .then(() => loadData(scopeRef.current))
       .then((saved) => {
         if (!active) return;
         current.current = saved;
@@ -76,13 +93,45 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         revision: current.current.revision + 1,
         updatedAt: new Date().toISOString(),
       };
-      await saveData(stamped);
+      await saveData(stamped, scopeRef.current);
       current.current = stamped;
       setData(stamped);
     });
     queue.current = task.catch(() => undefined);
     return task;
   }, []);
+
+  const switchScope = useCallback(
+    (
+      accountId: string | null,
+      options?: { clearAll?: boolean },
+    ): Promise<void> => {
+      if (scopeRef.current === accountId) return queue.current;
+      setLoading(true);
+      setError(null);
+      const task = queue.current.then(async () => {
+        const next = options?.clearAll
+          ? emptyData()
+          : await loadData(accountId);
+        if (options?.clearAll) await clearLocalData();
+        scopeRef.current = accountId;
+        current.current = next;
+        setScope(accountId);
+        setData(next);
+        setUndoActions([]);
+        setLoading(false);
+      });
+      queue.current = task.catch(() => undefined);
+      return task.catch(() => {
+        setError(
+          "Não foi possível abrir os dados desta conta. Seus registros não foram alterados.",
+        );
+        setLoading(false);
+        throw new Error("Não foi possível abrir os dados desta conta.");
+      });
+    },
+    [],
+  );
 
   const replace = useCallback(
     async (next: AppData): Promise<void> => {
@@ -140,11 +189,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     <Context.Provider
       value={{
         data,
+        scope,
         loading,
         error,
         mutate,
         replace,
         replaceIfRevision,
+        switchScope,
         removeWithUndo,
         undoLast,
         dismissUndo,

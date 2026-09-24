@@ -9,6 +9,7 @@ Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acomp
 - Uso inicial sem conta, com dados guardados localmente no navegador.
 - Exportação e importação de arquivo JSON para cópia e recuperação dos registros.
 - Sincronização opcional com o **Google Drive da própria pessoa** para usar os dados em outro navegador ou dispositivo.
+- Registros locais separados por conta Google. Ao sair, o app apaga os dados e a chave pessoal deste navegador; se houver alterações pendentes, oferece esperar, baixar JSON ou apagar sem backup.
 - Sem banco de dados central de registros de saúde operado pelo projeto; o serviço de avisos guarda dados técnicos da inscrição e horários. O plano de IA guarda somente estado da assinatura e uso diário.
 - Métricas de acesso para contagem agregada, sem publicidade, com opção de desativar em Configurações e sem envio de registros de saúde.
 
@@ -18,7 +19,7 @@ No celular, há um convite discreto para adicionar a Biorotina à tela inicial e
 
 Quem quiser colaborar pode começar pelo [guia de contribuição](CONTRIBUTING.md) e pelas [issues](https://github.com/ewflaviano/biorotina/issues). Questões sensíveis devem seguir a [política de segurança](SECURITY.md). O CI valida todo pull request; publicação na AWS ocorre apenas após merge em `master`.
 
-A análise opcional de uma refeição por foto pode usar uma chave Gemini da própria pessoa ou o plano mensal da Biorotina. A imagem é reduzida a no máximo 768 px por lado e cerca de 350 KB no aparelho e só é enviada após tocar em **Analisar foto**. A sugestão pode ser corrigida antes de salvar; foto e chave pessoal não entram no backup ou no Drive. A chave pessoal fica em IndexedDB. O plano exige login Google, usa checkout externo do Asaas e limita a dez análises por dia. A implementação de cobrança está em revisão local e ainda precisa de testes de ponta a ponta no sandbox antes da publicação.
+A análise opcional de uma refeição por foto pode usar uma chave Gemini da própria pessoa ou o plano mensal da Biorotina. A imagem é reduzida a no máximo 768 px por lado e cerca de 350 KB no aparelho e só é enviada após tocar em **Analisar foto**. A sugestão pode ser corrigida antes de salvar; foto e chave pessoal não entram no backup ou no Drive. A chave pessoal fica em IndexedDB. O plano exige login Google, usa checkout externo do Asaas e limita a dez análises por dia. O fluxo de cobrança está implantado; checkout, webhook, renovação, cota e cancelamento ainda precisam de validação completa com pagamentos reais antes de ampliar o acesso.
 
 O [catálogo de atividades e a fórmula de estimativa](docs/activity-reference.md) documentam os valores usados no preenchimento automático.
 

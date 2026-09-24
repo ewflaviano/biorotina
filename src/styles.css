@@ -193,7 +193,7 @@ h3 {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
-  padding: 6px 4px calc(17px + env(safe-area-inset-bottom));
+  padding: 6px 4px calc(17px + max(20px, env(safe-area-inset-bottom)));
   box-shadow: 0 -4px 18px rgb(20 54 39 / 5%);
 }
 .bottom-link {
@@ -907,10 +907,15 @@ h3 {
 .date-time-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
+  gap: 16px;
 }
 .date-time-controls > .field {
   min-width: 0;
+}
+.date-time-controls input,
+.date-time-controls select {
+  display: block;
+  max-width: 100%;
 }
 .field-label-row button {
   min-height: 44px;
@@ -1192,6 +1197,43 @@ h3 {
   color: var(--color-text-secondary);
   font-size: 13px;
 }
+.drive-guest-copy {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas);
+}
+.drive-guest-copy p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.drive-guest-copy .button {
+  justify-self: start;
+}
+.drive-exit-choices {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas);
+}
+.drive-exit-choices p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.drive-exit-choices .button,
+.drive-exit-choices .entry-action {
+  width: 100%;
+  justify-content: center;
+  white-space: normal;
+}
 .drive-status {
   background: var(--green-50);
   color: var(--color-text);
@@ -1258,7 +1300,7 @@ h3 {
   z-index: 40;
   left: 16px;
   right: 16px;
-  bottom: calc(94px + env(safe-area-inset-bottom));
+  bottom: calc(94px + max(20px, env(safe-area-inset-bottom)));
   padding: 13px 16px;
   border-radius: var(--radius-sm);
   background: var(--neutral-900);
@@ -1271,7 +1313,7 @@ h3 {
   z-index: 45;
   left: 12px;
   right: 12px;
-  bottom: calc(89px + env(safe-area-inset-bottom));
+  bottom: calc(89px + max(20px, env(safe-area-inset-bottom)));
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1315,7 +1357,7 @@ h3 {
   z-index: 38;
   left: 12px;
   right: 12px;
-  bottom: calc(90px + env(safe-area-inset-bottom));
+  bottom: calc(90px + max(20px, env(safe-area-inset-bottom)));
   display: flex;
   align-items: flex-start;
   gap: 11px;
@@ -1746,6 +1788,9 @@ h3 {
 }
 .plan-offer > p {
   color: var(--color-text-secondary);
+}
+.plan-layout .panel > .notice + .button {
+  margin-top: 12px;
 }
 .plan-price {
   display: block;
