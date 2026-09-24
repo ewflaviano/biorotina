@@ -789,7 +789,7 @@ export function FoodPage() {
                       <button
                         type="button"
                         className="entry-action"
-                        aria-label={`Usar ${item.name} de ${dateTimePt(item.eatenAt)} como modelo`}
+                        aria-label={`Repetir ${item.name} de ${dateTimePt(item.eatenAt)}`}
                         onClick={() => repeatMeal(item)}
                       >
                         Repetir

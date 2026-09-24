@@ -1,6 +1,48 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: GitHub Actions deployment role for the private Biorotina repository
 Resources:
+  LambdaExecutionBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: biorotina-lambda-execution-boundary
+      Description: Maximum permissions for Biorotina Lambda execution roles
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-dev-*:*
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:Query
+              - dynamodb:TransactWriteItems
+            Resource:
+              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/biorotina-dev-*
+              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/biorotina-dev-*/index/*
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource:
+              - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:PushVapidSeed-*
+              - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:BillingKeys-*
+              - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:BillingWebhookToken-*
+          - Effect: Allow
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Resource: !Sub arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:biorotina-dev-billing-events.fifo
+          - Effect: Allow
+            Action: lambda:InvokeFunction
+            Resource:
+              - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:biorotina-dev-tick
+              - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:biorotina-dev-tick:*
   GithubDeployRole:
     Type: AWS::IAM::Role
     Properties:
@@ -24,17 +66,69 @@ Resources:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
+                Action: iam:CreateRole
+                Resource:
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-push-api-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-telemetry-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-tick-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-api-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-worker-execution
+                Condition:
+                  StringEquals:
+                    iam:PermissionsBoundary: !Ref LambdaExecutionBoundary
+              - Effect: Allow
                 Action:
-                  - iam:CreateRole
                   - iam:DeleteRole
                   - iam:GetRole
-                  - iam:PassRole
+                  - iam:GetRolePolicy
                   - iam:PutRolePolicy
                   - iam:DeleteRolePolicy
                   - iam:TagRole
                   - iam:UntagRole
                   - iam:UpdateAssumeRolePolicy
-                Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-*
+                Resource:
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-push-api-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-telemetry-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-tick-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-api-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-worker-execution
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource:
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-push-api-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-telemetry-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-tick-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-api-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-worker-execution
+                Condition:
+                  StringEquals:
+                    iam:PassedToService:
+                      - lambda.amazonaws.com
+                      - scheduler.amazonaws.com
+              - Effect: Deny
+                Action: iam:*
+                Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-github-deploy
+              - Effect: Deny
+                Action:
+                  - iam:DeleteRolePermissionsBoundary
+                  - iam:PutRolePermissionsBoundary
+                Resource:
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-push-api-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-telemetry-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-tick-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-api-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-worker-execution
+              - Effect: Deny
+                Action:
+                  - iam:CreatePolicyVersion
+                  - iam:DeletePolicyVersion
+                  - iam:SetDefaultPolicyVersion
+                  - iam:DeletePolicy
+                Resource: !Ref LambdaExecutionBoundary
 Outputs:
   RoleArn:
     Value: !GetAtt GithubDeployRole.Arn
+  LambdaExecutionBoundaryArn:
+    Value: !Ref LambdaExecutionBoundary
+    Export:
+      Name: BiorotinaLambdaExecutionBoundaryArn

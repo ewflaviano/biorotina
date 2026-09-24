@@ -23,6 +23,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { InstallPrompt } from "./InstallApp";
 import { GuestLoginPrompt } from "./GuestLoginPrompt";
 import { GuestMergePrompt } from "./GuestMergePrompt";
+import { DrivePermissionPrompt } from "./DrivePermissionPrompt";
 import { SyncConflictPrompt } from "./SyncConflictPrompt";
 import { useAppData } from "../state/AppDataContext";
 import { useDriveSync } from "../sync/DriveSyncContext";
@@ -159,11 +160,13 @@ export function Layout() {
               <NavLink
                 className={`drive-topbar ${drive.status}`}
                 to="/configuracoes"
-                aria-label={`Google Drive: ${drive.status === "synced" ? "sincronizado" : drive.status === "syncing" ? "sincronizando" : drive.status === "pending" ? "alterações pendentes" : "atenção necessária"}`}
+                aria-label={`Google Drive: ${drive.status === "synced" ? "sincronizado" : drive.status === "syncing" ? "sincronizando" : drive.status === "pending" ? "alterações pendentes" : drive.status === "authorization-needed" ? "ativação opcional" : "atenção necessária"}`}
                 title={drive.account.email}
               >
                 {drive.status === "synced" ? (
                   <CloudCheck size={18} aria-hidden="true" />
+                ) : drive.status === "authorization-needed" ? (
+                  <Cloud size={18} aria-hidden="true" />
                 ) : drive.status === "pending" || drive.status === "syncing" ? (
                   <CloudUpload size={18} aria-hidden="true" />
                 ) : (
@@ -174,9 +177,12 @@ export function Layout() {
                     ? "Enviando…"
                     : drive.status === "pending"
                       ? "Pendente"
-                      : drive.status === "conflict" || drive.status === "error"
-                        ? "Atenção"
-                        : "Drive"}
+                      : drive.status === "authorization-needed"
+                        ? "Ativar Drive"
+                        : drive.status === "conflict" ||
+                            drive.status === "error"
+                          ? "Atenção"
+                          : "Drive"}
                 </span>
               </NavLink>
             ) : (
@@ -271,6 +277,7 @@ export function Layout() {
       </div>
       {location.pathname === "/" && <InstallPrompt enabled delayMs={1800} />}
       <GuestLoginPrompt />
+      <DrivePermissionPrompt />
       <SyncConflictPrompt />
       <GuestMergePrompt />
     </div>

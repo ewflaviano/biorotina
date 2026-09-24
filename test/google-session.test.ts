@@ -7,6 +7,45 @@ afterEach(() => {
 });
 
 describe("sessão Google ao atualizar a página", () => {
+  it("solicita identidade no login e Drive apenas após ação adicional", async () => {
+    const scopes: string[] = [];
+    const initTokenClient = vi.fn(
+      (options: { scope: string; callback: (response: object) => void }) => {
+        scopes.push(options.scope);
+        return {
+          requestAccessToken: () =>
+            options.callback({
+              access_token: "token",
+              expires_in: 3600,
+              scope: options.scope,
+            }),
+        };
+      },
+    );
+    vi.stubGlobal("google", { accounts: { oauth2: { initTokenClient } } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          sub: "person",
+          email: "person@example.com",
+        }),
+      ),
+    );
+    const google = await import("../src/sync/google");
+    const signedIn = await google.connectGoogle("public-client-id");
+    expect(signedIn.driveAuthorized).toBe(false);
+    expect(scopes[0]).toBe("openid email");
+    const connected = await google.authorizeGoogleDrive(
+      "public-client-id",
+      signedIn,
+    );
+    expect(connected.driveAuthorized).toBe(true);
+    expect(scopes[1]).toContain(
+      "https://www.googleapis.com/auth/drive.appdata",
+    );
+  });
+
   it("restaura uma conexão válida do armazenamento do navegador", async () => {
     const google = await import("../src/sync/google");
     google.rememberGoogleAccount({

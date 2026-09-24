@@ -284,14 +284,16 @@ function PlanContents({ drive }: { drive: ReturnType<typeof useDriveSync> }) {
           )}
           {error && <Notice kind="info">{error}</Notice>}
         </section>
-        <section className="panel plan-alternative">
-          <ShieldCheck size={20} aria-hidden="true" />
-          <h2>Prefere usar sua própria chave?</h2>
-          <p>Essa opção continua gratuita e não usa a cota do plano.</p>
-          <Link className="text-link" to="/configuracoes">
-            Configurar chave Gemini
-          </Link>
-        </section>
+        {(!drive.account || (status && !status.active)) && (
+          <section className="panel plan-alternative">
+            <ShieldCheck size={20} aria-hidden="true" />
+            <h2>Prefere usar sua própria chave?</h2>
+            <p>Essa opção continua gratuita e não usa a cota do plano.</p>
+            <Link className="text-link" to="/configuracoes">
+              Configurar chave Gemini
+            </Link>
+          </section>
+        )}
       </div>
     </>
   );

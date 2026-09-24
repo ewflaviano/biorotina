@@ -6,12 +6,51 @@ import {
   saveGeminiKey,
 } from "../storage/indexedDb";
 import { InfoDisclosure } from "../components/InfoDisclosure";
+import { getPlanStatus } from "../billing/client";
+import { useDriveSync } from "../sync/DriveSyncContext";
 
 export function GeminiSettings() {
+  const drive = useDriveSync();
   const [hasKey, setHasKey] = useState(false);
   const [key, setKey] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [accountPlan, setAccountPlan] = useState<{
+    accountId: string;
+    active: boolean;
+  } | null>(null);
+  const [planCheckFailedFor, setPlanCheckFailedFor] = useState<string | null>(
+    null,
+  );
+  const planActive = Boolean(
+    drive.account &&
+    accountPlan?.accountId === drive.account.id &&
+    accountPlan.active,
+  );
+  const checkingPlan = Boolean(
+    drive.account?.token &&
+    accountPlan?.accountId !== drive.account.id &&
+    planCheckFailedFor !== drive.account.id,
+  );
+
+  useEffect(() => {
+    if (!drive.account?.token) return;
+    let active = true;
+    const accountId = drive.account.id;
+    getPlanStatus(drive.account.token)
+      .then((status) => {
+        if (active) {
+          setAccountPlan({ accountId, active: status.active });
+          setPlanCheckFailedFor(null);
+        }
+      })
+      .catch(() => {
+        if (active) setPlanCheckFailedFor(accountId);
+      });
+    return () => {
+      active = false;
+    };
+  }, [drive.account?.id, drive.account?.token]);
 
   useEffect(() => {
     let active = true;
@@ -58,6 +97,45 @@ export function GeminiSettings() {
       setBusy(false);
     }
   }
+
+  if (checkingPlan) return null;
+
+  if (planActive && !hasKey)
+    return message ? (
+      <p role="status" className="muted">
+        {message}
+      </p>
+    ) : null;
+
+  if (planActive)
+    return (
+      <section className="panel" id="gemini-settings">
+        <div className="card-title">
+          <span className="list-icon">
+            <KeyRound size={20} aria-hidden="true" />
+          </span>
+          <div>
+            <h2>Chave Gemini guardada neste aparelho</h2>
+            <p>Seu plano ativo analisa fotos sem usar esta chave.</p>
+          </div>
+        </div>
+        {hasKey && (
+          <button
+            className="button secondary"
+            type="button"
+            disabled={busy}
+            onClick={remove}
+          >
+            Remover chave
+          </button>
+        )}
+        {message && (
+          <p role="status" className="muted">
+            {message}
+          </p>
+        )}
+      </section>
+    );
 
   return (
     <section className="panel" id="gemini-settings">

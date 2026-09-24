@@ -69,8 +69,9 @@ export function DriveBackup() {
       {!drive.account ? (
         <>
           <p className="muted">
-            Conecte sua conta para guardar uma cópia na área privada da
-            Biorotina no seu Drive. O uso do app continua livre, sem login.
+            Entre com Google e, se quiser sincronizar seus registros, autorize
+            depois o acesso à área privada da Biorotina no seu Drive. O uso do
+            app continua livre, sem login.
           </p>
           <button
             className="button primary"
@@ -78,7 +79,7 @@ export function DriveBackup() {
             onClick={() => void drive.connect()}
             disabled={drive.busy}
           >
-            {drive.busy ? "Conectando…" : "Conectar Google Drive"}
+            {drive.busy ? "Entrando…" : "Entrar com Google"}
           </button>
         </>
       ) : (
@@ -160,88 +161,112 @@ export function DriveBackup() {
               {exitError}
             </p>
           )}
-          <p className="muted small">
-            {drive.latest
-              ? `Backup mais recente: ${dateTimePt(drive.latest.createdTime)}.`
-              : "Nenhum backup encontrado nesta conta."}
-          </p>
-          {drive.canCopyGuest && (
+          {drive.account.driveAuthorized === false ? (
             <div className="drive-guest-copy">
+              <strong>Ative a sincronização quando quiser</strong>
               <p>
-                Há registros salvos neste navegador sem conta. Você pode
-                juntá-los aos dados de {drive.account.email} sem apagar os
-                registros que já estão no Drive.
+                Sua conta está conectada. Para guardar e recuperar seus
+                registros no Google Drive, autorize o acesso à área privada da
+                Biorotina. Seus dados continuam neste navegador até você
+                permitir.
               </p>
               <button
-                className="button secondary"
+                className="button primary"
                 type="button"
                 disabled={drive.busy}
-                onClick={() => void drive.copyGuest()}
+                onClick={() => void drive.authorizeDrive()}
               >
-                Juntar registros sem conta
+                <CloudUpload size={17} aria-hidden="true" />
+                {drive.busy ? "Conectando…" : "Ativar sincronização no Drive"}
               </button>
             </div>
-          )}
-          {drive.status === "pending" && (
-            <p className="drive-pending">
-              Há alterações neste navegador aguardando sincronização.
-            </p>
-          )}
-          <button
-            className="button primary"
-            type="button"
-            onClick={() => void drive.sync()}
-            disabled={drive.busy}
-          >
-            <RefreshCw size={17} aria-hidden="true" />
-            {drive.busy ? "Sincronizando…" : "Sincronizar agora"}
-          </button>
-          {drive.conflict && (
-            <div
-              className="drive-conflict"
-              role="group"
-              aria-label="Escolher versão dos dados"
-            >
-              <strong>Existem duas versões dos seus dados</strong>
-              <p>
-                Este navegador e o Drive têm alterações diferentes. O backup do
-                Drive tem {totalRecords(drive.conflict.remoteData)} registros,
-                salvo em {dateTimePt(drive.conflict.remote.createdTime)}.
-                Escolha qual versão usar.
+          ) : (
+            <>
+              <p className="muted small">
+                {drive.latest
+                  ? `Backup mais recente: ${dateTimePt(drive.latest.createdTime)}.`
+                  : "Nenhum backup encontrado nesta conta."}
               </p>
-              <div className="backup-actions">
-                <button
-                  className="button primary"
-                  type="button"
-                  disabled={drive.busy}
-                  onClick={() => void drive.resolveWithMerged()}
+              {drive.canCopyGuest && (
+                <div className="drive-guest-copy">
+                  <p>
+                    Há registros salvos neste navegador sem conta. Você pode
+                    juntá-los aos dados de {drive.account.email} sem apagar os
+                    registros que já estão no Drive.
+                  </p>
+                  <button
+                    className="button secondary"
+                    type="button"
+                    disabled={drive.busy}
+                    onClick={() => void drive.copyGuest()}
+                  >
+                    Juntar registros sem conta
+                  </button>
+                </div>
+              )}
+              {drive.status === "pending" && (
+                <p className="drive-pending">
+                  Há alterações neste navegador aguardando sincronização.
+                </p>
+              )}
+              <button
+                className="button primary"
+                type="button"
+                onClick={() => void drive.sync()}
+                disabled={drive.busy}
+              >
+                <RefreshCw size={17} aria-hidden="true" />
+                {drive.busy ? "Sincronizando…" : "Sincronizar agora"}
+              </button>
+              {drive.conflict && (
+                <div
+                  className="drive-conflict"
+                  role="group"
+                  aria-label="Escolher versão dos dados"
                 >
-                  Juntar registros
-                </button>
-                <button
-                  className="button secondary"
-                  type="button"
-                  disabled={drive.busy}
-                  onClick={() => void drive.resolveWithLocal()}
-                >
-                  <CloudUpload size={17} aria-hidden="true" /> Salvar esta
-                  versão no Drive
-                </button>
-                <button
-                  className="button secondary"
-                  type="button"
-                  disabled={drive.busy}
-                  onClick={() => void drive.resolveWithDrive()}
-                >
-                  <CloudDownload size={17} aria-hidden="true" /> Usar backup do
-                  Drive
-                </button>
-              </div>
-              <small>
-                Nenhuma versão é apagada do Drive. Ao restaurar, você também
-                baixa uma cópia dos dados deste navegador.
-              </small>
-            </div>
+                  <strong>Existem duas versões dos seus dados</strong>
+                  <p>
+                    Este navegador e o Drive têm alterações diferentes. O backup
+                    do Drive tem {totalRecords(drive.conflict.remoteData)}{" "}
+                    registros, salvo em{" "}
+                    {dateTimePt(drive.conflict.remote.createdTime)}. Escolha
+                    qual versão usar.
+                  </p>
+                  <div className="backup-actions">
+                    <button
+                      className="button primary"
+                      type="button"
+                      disabled={drive.busy}
+                      onClick={() => void drive.resolveWithMerged()}
+                    >
+                      Juntar registros
+                    </button>
+                    <button
+                      className="button secondary"
+                      type="button"
+                      disabled={drive.busy}
+                      onClick={() => void drive.resolveWithLocal()}
+                    >
+                      <CloudUpload size={17} aria-hidden="true" /> Salvar esta
+                      versão no Drive
+                    </button>
+                    <button
+                      className="button secondary"
+                      type="button"
+                      disabled={drive.busy}
+                      onClick={() => void drive.resolveWithDrive()}
+                    >
+                      <CloudDownload size={17} aria-hidden="true" /> Usar backup
+                      do Drive
+                    </button>
+                  </div>
+                  <small>
+                    Nenhuma versão é apagada do Drive. Ao restaurar, você também
+                    baixa uma cópia dos dados deste navegador.
+                  </small>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -256,11 +281,11 @@ export function DriveBackup() {
         </p>
       )}
       <p className="muted small">
-        Após conectar, o app sincroniza automaticamente ao registrar ou corrigir
-        dados, quando está aberto e com internet. Se o acesso Google expirar,
-        conecte novamente. Os registros vão diretamente deste navegador para seu
-        Drive; a Biorotina não guarda dados de saúde no servidor. Quem tiver
-        acesso à sua conta Google poderá ler essa cópia.
+        Depois de autorizar o Drive, o app sincroniza automaticamente ao
+        registrar ou corrigir dados, quando está aberto e com internet. Se o
+        acesso Google expirar, conecte novamente. Os registros vão diretamente
+        deste navegador para seu Drive; a Biorotina não guarda dados de saúde no
+        servidor. Quem tiver acesso à sua conta Google poderá ler essa cópia.
       </p>
     </div>
   );

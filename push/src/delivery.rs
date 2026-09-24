@@ -1,8 +1,9 @@
 use crate::model::{ReminderKind, StoredSubscription};
 use aws_sdk_secretsmanager::Client as SecretsClient;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use chrono::NaiveDate;
 use sha2::{Digest, Sha256};
-use std::time::Duration;
+use std::{net::IpAddr, time::Duration};
 use web_push::{
     request_builder, ContentEncoding, PartialVapidSignatureBuilder, SubscriptionInfo,
     VapidSignatureBuilder, WebPushError, WebPushMessageBuilder,
@@ -14,6 +15,7 @@ pub struct PushSender {
     vapid: PartialVapidSignatureBuilder,
     pub public_key: String,
     subject: String,
+    rate_secret: [u8; 32],
 }
 
 #[derive(Debug)]
@@ -39,6 +41,8 @@ impl PushSender {
             .await
             .map_err(|_| SenderInitError)?;
         let seed = response.secret_string().ok_or(SenderInitError)?;
+        let rate_secret =
+            Sha256::digest([b"push-rate-v1:".as_slice(), seed.as_bytes()].concat()).into();
         let mut material = seed.as_bytes().to_vec();
         let vapid = loop {
             let key = URL_SAFE_NO_PAD.encode(Sha256::digest(&material));
@@ -57,7 +61,12 @@ impl PushSender {
             vapid,
             public_key,
             subject: std::env::var("PUBLIC_APP_URL").map_err(|_| SenderInitError)?,
+            rate_secret,
         })
+    }
+
+    pub fn create_limit_key(&self, source_ip: IpAddr, day: NaiveDate) -> String {
+        create_limit_key(&self.rate_secret, source_ip, day)
     }
 
     pub async fn send(
@@ -107,9 +116,36 @@ impl PushSender {
     }
 }
 
+fn create_limit_key(secret: &[u8; 32], source_ip: IpAddr, day: NaiveDate) -> String {
+    let mut hash = Sha256::new();
+    hash.update(secret);
+    hash.update(day.format("%Y-%m-%d").to_string());
+    hash.update(source_ip.to_string());
+    format!("{:x}", hash.finalize())
+}
+
 pub fn is_expired_endpoint(error: &WebPushError) -> bool {
     matches!(
         error,
         WebPushError::EndpointNotFound(_) | WebPushError::EndpointNotValid(_)
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn public_create_limit_key_does_not_store_the_ip_and_rotates_each_day() {
+        let secret = [7; 32];
+        let ip: IpAddr = "203.0.113.10".parse().unwrap();
+        let day = NaiveDate::from_ymd_opt(2026, 9, 24).unwrap();
+        let key = create_limit_key(&secret, ip, day);
+        assert_eq!(key, create_limit_key(&secret, ip, day));
+        assert!(!key.contains("203.0.113.10"));
+        assert_ne!(
+            key,
+            create_limit_key(&secret, ip, NaiveDate::from_ymd_opt(2026, 9, 25).unwrap())
+        );
+    }
 }

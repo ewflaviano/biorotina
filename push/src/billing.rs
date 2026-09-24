@@ -1,8 +1,12 @@
 use crate::observability;
 use aws_config::BehaviorVersion;
-use aws_sdk_dynamodb::{types::AttributeValue as A, Client as Db};
+use aws_sdk_dynamodb::{
+    types::{AttributeValue as A, Put, TransactWriteItem},
+    Client as Db,
+};
 use aws_sdk_secretsmanager::Client as Secrets;
 use aws_sdk_sqs::Client as Sqs;
+use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::{Datelike, Duration, NaiveDate, Utc};
 use chrono_tz::America::Sao_Paulo;
 use serde::{Deserialize, Serialize};
@@ -16,6 +20,7 @@ const GEMINI_FALLBACK_MODEL: &str = "gemini-3.1-pro-preview";
 const GEMINI_TOTAL_BUDGET: std::time::Duration = std::time::Duration::from_secs(24);
 pub const TRIAL_LIMIT: u32 = 5;
 pub const FAILED_ANALYSIS_LIMIT: u32 = 5;
+pub const DAILY_ATTEMPT_LIMIT: u32 = 40;
 const ASAAS_USER_AGENT: &str = "Biorotina/0.1 (+https://biorotina.app.br)";
 const PROMPT: &str = "Analise apenas os alimentos e bebidas visíveis nesta foto de refeição. Responda em português do Brasil com JSON. Para cada alimento visível, dê um nome simples, uma porção aproximada (gramas ou medida caseira) e as calorias aproximadas dessa porção. Não invente ingredientes invisíveis. Se a foto não permitir identificar uma refeição, retorne foods vazio. Não faça recomendações médicas ou nutricionais. A pessoa vai revisar tudo.";
 
@@ -411,6 +416,64 @@ fn bounded_field(value: &Value, name: &str) -> Option<String> {
     str_field(value, name).filter(|field| field.len() <= 200)
 }
 
+pub fn valid_jpeg_image(image: &str) -> bool {
+    if !(100..=480_000).contains(&image.len()) {
+        return false;
+    }
+    let Ok(bytes) = STANDARD.decode(image) else {
+        return false;
+    };
+    if bytes.len() < 32
+        || bytes.len() > 360_000
+        || !bytes.starts_with(&[0xff, 0xd8])
+        || !bytes.ends_with(&[0xff, 0xd9])
+    {
+        return false;
+    }
+    let mut cursor = 2;
+    let mut dimensions_found = false;
+    while cursor < bytes.len() - 2 {
+        if bytes[cursor] != 0xff {
+            return false;
+        }
+        while cursor < bytes.len() - 2 && bytes[cursor] == 0xff {
+            cursor += 1;
+        }
+        let marker = bytes[cursor];
+        cursor += 1;
+        if marker == 0xda {
+            if cursor + 2 > bytes.len() - 2 {
+                return false;
+            }
+            let length = u16::from_be_bytes([bytes[cursor], bytes[cursor + 1]]) as usize;
+            return dimensions_found && length >= 2 && cursor + length < bytes.len() - 2;
+        }
+        if marker == 0xd8 || marker == 0xd9 || (0xd0..=0xd7).contains(&marker) {
+            return false;
+        }
+        if cursor + 2 > bytes.len() - 2 {
+            return false;
+        }
+        let length = u16::from_be_bytes([bytes[cursor], bytes[cursor + 1]]) as usize;
+        if length < 2 || cursor + length > bytes.len() - 2 {
+            return false;
+        }
+        if matches!(marker, 0xc0..=0xc3 | 0xc5..=0xc7 | 0xc9..=0xcb | 0xcd..=0xcf) {
+            if length < 8 {
+                return false;
+            }
+            let height = u16::from_be_bytes([bytes[cursor + 3], bytes[cursor + 4]]) as u32;
+            let width = u16::from_be_bytes([bytes[cursor + 5], bytes[cursor + 6]]) as u32;
+            if height == 0 || width == 0 || height > 4096 || width > 4096 {
+                return false;
+            }
+            dimensions_found = true;
+        }
+        cursor += length;
+    }
+    false
+}
+
 fn compact_webhook_event(event: &Value) -> Value {
     let id = str_field(event, "id")
         .filter(|id| id.len() <= 150)
@@ -627,6 +690,50 @@ impl Billing {
         .await
     }
 
+    async fn save_checkout_bindings(
+        &self,
+        account: &Account,
+        reference: &str,
+        attempt_ttl: i64,
+    ) -> Result<(), String> {
+        let account_data = serde_json::to_string(account).map_err(|_| "Conta inválida")?;
+        let account_put = Put::builder()
+            .table_name(&self.table)
+            .item("pk", A::S(account.key.clone()))
+            .item("data", A::S(account_data))
+            .build()
+            .map_err(|_| "Conta inválida")?;
+        let mapping_put = Put::builder()
+            .table_name(&self.table)
+            .item("pk", A::S(format!("CHECKOUT#{}", account.checkout_id)))
+            .item("data", A::S(json!({"key":account.key}).to_string()))
+            .condition_expression("attribute_not_exists(pk)")
+            .build()
+            .map_err(|_| "Mapeamento inválido")?;
+        let attempt_put = Put::builder()
+            .table_name(&self.table)
+            .item("pk", A::S(format!("CHECKOUT_ATTEMPT#{reference}")))
+            .item(
+                "data",
+                A::S(
+                    json!({"key":account.key,"checkoutId":account.checkout_id,"state":"created"})
+                        .to_string(),
+                ),
+            )
+            .item("ttl", A::N(attempt_ttl.to_string()))
+            .build()
+            .map_err(|_| "Tentativa inválida")?;
+        self.db
+            .transact_write_items()
+            .transact_items(TransactWriteItem::builder().put(account_put).build())
+            .transact_items(TransactWriteItem::builder().put(mapping_put).build())
+            .transact_items(TransactWriteItem::builder().put(attempt_put).build())
+            .send()
+            .await
+            .map_err(|_| "Não foi possível salvar o checkout".to_owned())?;
+        Ok(())
+    }
+
     pub async fn checkout(&self, key: String) -> Result<(String, Account), String> {
         if let Some(existing) = self.account(&key).await? {
             if let Some(reusable) = existing_checkout(existing)? {
@@ -635,6 +742,7 @@ impl Billing {
         }
         let expires = Utc::now().timestamp() + 3600;
         let reference = uuid::Uuid::new_v4().to_string();
+        let attempt_ttl = expires + 14 * 86400;
         let lock_key = format!("LOCK#{key}");
         let lock_data = json!({"owner":reference}).to_string();
         self.db
@@ -660,6 +768,19 @@ impl Billing {
                     return Ok(reusable);
                 }
             }
+            self.db
+                .put_item()
+                .table_name(&self.table)
+                .item("pk", A::S(format!("CHECKOUT_ATTEMPT#{reference}")))
+                .item(
+                    "data",
+                    A::S(json!({"key":key,"state":"requested","createdAt":Utc::now().timestamp()}).to_string()),
+                )
+                .item("ttl", A::N(attempt_ttl.to_string()))
+                .condition_expression("attribute_not_exists(pk)")
+                .send()
+                .await
+                .map_err(|_| "Não foi possível iniciar o checkout".to_owned())?;
             // Após chamar o Asaas, uma falha de rede pode ter criado um
             // checkout externo; nesse caso mantemos o bloqueio temporário.
             safe_to_release = false;
@@ -702,13 +823,15 @@ impl Billing {
                 cancelled: false,
                 last_payment_id: None,
             };
-            self.save_account(&account).await?;
-            self.put(&format!("CHECKOUT#{checkout_id}"), &json!({"key":key}))
+            self.save_checkout_bindings(&account, &reference, attempt_ttl)
                 .await?;
             safe_to_release = true;
             Ok((checkout_url, account))
         }
         .await;
+        if outcome.is_err() && !safe_to_release {
+            observability::error("billing", "checkout", "outcome_needs_reconciliation", None);
+        }
         if safe_to_release {
             if let Err(error) = self
                 .db
@@ -840,6 +963,41 @@ impl Billing {
                     .is_some_and(|service| service.is_conditional_check_failed_exception()) =>
             {
                 Ok(None)
+            }
+            Err(error) => Err(error.to_string()),
+        }
+    }
+
+    // This separate ceiling also counts upstream errors. It protects the paid
+    // provider without consuming the person's successful-analysis quota.
+    pub async fn reserve_attempt_slot(&self, account_key: &str) -> Result<bool, String> {
+        let key = format!("AI_ATTEMPT#{account_key}#{}", today());
+        let result = self
+            .db
+            .update_item()
+            .table_name(&self.table)
+            .key("pk", A::S(key))
+            .update_expression("SET #used = if_not_exists(#used, :zero) + :one, #ttl = :ttl")
+            .condition_expression("attribute_not_exists(#used) OR #used < :limit")
+            .expression_attribute_names("#used", "used")
+            .expression_attribute_names("#ttl", "ttl")
+            .expression_attribute_values(":zero", A::N("0".into()))
+            .expression_attribute_values(":one", A::N("1".into()))
+            .expression_attribute_values(":limit", A::N(DAILY_ATTEMPT_LIMIT.to_string()))
+            .expression_attribute_values(
+                ":ttl",
+                A::N((Utc::now().timestamp() + 3 * 86400).to_string()),
+            )
+            .send()
+            .await;
+        match result {
+            Ok(_) => Ok(true),
+            Err(error)
+                if error
+                    .as_service_error()
+                    .is_some_and(|service| service.is_conditional_check_failed_exception()) =>
+            {
+                Ok(false)
             }
             Err(error) => Err(error.to_string()),
         }
@@ -1038,12 +1196,7 @@ impl Billing {
     }
 
     pub async fn analyze(&self, image: &str, paid: bool) -> Result<Analysis, AnalysisFailure> {
-        if image.len() > 480_000
-            || image.len() < 100
-            || !image
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'=')
-        {
+        if !valid_jpeg_image(image) {
             return Err(AnalysisFailure::InvalidImage);
         }
         let body = gemini_request_body(image);
@@ -1264,6 +1417,23 @@ mod tests {
         assert!(analysis.foods[0].name.len() <= 100);
         assert!(analysis.foods[0].amount.len() <= 80);
         assert!(analysis.description.ends_with('…'));
+    }
+
+    #[test]
+    fn rejects_fake_or_oversized_jpeg_before_using_gemini() {
+        let mut jpeg = vec![
+            0xff, 0xd8, 0xff, 0xc0, 0, 11, 8, 0, 1, 0, 1, 1, 1, 0x11, 0, 0xff, 0xda, 0, 8, 1, 1, 0,
+            0, 0x3f, 0,
+        ];
+        jpeg.extend([0; 80]);
+        jpeg.extend([0xff, 0xd9]);
+        assert!(valid_jpeg_image(&STANDARD.encode(&jpeg)));
+        assert!(!valid_jpeg_image(&STANDARD.encode(vec![0; 200])));
+        assert!(!valid_jpeg_image(&STANDARD.encode(&jpeg[..jpeg.len() - 2])));
+        jpeg[9] = 0x10;
+        jpeg[10] = 0x01;
+        assert!(!valid_jpeg_image(&STANDARD.encode(&jpeg)));
+        assert!(!valid_jpeg_image(&"a".repeat(481_000)));
     }
 
     #[test]

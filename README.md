@@ -2,7 +2,7 @@
 
 **Seu cuidado, no seu ritmo.**
 
-Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acompanhar saúde e bem-estar no dia a dia. Permite registrar peso, atividades físicas, refeições, água e medicamentos, incluindo dose, usos e horários de lembrete. O IMC é calculado a partir da altura informada e do último peso, com classificação de referência para adultos de 18 a 59 anos; não é um diagnóstico. A tela de atividades sugere calorias ajustáveis com base no Compêndio de Atividades Físicas de 2024, duração e peso registrado ou referência explícita de 70 kg.
+Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acompanhar saúde e bem-estar no dia a dia. Permite registrar peso, atividades físicas, refeições, água, medicamentos e hábitos. Água, medicamentos e hábitos podem ter horários de lembrete; medicamentos e hábitos também aceitam dias específicos da semana. O IMC é calculado a partir da altura informada e do último peso, com classificação de referência para adultos de 18 a 59 anos; não é um diagnóstico. A tela de atividades sugere calorias ajustáveis com base no Compêndio de Atividades Físicas de 2024, duração e peso registrado ou referência explícita de 70 kg.
 
 ## Dados sob controle da pessoa
 
@@ -13,13 +13,13 @@ Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acomp
 - Sem banco de dados central de registros de saúde operado pelo projeto; o serviço de avisos guarda dados técnicos da inscrição e horários. O plano de IA guarda somente estado da assinatura e uso diário.
 - Métricas de acesso para contagem agregada, sem publicidade, ativadas apenas por escolha em Configurações e sem envio de registros de saúde.
 
-O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação permitem usar uma entrada como modelo, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. Água e medicamentos permitem vários horários de lembrete. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; a entrega agendada foi confirmada em iPhone e Android.
+O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação têm a ação **Repetir**, que prepara um novo registro sem salvá-lo automaticamente, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; a entrega agendada foi confirmada em iPhone e Android.
 
-No celular, há um convite discreto para adicionar a Biorotina à tela inicial e uma página com instruções para Safari e Chrome. A página **Apoiar** apresenta um Pix estático opcional para financiar o projeto. O repositório continua privado enquanto fazemos testes gerais e concluímos a funcionalidade de IA.
+No celular, há um convite discreto para adicionar a Biorotina à tela inicial e uma página com instruções para Safari e Chrome. A página **Apoiar** apresenta um Pix estático opcional para financiar o projeto. O repositório continua privado enquanto concluímos os testes com pessoas reais, a revisão de segurança e a escolha da licença.
 
 Quem quiser colaborar pode começar pelo [guia de contribuição](CONTRIBUTING.md) e pelas [issues](https://github.com/ewflaviano/biorotina/issues). Questões sensíveis devem seguir a [política de segurança](SECURITY.md). O CI valida todo pull request; publicação na AWS ocorre apenas após merge em `master`.
 
-A análise opcional de uma refeição por foto pode usar uma chave Gemini da própria pessoa ou o plano mensal da Biorotina. A imagem é reduzida a no máximo 768 px por lado e cerca de 350 KB no aparelho e só é enviada após tocar em **Analisar foto**. A sugestão pode ser corrigida antes de salvar; foto e chave pessoal não entram no backup ou no Drive. A chave pessoal fica em IndexedDB. O plano exige login Google, usa checkout externo do Asaas e limita a dez análises por dia. O fluxo de cobrança está implantado; checkout, webhook, renovação, cota e cancelamento ainda precisam de validação completa com pagamentos reais antes de ampliar o acesso.
+A análise opcional de uma refeição por foto pode usar uma chave Gemini da própria pessoa, até cinco análises gratuitas por conta quando o teste está habilitado, ou o plano mensal da Biorotina. A imagem é reduzida a no máximo 768 px por lado e cerca de 350 KB no aparelho e só é enviada após tocar em **Analisar foto**. A sugestão pode ser corrigida antes de salvar; foto e chave pessoal não entram no backup ou no Drive. A chave pessoal fica em IndexedDB. O plano exige login Google, usa checkout externo do Asaas e limita a dez análises bem-sucedidas por dia. O fluxo de cobrança está implantado; renovação, reembolso, cancelamento e recuperação de falhas ainda precisam de testes operacionais completos antes de ampliar o acesso.
 
 O [catálogo de atividades e a fórmula de estimativa](docs/activity-reference.md) documentam os valores usados no preenchimento automático.
 
@@ -57,24 +57,20 @@ Para manutenção, `make check` executa a checagem do frontend, Clippy e testes 
 - [Instalação no celular](docs/installation.md): convite, compatibilidade e transferência de registros.
 - [Apoio ao projeto](docs/support.md): origem e manutenção do Pix estático.
 - [Assinatura e webhook](docs/billing.md): fluxo, configuração do Asaas e homologação.
+- [Roteiro de testes no navegador](docs/manual-browser-test.md): casos reproduzíveis sem login, com teste grátis e com plano ativo.
+- [Recuperação de dados](docs/data-recovery.md) e [auditoria de dependências](docs/dependency-audit.md): verificações operacionais antes da abertura pública.
 
 ## Decisões ainda abertas
 
 1. Validar restauração e conflitos de sincronização em dois dispositivos reais; confirmar a disponibilidade pública do consentimento OAuth.
 2. Edição retroativa de peso, atividade, refeição e água, além de recuperação após perda do navegador. Exclusão com desfazer e migração de dados antigos para a versão 4 já funcionam.
 3. Continuar testes de Web Push em desktop e revisar a operação do serviço; iPhone e Android receberam avisos agendados.
-4. Validar a análise de refeições por foto em dispositivos reais e testar checkout, webhook, renovação, cota e cancelamento da assinatura no sandbox antes de disponibilizar o plano.
-5. Definir licença e concluir a revisão do histórico completo antes de abrir o projeto no GitHub. A proteção de `master` já exige PR e checks aprovados.
+4. Ampliar os testes de foto e cobrança em dispositivos e contas de teste, incluindo renovação, reembolso, limites e falhas temporárias. O [relatório da rodada no navegador](docs/manual-browser-test-runs/2026-09-24.md) separa o que já passou do que ainda não foi executado.
+5. Definir o destino dos alertas operacionais; hoje o alarme da fila de falhas de cobrança não tem destinatário. Reavaliar a dependência vulnerável de desenvolvimento do Serverless Framework e o aviso residual de `rsa` antes da abertura pública.
+6. Definir licença e concluir a revisão do histórico completo antes de abrir o projeto no GitHub. A proteção de `master` já exige PR e checks aprovados. A decisão sobre consentimento de métricas está pausada.
 
 Integrações com Apple Health e Health Connect estão fora do escopo inicial.
 
 ## Planejamento no Vortex
 
-Projeto: **Biorotina** (`82E-YHH`).
-
-- `YTF-11098` — Validar disponibilidade do nome Biorotina (pendente).
-- `YTF-11099` — Acesso opcional com Google e backup no Drive (implementado; falta validação em dois dispositivos e confirmação do consentimento público).
-- `YTF-11100` — Definir escopo inicial e mapa de páginas (concluída).
-- `YTF-11101` — Definir privacidade e análise opcional por IA (pendente, fora das próximas etapas).
-- `YTF-11102` — Criar direção visual e design das telas (concluída).
-- `YTF-11103` — Lembretes opcionais de hidratação e medicação (infraestrutura publicada; entrega agendada confirmada em iPhone e Android).
+As tarefas de planejamento e entrega ficam no projeto **Biorotina** (`82E-YHH`) no Vortex. Consulte lá o estado atual de cada tarefa; esta página descreve o código e os testes, sem duplicar estados que podem mudar.
