@@ -11,7 +11,7 @@ Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acomp
 - Sincronização opcional com o **Google Drive da própria pessoa** para usar os dados em outro navegador ou dispositivo.
 - Registros locais separados por conta Google. Ao sair, o app apaga os dados e a chave pessoal deste navegador; se houver alterações pendentes, oferece esperar, baixar JSON ou apagar sem backup.
 - Sem banco de dados central de registros de saúde operado pelo projeto; o serviço de avisos guarda dados técnicos da inscrição e horários. O plano de IA guarda somente estado da assinatura e uso diário.
-- Métricas de acesso para contagem agregada, sem publicidade, com opção de desativar em Configurações e sem envio de registros de saúde.
+- Métricas de acesso para contagem agregada, sem publicidade, ativadas apenas por escolha em Configurações e sem envio de registros de saúde.
 
 O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação permitem usar uma entrada como modelo, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. Água e medicamentos permitem vários horários de lembrete. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; a entrega agendada foi confirmada em iPhone e Android.
 

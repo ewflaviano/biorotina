@@ -43,6 +43,11 @@ export function AnalyticsChoice() {
           Desativar métricas
         </button>
       </div>
+      {preference === "unselected" && (
+        <p className="muted small" role="status">
+          Métricas e diagnósticos estão desligados até você escolher ativá-los.
+        </p>
+      )}
       <p className="muted small">
         <Link to="/privacidade">Entenda como usamos seus dados</Link>
       </p>

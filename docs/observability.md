@@ -7,12 +7,12 @@ Os campos estáveis (`kind`, `service`, `operation` ou `source`, `code`, `screen
 assinatura dos log groups. Não registrar payloads, mensagens de exceção, stack traces, URLs,
 fotos, resultados de IA, identificadores de contas, tokens ou chaves.
 
-O app envia `POST /api/telemetry/error` sem autenticação para captar inclusive
+Após a pessoa ativar métricas e diagnósticos, o app pode enviar `POST /api/telemetry/error` sem autenticação para captar inclusive
 falhas antes do login. O esquema aceita apenas enums predefinidos e status HTTP;
 campos extras e corpos acima de 512 bytes são recusados. A tela é reduzida a
 uma lista fixa, sem query string. O cliente deduplica por um minuto, limita a
 20 eventos por sessão e descarta falhas do próprio envio, sem fila local. O envio
-respeita a mesma preferência de métricas em Configurações; com `declined`, nada
+respeita a mesma preferência de métricas em Configurações; sem uma escolha ou com `declined`, nada
 é enviado pelo cliente. O diagnóstico é de melhor esforço: falhas offline ou antes de o JavaScript
 iniciar não chegam ao servidor. CORS limita navegadores conhecidos, mas não é
 controle de abuso contra clientes automatizados; se necessário, adicionar WAF

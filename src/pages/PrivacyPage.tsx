@@ -96,8 +96,8 @@ export function PrivacyPage() {
             dados de saúde, fotos, e-mail, chave Gemini, tokens ou
             identificadores da conta. Esses registros técnicos ficam nos logs do
             serviço por até 14 dias para ajudar a corrigir problemas. Se você
-            desativar as métricas nas Configurações, o app também deixa de
-            enviar esses diagnósticos.
+            não ativar as métricas nas Configurações, o app não envia esses
+            diagnósticos. Você pode desligar ambos depois.
           </p>
         </section>
         <section className="panel">
@@ -115,15 +115,16 @@ export function PrivacyPage() {
           <p>
             Usamos Google Analytics para medir visitas, origem aproximada,
             região e tipo de dispositivo. Ele usa identificadores do navegador;
-            essas métricas não são anônimas. A medição está ativa por padrão,
-            sem uso para publicidade ou remarketing. Enviamos uma URL geral do
-            site, sem a tela visitada ou dados dos formulários. O serviço também
-            pode contar sessões e primeiras visitas.
+            essas métricas não são anônimas. A medição só começa após sua
+            escolha de ativá-la, sem uso para publicidade ou remarketing.
+            Enviamos uma URL geral do site, sem a tela visitada ou dados dos
+            formulários. O serviço também pode contar sessões e primeiras
+            visitas.
           </p>
           <p>
-            Você pode desativar ou reativar a medição e o envio de diagnósticos
-            a qualquer momento em <Link to="/configuracoes">Configurações</Link>
-            . A coleta fica desativada neste navegador após sua escolha.
+            Você pode ativar ou desativar a medição e o envio de diagnósticos a
+            qualquer momento em <Link to="/configuracoes">Configurações</Link>.
+            Sem uma escolha, ambos ficam desligados neste navegador.
           </p>
         </section>
       </div>
