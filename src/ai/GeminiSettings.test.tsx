@@ -37,6 +37,7 @@ describe("configuração da chave Gemini", () => {
     expect(screen.queryByText("chave-para-teste")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Remover chave" }));
     await waitFor(async () => expect(await loadGeminiKey()).toBeNull());
+    expect(getPlanStatus).not.toHaveBeenCalled();
   });
 
   it("não oferece cadastrar chave para plano ativo e permite remover a existente", async () => {
