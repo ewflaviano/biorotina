@@ -41,7 +41,7 @@ A branch `master` está protegida: mudanças exigem pull request, os checks `cha
 
 O projeto usa Serverless Framework v3, que implanta pela role AWS sem uma chave adicional do Serverless Dashboard. A variável pública `AWS_DEPLOY_ROLE_ARN` aponta para a role criada; `ENABLE_CUSTOM_DOMAIN` ativa os domínios depois da emissão dos certificados. A versão 3 ainda traz alertas de segurança em ferramentas usadas apenas durante o build. O CI verifica separadamente as dependências enviadas ao usuário com `npm audit --omit=dev`; antes de abrir o código, será preciso atualizar ou substituir o Framework v3 para eliminar também esses alertas de desenvolvimento.
 
-Antes de abrir o repositório, revisar o histórico Git inteiro, escolher licença e rotacionar qualquer segredo que tenha sido exposto acidentalmente. O script `npm run check:secrets` examina padrões comuns dos arquivos atuais, mas não substitui essa revisão.
+Antes de abrir o repositório, revisar o histórico Git inteiro, escolher licença e rotacionar qualquer segredo que tenha sido exposto acidentalmente. O script `npm run check:secrets` examina padrões comuns dos arquivos atuais e dos objetos acessíveis no histórico, sem imprimir valores encontrados. Ele não substitui uma revisão humana de arquivos, integrações e permissões.
 
 ## Verificação
 

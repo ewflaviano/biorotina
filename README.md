@@ -33,7 +33,7 @@ Abra `http://127.0.0.1:5173/`. `make` (ou `make run`) inicia o servidor local; `
 
 `make build` verifica tipos e gera os arquivos estáticos em `dist/`.
 
-Para manutenção, `make check` executa a checagem do frontend, Clippy e testes Rust; `npm run test:coverage` mostra a cobertura dos testes de interface. No repositório privado [ewflaviano/biorotina](https://github.com/ewflaviano/biorotina), o GitHub Actions valida os pull requests e valida/publica alterações em `master`. Veja [implantação e domínio](docs/deployment.md). A verificação automática de padrões conhecidos não substitui uma revisão completa do histórico antes de abrir o código.
+Para manutenção, `make check` executa a checagem do frontend, Clippy e testes Rust; `npm run test:coverage` mostra a cobertura dos testes de interface. No repositório privado [ewflaviano/biorotina](https://github.com/ewflaviano/biorotina), o GitHub Actions valida os pull requests e valida/publica alterações em `master`. Veja [implantação e domínio](docs/deployment.md). A verificação automática de padrões conhecidos nos arquivos e no histórico não substitui uma revisão humana antes de abrir o código.
 
 ## Estrutura
 
