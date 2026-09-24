@@ -1,9 +1,37 @@
 import { describe, expect, it, vi } from "vitest";
-import { analyzeMealImage, prepareMealImage } from "./gemini";
+import { analysisSchema, analyzeMealImage, prepareMealImage } from "./gemini";
 
 const image = { dataUrl: "data:image/jpeg;base64,Zm9v", base64: "Zm9v" };
 
 describe("análise de refeição com Gemini", () => {
+  it("preserva descrições úteis acima do antigo limite de 120 caracteres", () => {
+    const description =
+      "Prato feito tradicional com arroz branco, feijão, coxa e sobrecoxa de frango assada e batatas fritas, acompanhado por tigelas extras de batata frita e feijão.";
+    const parsed = analysisSchema.parse({
+      description,
+      foods: [{ name: "Arroz", amount: "200 g", caloriesKcal: 260 }],
+    });
+    expect(description.length).toBeGreaterThan(120);
+    expect(parsed.description).toBe(description);
+  });
+
+  it("encurta apenas textos extremos sem quebrar caracteres Unicode", () => {
+    const parsed = analysisSchema.parse({
+      description: "🥗 feijão ".repeat(100),
+      foods: [
+        {
+          name: "🥗".repeat(80),
+          amount: "porção ".repeat(30),
+          caloriesKcal: 260,
+        },
+      ],
+    });
+    expect(parsed.description.length).toBeLessThanOrEqual(500);
+    expect(parsed.foods[0].name.length).toBeLessThanOrEqual(100);
+    expect(parsed.foods[0].amount.length).toBeLessThanOrEqual(80);
+    expect(parsed.description).toMatch(/…$/);
+  });
+
   it("envia a imagem somente ao chamar a análise e interpreta a lista estruturada", async () => {
     const fetcher = vi.fn(async (_url: string, options: RequestInit) => {
       expect(options.headers).toMatchObject({

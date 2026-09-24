@@ -19,11 +19,21 @@ controle de abuso contra clientes automatizados; se necessário, adicionar WAF
 ou throttling no API Gateway antes de ampliar tráfego.
 
 Para investigar erros de análise, consultar o grupo
-`/aws/lambda/biorotina-dev-billingApi` e filtrar por
-`kind=application_error`, `operation=analyze`. `gemini_status` inclui somente
-o código HTTP do upstream; `gemini_missing_text`, `gemini_invalid_json` e
-`gemini_invalid_suggestion` distinguem falhas após resposta HTTP 200. Nunca
-registrar o conteúdo retornado pelo Gemini. Os demais grupos são
+`/aws/lambda/biorotina-dev-billingApi` e filtrar por `operation=analyze`.
+`gemini_status` inclui somente o código HTTP do upstream; `gemini_timeout` separa
+o tempo esgotado de outras falhas de rede. `gemini_retry_503` e
+`gemini_retry_recovered` são avisos que identificam uma tentativa repetida e sua
+recuperação. Após resposta HTTP 200, os códigos distinguem ausência de candidato,
+bloqueio de segurança, limite de tokens, texto ausente, JSON inválido ou campos
+incompatíveis com o formato esperado, descrição vazia, lista vazia ou grande demais, nome ou porção
+vazios e calorias inválidas (`gemini_no_candidate`, `gemini_safety_blocked`,
+`gemini_max_tokens`, `gemini_missing_text`, `gemini_json_syntax`,
+`gemini_json_shape`, `gemini_description_shape`, `gemini_foods_shape`,
+`gemini_food_name_shape`, `gemini_food_amount_shape`, `gemini_calories_shape`,
+`gemini_empty_description`, `gemini_empty_foods`,
+`gemini_too_many_foods`, `gemini_empty_food_name`, `gemini_empty_food_amount`,
+`gemini_invalid_calories`). Nunca registrar o conteúdo retornado pelo Gemini.
+Os demais grupos são
 `biorotina-dev-api`, `biorotina-dev-tick` e `biorotina-dev-telemetry` com o
 prefixo `/aws/lambda/`.
 

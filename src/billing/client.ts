@@ -1,5 +1,9 @@
 import { z } from "zod";
-import type { MealAnalysis, PreparedImage } from "../ai/gemini";
+import {
+  analysisSchema,
+  type MealAnalysis,
+  type PreparedImage,
+} from "../ai/gemini";
 import { reportClientError } from "../observability/client";
 
 const API = (import.meta.env.VITE_PUSH_API_URL || "").replace(/\/$/, "");
@@ -17,20 +21,6 @@ const statusSchema = z.object({
   trialLimit: z.number().int().positive().default(5),
 });
 export type PlanStatus = z.infer<typeof statusSchema>;
-const analysisSchema = z.object({
-  description: z.string().min(1).max(120),
-  foods: z
-    .array(
-      z.object({
-        name: z.string().min(1).max(100),
-        amount: z.string().min(1).max(80),
-        caloriesKcal: z.number().min(0).max(5000),
-      }),
-    )
-    .min(1)
-    .max(30),
-});
-
 async function request(
   path: string,
   googleToken: string,

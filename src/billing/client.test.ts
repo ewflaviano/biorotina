@@ -1,9 +1,47 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createPlanCheckout, getPlanStatus, getTrialConfig } from "./client";
+import {
+  analyzeWithPlan,
+  createPlanCheckout,
+  getPlanStatus,
+  getTrialConfig,
+} from "./client";
+import { mealSchema } from "../domain/data";
 
 beforeEach(() => vi.restoreAllMocks());
 
 describe("plano vinculado ao Google", () => {
+  it("aceita e permite salvar uma análise paga com descrição longa", async () => {
+    const description =
+      "Prato feito tradicional com arroz branco, feijão, coxa e sobrecoxa de frango assada e batatas fritas, acompanhado por tigelas extras de batata frita e feijão.";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          description,
+          foods: [
+            { name: "Arroz branco cozido", amount: "200 g", caloriesKcal: 260 },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const analysis = await analyzeWithPlan("google-token", {
+      dataUrl: "",
+      base64: "Zm9v",
+    });
+    expect(analysis.description).toBe(description);
+    expect(
+      mealSchema.safeParse({
+        id: "194823b7-f285-459d-b7f6-c6384ad3852e",
+        createdAt: "2026-09-24T12:00:00.000Z",
+        eatenAt: "2026-09-24T12:00:00.000Z",
+        name: analysis.description,
+        caloriesKcal: 260,
+        foods: analysis.foods,
+        photoAssisted: true,
+      }).success,
+    ).toBe(true);
+  });
+
   it("exige login antes de acessar o serviço", async () => {
     await expect(getPlanStatus("")).rejects.toThrow("Conecte sua conta Google");
   });

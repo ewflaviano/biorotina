@@ -7,15 +7,38 @@ const MAX_FILE_BYTES = 15_000_000;
 const MAX_IMAGE_SIDE = 768;
 const TARGET_IMAGE_BYTES = 350_000;
 
-const analysisSchema = z
+function compactAiText(value: string, maxLength: number): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  let result = "";
+  for (const character of trimmed) {
+    if (result.length + character.length > maxLength - 1) break;
+    result += character;
+  }
+  return result.trimEnd() + "…";
+}
+
+export const analysisSchema = z
   .object({
-    description: z.string().trim().min(1).max(120),
+    description: z
+      .string()
+      .trim()
+      .min(1)
+      .transform((value) => compactAiText(value, 500)),
     foods: z
       .array(
         z
           .object({
-            name: z.string().trim().min(1).max(100),
-            amount: z.string().trim().min(1).max(80),
+            name: z
+              .string()
+              .trim()
+              .min(1)
+              .transform((value) => compactAiText(value, 100)),
+            amount: z
+              .string()
+              .trim()
+              .min(1)
+              .transform((value) => compactAiText(value, 80)),
             caloriesKcal: z.number().finite().nonnegative().max(5_000),
           })
           .strict(),
@@ -32,7 +55,8 @@ const responseSchema = {
   properties: {
     description: {
       type: "string",
-      description: "Nome curto da refeição em português do Brasil",
+      description:
+        "Descrição da refeição em português do Brasil, com até 500 caracteres",
     },
     foods: {
       type: "array",

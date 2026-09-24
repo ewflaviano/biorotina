@@ -11,6 +11,7 @@ use std::sync::Arc;
 use subtle::ConstantTimeEq;
 
 const GEMINI_MODEL: &str = "gemini-3.8-flash";
+const GEMINI_TOTAL_BUDGET: std::time::Duration = std::time::Duration::from_secs(24);
 pub const TRIAL_LIMIT: u32 = 5;
 const ASAAS_USER_AGENT: &str = "Biorotina/0.1 (+https://biorotina.app.br)";
 const PROMPT: &str = "Analise apenas os alimentos e bebidas visíveis nesta foto de refeição. Responda em português do Brasil com JSON. Para cada alimento visível, dê um nome simples, uma porção aproximada (gramas ou medida caseira) e as calorias aproximadas dessa porção. Não invente ingredientes invisíveis. Se a foto não permitir identificar uma refeição, retorne foods vazio. Não faça recomendações médicas ou nutricionais. A pessoa vai revisar tudo.";
@@ -99,15 +100,126 @@ pub struct Analysis {
     pub foods: Vec<Food>,
 }
 
+fn compact_ai_text(value: &str, max_bytes: usize) -> String {
+    let value = value.trim();
+    if value.len() <= max_bytes {
+        return value.to_owned();
+    }
+    let mut end = max_bytes.saturating_sub("…".len());
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}…", value[..end].trim_end())
+}
+
+fn normalize_analysis(mut analysis: Analysis) -> Analysis {
+    analysis.description = compact_ai_text(&analysis.description, 500);
+    for food in &mut analysis.foods {
+        food.name = compact_ai_text(&food.name, 100);
+        food.amount = compact_ai_text(&food.amount, 80);
+    }
+    analysis
+}
+
+fn parse_analysis(text: &str) -> Result<Analysis, AnalysisFailure> {
+    let value: Value = serde_json::from_str(text).map_err(|_| AnalysisFailure::GeminiJsonSyntax)?;
+    if !value.get("description").is_some_and(Value::is_string) {
+        return Err(AnalysisFailure::DescriptionShape);
+    }
+    let foods = value
+        .get("foods")
+        .and_then(Value::as_array)
+        .ok_or(AnalysisFailure::FoodsShape)?;
+    for food in foods {
+        if !food.get("name").is_some_and(Value::is_string) {
+            return Err(AnalysisFailure::FoodNameShape);
+        }
+        if !food.get("amount").is_some_and(Value::is_string) {
+            return Err(AnalysisFailure::FoodAmountShape);
+        }
+        if !food.get("caloriesKcal").is_some_and(Value::is_number) {
+            return Err(AnalysisFailure::CaloriesShape);
+        }
+    }
+    let analysis: Analysis =
+        serde_json::from_value(value).map_err(|_| AnalysisFailure::GeminiJsonShape)?;
+    let analysis = normalize_analysis(analysis);
+    if analysis.description.is_empty() {
+        return Err(AnalysisFailure::EmptyDescription);
+    }
+    if analysis.foods.is_empty() {
+        return Err(AnalysisFailure::EmptyFoods);
+    }
+    if analysis.foods.len() > 30 {
+        return Err(AnalysisFailure::TooManyFoods);
+    }
+    for food in &analysis.foods {
+        if food.name.is_empty() {
+            return Err(AnalysisFailure::EmptyFoodName);
+        }
+        if food.amount.is_empty() {
+            return Err(AnalysisFailure::EmptyFoodAmount);
+        }
+        if !food.calories_kcal.is_finite() || !(0.0..=5000.0).contains(&food.calories_kcal) {
+            return Err(AnalysisFailure::InvalidCalories);
+        }
+    }
+    Ok(analysis)
+}
+
+fn extract_analysis_text(result: &Value) -> Result<&str, AnalysisFailure> {
+    let candidate = result
+        .pointer("/candidates/0")
+        .ok_or(AnalysisFailure::NoCandidate)?;
+    match candidate.get("finishReason").and_then(Value::as_str) {
+        Some("SAFETY") => return Err(AnalysisFailure::SafetyBlocked),
+        Some("MAX_TOKENS") => return Err(AnalysisFailure::MaxTokens),
+        _ => {}
+    }
+    candidate
+        .pointer("/content/parts")
+        .and_then(Value::as_array)
+        .and_then(|parts| {
+            parts
+                .iter()
+                .find_map(|part| part.get("text").and_then(Value::as_str))
+        })
+        .ok_or(AnalysisFailure::MissingText)
+}
+
+fn should_retry_gemini(
+    status: u16,
+    attempt: usize,
+    remaining: std::time::Duration,
+    pause: std::time::Duration,
+) -> bool {
+    status == 503 && attempt == 0 && remaining > pause + std::time::Duration::from_secs(3)
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum AnalysisFailure {
     InvalidImage,
     GeminiNetwork,
+    GeminiTimeout,
     GeminiStatus(u16),
     GeminiResponse,
+    NoCandidate,
+    SafetyBlocked,
+    MaxTokens,
     MissingText,
-    InvalidJson,
-    InvalidSuggestion,
+    GeminiJsonSyntax,
+    GeminiJsonShape,
+    DescriptionShape,
+    FoodsShape,
+    FoodNameShape,
+    FoodAmountShape,
+    CaloriesShape,
+    EmptyDescription,
+    EmptyFoods,
+    TooManyFoods,
+    EmptyFoodName,
+    EmptyFoodAmount,
+    InvalidCalories,
 }
 
 impl AnalysisFailure {
@@ -115,11 +227,26 @@ impl AnalysisFailure {
         match self {
             Self::InvalidImage => "invalid_image",
             Self::GeminiNetwork => "gemini_network",
+            Self::GeminiTimeout => "gemini_timeout",
             Self::GeminiStatus(_) => "gemini_status",
             Self::GeminiResponse => "gemini_response",
+            Self::NoCandidate => "gemini_no_candidate",
+            Self::SafetyBlocked => "gemini_safety_blocked",
+            Self::MaxTokens => "gemini_max_tokens",
             Self::MissingText => "gemini_missing_text",
-            Self::InvalidJson => "gemini_invalid_json",
-            Self::InvalidSuggestion => "gemini_invalid_suggestion",
+            Self::GeminiJsonSyntax => "gemini_json_syntax",
+            Self::GeminiJsonShape => "gemini_json_shape",
+            Self::DescriptionShape => "gemini_description_shape",
+            Self::FoodsShape => "gemini_foods_shape",
+            Self::FoodNameShape => "gemini_food_name_shape",
+            Self::FoodAmountShape => "gemini_food_amount_shape",
+            Self::CaloriesShape => "gemini_calories_shape",
+            Self::EmptyDescription => "gemini_empty_description",
+            Self::EmptyFoods => "gemini_empty_foods",
+            Self::TooManyFoods => "gemini_too_many_foods",
+            Self::EmptyFoodName => "gemini_empty_food_name",
+            Self::EmptyFoodAmount => "gemini_empty_food_amount",
+            Self::InvalidCalories => "gemini_invalid_calories",
         }
     }
 
@@ -674,7 +801,38 @@ impl Billing {
             return Err(AnalysisFailure::InvalidImage);
         }
         let body = json!({"contents":[{"parts":[{"text":PROMPT},{"inline_data":{"mime_type":"image/jpeg","data":image}}]}],"generationConfig":{"temperature":0.2,"maxOutputTokens":2048,"thinkingConfig":{"thinkingLevel":"LOW"},"responseFormat":{"text":{"mimeType":"APPLICATION_JSON","schema":{"type":"object","properties":{"description":{"type":"string"},"foods":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"string"},"caloriesKcal":{"type":"number"}},"required":["name","amount","caloriesKcal"]}}},"required":["description","foods"]}}}}});
-        let response = self.client.post(format!("https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent")).header("x-goog-api-key", self.gemini_key.as_str()).json(&body).send().await.map_err(|_| AnalysisFailure::GeminiNetwork)?;
+        let mut attempt = 0;
+        let started = std::time::Instant::now();
+        let response = loop {
+            let remaining = GEMINI_TOTAL_BUDGET.saturating_sub(started.elapsed());
+            let response = self.client.post(format!("https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"))
+                .timeout(remaining)
+                .header("x-goog-api-key", self.gemini_key.as_str())
+                .json(&body)
+                .send()
+                .await
+                .map_err(|error| {
+                    if error.is_timeout() {
+                        AnalysisFailure::GeminiTimeout
+                    } else {
+                        AnalysisFailure::GeminiNetwork
+                    }
+                })?;
+            let jitter_ms = Utc::now().timestamp_subsec_millis() as u64 % 501;
+            let pause = std::time::Duration::from_millis(700 + jitter_ms);
+            if should_retry_gemini(
+                response.status().as_u16(),
+                attempt,
+                GEMINI_TOTAL_BUDGET.saturating_sub(started.elapsed()),
+                pause,
+            ) {
+                observability::warning("billing", "analyze", "gemini_retry_503", Some(503));
+                tokio::time::sleep(pause).await;
+                attempt += 1;
+                continue;
+            }
+            break response;
+        };
         if !response.status().is_success() {
             return Err(AnalysisFailure::GeminiStatus(response.status().as_u16()));
         }
@@ -682,27 +840,10 @@ impl Billing {
             .json()
             .await
             .map_err(|_| AnalysisFailure::GeminiResponse)?;
-        let text = result
-            .pointer("/candidates/0/content/parts/0/text")
-            .and_then(Value::as_str)
-            .ok_or(AnalysisFailure::MissingText)?;
-        let analysis: Analysis =
-            serde_json::from_str(text).map_err(|_| AnalysisFailure::InvalidJson)?;
-        if analysis.description.trim().is_empty()
-            || analysis.description.len() > 120
-            || analysis.foods.is_empty()
-            || analysis.foods.len() > 30
-            || analysis.foods.iter().any(|f| {
-                f.name.trim().is_empty()
-                    || f.name.len() > 100
-                    || f.amount.trim().is_empty()
-                    || f.amount.len() > 80
-                    || !f.calories_kcal.is_finite()
-                    || f.calories_kcal < 0.0
-                    || f.calories_kcal > 5000.0
-            })
-        {
-            return Err(AnalysisFailure::InvalidSuggestion);
+        let text = extract_analysis_text(&result)?;
+        let analysis = parse_analysis(text)?;
+        if attempt > 0 {
+            observability::warning("billing", "analyze", "gemini_retry_recovered", None);
         }
         Ok(analysis)
     }
@@ -835,6 +976,149 @@ impl Billing {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn keeps_a_paid_analysis_with_a_long_but_usable_description() {
+        let description = "Prato feito tradicional com arroz branco, feijão, coxa e sobrecoxa de frango assada e batatas fritas, acompanhado por tigelas extras de batata frita e feijão.";
+        assert!(description.len() > 120);
+        let text = json!({
+            "description": description,
+            "foods": [{"name":"Arroz branco cozido","amount":"200 g","caloriesKcal":260}]
+        });
+        let analysis = parse_analysis(&text.to_string()).unwrap();
+        assert_eq!(analysis.description, description);
+    }
+
+    #[test]
+    fn bounds_extreme_ai_text_without_cutting_utf8() {
+        let analysis = normalize_analysis(Analysis {
+            description: "feijão ".repeat(100),
+            foods: vec![Food {
+                name: "🥗".repeat(40),
+                amount: "porção ".repeat(20),
+                calories_kcal: 100.0,
+            }],
+        });
+        assert!(analysis.description.len() <= 500);
+        assert!(analysis.foods[0].name.len() <= 100);
+        assert!(analysis.foods[0].amount.len() <= 80);
+        assert!(analysis.description.ends_with('…'));
+    }
+
+    #[test]
+    fn retries_only_the_first_503() {
+        let budget = std::time::Duration::from_secs(10);
+        let pause = std::time::Duration::from_secs(1);
+        assert!(should_retry_gemini(503, 0, budget, pause));
+        assert!(!should_retry_gemini(503, 1, budget, pause));
+        assert!(!should_retry_gemini(400, 0, budget, pause));
+        assert!(!should_retry_gemini(429, 0, budget, pause));
+        assert!(!should_retry_gemini(
+            503,
+            0,
+            std::time::Duration::from_secs(4),
+            pause
+        ));
+    }
+
+    #[test]
+    fn still_rejects_an_unusable_suggestion() {
+        let empty_foods = r#"{"description":"Almoço","foods":[]}"#;
+        assert_eq!(
+            parse_analysis(empty_foods).unwrap_err(),
+            AnalysisFailure::EmptyFoods
+        );
+    }
+
+    #[test]
+    fn reports_the_precise_reason_without_logging_model_content() {
+        let cases = [
+            (
+                r#"{"description":" ","foods":[{"name":"Arroz","amount":"1 prato","caloriesKcal":250}]}"#,
+                AnalysisFailure::EmptyDescription,
+            ),
+            (
+                r#"{"description":"Almoço","foods":[{"name":" ","amount":"1 prato","caloriesKcal":250}]}"#,
+                AnalysisFailure::EmptyFoodName,
+            ),
+            (
+                r#"{"description":"Almoço","foods":[{"name":"Arroz","amount":" ","caloriesKcal":250}]}"#,
+                AnalysisFailure::EmptyFoodAmount,
+            ),
+            (
+                r#"{"description":"Almoço","foods":[{"name":"Arroz","amount":"1 prato","caloriesKcal":5001}]}"#,
+                AnalysisFailure::InvalidCalories,
+            ),
+            (
+                r#"{"description":"Almoço","foods":[{"name":"Arroz","amount":"1 prato"}]}"#,
+                AnalysisFailure::CaloriesShape,
+            ),
+            (
+                r#"{"description":42,"foods":[]}"#,
+                AnalysisFailure::DescriptionShape,
+            ),
+            (
+                r#"{"description":"Almoço","foods":{}}"#,
+                AnalysisFailure::FoodsShape,
+            ),
+            (
+                r#"{"description":"Almoço","foods":[{"amount":"1 prato","caloriesKcal":250}]}"#,
+                AnalysisFailure::FoodNameShape,
+            ),
+            (
+                r#"{"description":"Almoço","foods":[{"name":"Arroz","caloriesKcal":250}]}"#,
+                AnalysisFailure::FoodAmountShape,
+            ),
+            (
+                r#"{"description":"Almoço","foods": [}"#,
+                AnalysisFailure::GeminiJsonSyntax,
+            ),
+        ];
+        for (content, expected) in cases {
+            let actual = parse_analysis(content).unwrap_err();
+            assert_eq!(actual.code(), expected.code());
+        }
+        let too_many = json!({
+            "description":"Almoço",
+            "foods": (0..31).map(|_| json!({"name":"Arroz","amount":"1 prato","caloriesKcal":250})).collect::<Vec<_>>()
+        });
+        assert_eq!(
+            parse_analysis(&too_many.to_string()).unwrap_err(),
+            AnalysisFailure::TooManyFoods
+        );
+    }
+
+    #[test]
+    fn identifies_model_completion_problems() {
+        assert_eq!(
+            extract_analysis_text(&json!({"candidates":[]})).unwrap_err(),
+            AnalysisFailure::NoCandidate
+        );
+        assert_eq!(
+            extract_analysis_text(&json!({"candidates":[{"finishReason":"SAFETY"}]})).unwrap_err(),
+            AnalysisFailure::SafetyBlocked
+        );
+        assert_eq!(
+            extract_analysis_text(&json!({"candidates":[{"finishReason":"MAX_TOKENS"}]}))
+                .unwrap_err(),
+            AnalysisFailure::MaxTokens
+        );
+        assert_eq!(
+            extract_analysis_text(
+                &json!({"candidates":[{"finishReason":"STOP","content":{"parts":[]}}]})
+            )
+            .unwrap_err(),
+            AnalysisFailure::MissingText
+        );
+        assert_eq!(
+            extract_analysis_text(
+                &json!({"candidates":[{"content":{"parts":[{}, {"text":"{}"}]}}]})
+            )
+            .unwrap(),
+            "{}"
+        );
+    }
+
     #[test]
     fn checkout_reconciliation_requires_matching_confirmed_payment() {
         let valid = json!({"id":"pay_1","checkoutSession":"checkout-1","status":"CONFIRMED","value":8.99,"subscription":"sub_1","customer":"cus_1"});

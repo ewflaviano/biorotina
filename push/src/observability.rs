@@ -20,3 +20,22 @@ pub fn error(
         })
     );
 }
+
+pub fn warning(
+    service: &'static str,
+    operation: &'static str,
+    code: &'static str,
+    status: Option<u16>,
+) {
+    eprintln!(
+        "{}",
+        json!({
+            "level": "warning",
+            "kind": "application_warning",
+            "service": service,
+            "operation": operation,
+            "code": code,
+            "status": status,
+        })
+    );
+}
