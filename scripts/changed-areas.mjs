@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 
 const FRONTEND_FILES = new Set([
   ".env.example",
+  "docs/tokens.css",
   "index.html",
   "vite.config.ts",
   "vitest.config.ts",
@@ -30,7 +31,7 @@ export function classifyPaths(paths) {
       path === "README.md" ||
       path === "CONTRIBUTING.md" ||
       path === "SECURITY.md" ||
-      path.startsWith("docs/") ||
+      (path.startsWith("docs/") && !FRONTEND_FILES.has(path)) ||
       path.startsWith(".github/ISSUE_TEMPLATE/") ||
       path === ".github/PULL_REQUEST_TEMPLATE.md"
     )

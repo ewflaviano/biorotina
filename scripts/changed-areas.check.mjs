@@ -12,6 +12,13 @@ test("frontend changes do not start backend validation", () => {
   );
 });
 
+test("design tokens imported by the app start frontend validation", () => {
+  assert.deepEqual(classifyPaths(["docs/tokens.css"]), {
+    frontend: true,
+    backend: false,
+  });
+});
+
 test("backend changes do not start frontend validation", () => {
   assert.deepEqual(
     classifyPaths([
