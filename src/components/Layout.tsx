@@ -28,6 +28,7 @@ import { SyncConflictPrompt } from "./SyncConflictPrompt";
 import { useAppData } from "../state/AppDataContext";
 import { useDriveSync } from "../sync/DriveSyncContext";
 import { AnalyticsConsentBanner } from "../analytics/AnalyticsConsentBanner";
+import { useAnalyticsPreference } from "../analytics/useAnalyticsPreference";
 
 const desktopNav = [
   { to: "/", label: "Hoje", mobileLabel: "Hoje", icon: House },
@@ -75,6 +76,7 @@ const mobileNav = [
 export function Layout() {
   const { data, undoLabel, undoCount, undoLast, dismissUndo } = useAppData();
   const drive = useDriveSync();
+  const analyticsPreference = useAnalyticsPreference();
   const location = useLocation();
   const [undoFailure, setUndoFailure] = useState<{
     label: string;
@@ -277,7 +279,12 @@ export function Layout() {
           ))}
         </nav>
       </div>
-      {location.pathname === "/" && <InstallPrompt enabled delayMs={1800} />}
+      {location.pathname === "/" && (
+        <InstallPrompt
+          enabled={analyticsPreference !== "unselected"}
+          delayMs={1800}
+        />
+      )}
       <GuestLoginPrompt />
       <DrivePermissionPrompt />
       <SyncConflictPrompt />

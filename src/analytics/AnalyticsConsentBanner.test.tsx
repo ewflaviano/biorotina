@@ -9,7 +9,7 @@ beforeEach(() => localStorage.clear());
 afterEach(cleanup);
 
 describe("aviso inicial de métricas", () => {
-  it("explica os dados e permite recusar sem bloquear o app", async () => {
+  it("abre um diálogo visível, explica os dados e permite recusar", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
@@ -19,9 +19,12 @@ describe("aviso inicial de métricas", () => {
     );
 
     expect(screen.getByText("Conteúdo disponível")).toBeInTheDocument();
-    expect(
-      screen.getByRole("region", { name: "Escolha sobre métricas" }),
-    ).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", {
+      name: /Podemos usar métricas de visitas/,
+    });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog).toHaveFocus();
+    expect(document.body.style.overflow).toBe("hidden");
     await user.click(screen.getByRole("button", { name: "O que é enviado" }));
     expect(
       screen.getByText(/Não enviamos registros de saúde/),
@@ -35,12 +38,13 @@ describe("aviso inicial de métricas", () => {
       "declined",
     );
     expect(
-      screen.queryByRole("region", { name: "Escolha sobre métricas" }),
+      screen.queryByRole("dialog", { name: /Podemos usar métricas/ }),
     ).not.toBeInTheDocument();
+    expect(document.body.style.overflow).toBe("");
     expect(screen.getByText("Conteúdo disponível")).toBeInTheDocument();
   });
 
-  it("sincroniza a escolha do banner com Configurações", async () => {
+  it("sincroniza a escolha do diálogo com Configurações", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
@@ -57,8 +61,21 @@ describe("aviso inicial de métricas", () => {
       screen.getByRole("button", { name: "Ativar métricas" }),
     ).toHaveAttribute("aria-pressed", "true");
     expect(
-      screen.queryByRole("region", { name: "Escolha sobre métricas" }),
+      screen.queryByRole("dialog", { name: /Podemos usar métricas/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("permite ler a privacidade sem registrar uma escolha", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <AnalyticsConsentBanner />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole("button", { name: "O que é enviado" }));
+    await user.click(screen.getByRole("link", { name: "Privacidade" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(localStorage.getItem("biorotina.analytics.consent.v1")).toBeNull();
   });
 
   it("não reaparece quando já existe uma escolha", () => {
@@ -69,7 +86,7 @@ describe("aviso inicial de métricas", () => {
       </MemoryRouter>,
     );
     expect(
-      screen.queryByRole("region", { name: "Escolha sobre métricas" }),
+      screen.queryByRole("dialog", { name: /Podemos usar métricas/ }),
     ).not.toBeInTheDocument();
     localStorage.setItem("biorotina.analytics.consent.v1", "declined");
     rerender(
@@ -78,7 +95,7 @@ describe("aviso inicial de métricas", () => {
       </MemoryRouter>,
     );
     expect(
-      screen.queryByRole("region", { name: "Escolha sobre métricas" }),
+      screen.queryByRole("dialog", { name: /Podemos usar métricas/ }),
     ).not.toBeInTheDocument();
   });
 });
