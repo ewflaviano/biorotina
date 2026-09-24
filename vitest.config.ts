@@ -5,6 +5,8 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "jsdom",
+    // Drive/IndexedDB integration tests are timing-sensitive under parallel load.
+    maxWorkers: 1,
     setupFiles: ["./test/setup.ts"],
     clearMocks: true,
     coverage: {
