@@ -1,12 +1,12 @@
 # Próximas etapas da Biorotina
 
-Estas etapas começam depois do esqueleto local. O app continua utilizável sem conta. Dados de saúde permanecem no navegador e, se a pessoa optar, em seu próprio Google Drive.
+O app continua utilizável sem conta. Dados de saúde permanecem no navegador e, se a pessoa optar, em seu próprio Google Drive. As integrações abaixo já foram implementadas; os itens restantes são verificações de entrega e operação.
 
 ## 1. Conectar Google e fazer backup no Drive (`YTF-11099`) — implementado
 
 **Experiência:** “Entrar” aparece no topo de todas as telas, com detalhes e resolução de conflitos em Configurações. Após conectar, alterações sincronizam automaticamente enquanto a página está aberta; a pessoa vê a conta, o estado do Drive, erros e a opção de desconectar. Importar/exportar JSON continua disponível sem login.
 
-**Implementação atual:** Google Identity Services com `openid`, `email` e `drive.appdata`, snapshots JSON versionados em `appDataFolder` e adaptador isolado do domínio. Apenas o OAuth client ID público entra no build; o token fica em memória. Não usar client secret nem credenciais de serviço no frontend. Origens locais e de produção estão configuradas no projeto OAuth sem segredos no repositório.
+**Implementação atual:** Google Identity Services com `openid`, `email` e `drive.appdata`, snapshots JSON versionados em `appDataFolder` e adaptador isolado do domínio. Apenas o OAuth client ID público entra no build; o token da pessoa fica no armazenamento do seu navegador para manter a conexão após recarregar. Não usar client secret nem credenciais de serviço no frontend. Origens locais e de produção estão configuradas no projeto OAuth sem segredos no repositório.
 
 **Critérios de entrega:**
 
@@ -19,7 +19,7 @@ Estas etapas começam depois do esqueleto local. O app continua utilizável sem 
 
 **Validação concluída:** conexão OAuth no navegador, listagem e criação de backup real no Drive da conta de teste; sincronização repetida confirmou que não duplica uma cópia idêntica. Testes unitários cobrem o adaptador, erros e decisões de conflito.
 
-**Ainda falta:** validar restauração e conflito entre dois dispositivos reais, oferecer recuperação de versões antigas pela interface e preparar a publicação do consentimento OAuth para usuários fora da lista de teste.
+**Ainda falta:** validar restauração e conflito entre dois dispositivos reais, confirmar que o consentimento OAuth está disponível ao público e decidir se a recuperação de versões antigas precisa de uma interface própria.
 
 ## 2. Validar lembretes opcionais em dispositivos reais (`YTF-11103`)
 

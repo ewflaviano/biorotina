@@ -8,9 +8,9 @@ export function DriveBackup() {
   if (!drive.available)
     return (
       <p className="muted">
-        A sincronização com o Google Drive ainda não foi configurada nesta
-        instalação. Seus dados continuam salvos neste navegador e podem ser
-        exportados em JSON.
+        A conexão com o Google Drive não está disponível agora. Seus registros
+        continuam neste navegador. Você pode baixar uma cópia na seção “Cópia
+        dos dados”.
       </p>
     );
 
@@ -101,7 +101,7 @@ export function DriveBackup() {
               </div>
               <small>
                 Nenhuma versão é apagada do Drive. Ao restaurar, você também
-                recebe um JSON da versão local.
+                baixa uma cópia dos dados deste navegador.
               </small>
             </div>
           )}
@@ -121,8 +121,8 @@ export function DriveBackup() {
         Após conectar, o app sincroniza automaticamente ao registrar ou corrigir
         dados, quando está aberto e com internet. Se o acesso Google expirar,
         conecte novamente. Os registros vão diretamente deste navegador para seu
-        Drive; a Biorotina não guarda dados de saúde no servidor. O backup no
-        Drive é um JSON legível.
+        Drive; a Biorotina não guarda dados de saúde no servidor. Quem tiver
+        acesso à sua conta Google poderá ler essa cópia.
       </p>
     </div>
   );

@@ -39,19 +39,19 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 
 ## 5. Medicação
 
-1. Cadastre nome, dose, unidade livre com sugestões e horário de referência opcional. O horário ainda não ativa notificações.
+1. Cadastre nome, dose, unidade livre com sugestões e vários horários opcionais. Os horários ficam salvos no navegador; avisos neste dispositivo são ativados separadamente, com permissão do sistema.
 2. **Editar** corrige o medicamento sem apagar os registros de uso. A dose mantém a precisão informada.
 3. **Registrar uso** exige uma ação da pessoa e continua disponível após o primeiro registro do dia como **Registrar outro uso**. A tela informa quantos usos foram registrados hoje e quando ocorreu o último. **Remover último** corrige um toque acidental sem apagar os demais; o histórico permite remover qualquer registro individual.
 4. **Excluir medicamento** informa quantos registros de uso ligados serão removidos e pede confirmação. O banner de desfazer restaura medicamento e registros juntos.
 
-**Próxima melhoria possível:** vários horários e frequências por medicamento quando a etapa de lembretes for implementada, com revisão cuidadosa da linguagem para não sugerir orientação clínica.
+**Próxima melhoria possível:** permitir frequências que não sejam diárias, sem sugerir orientação clínica. A entrega agendada ainda precisa ser confirmada em dispositivos reais.
 
 ## 6. Hidratação
 
 1. Os atalhos de 200, 250 e 500 ml registram água em um toque; um campo permite qualquer volume válido.
 2. O total do dia e o histórico se atualizam imediatamente.
 3. **Repetir** registra o mesmo volume de uma entrada anterior com o horário atual. **Excluir** e **Desfazer** corrigem um toque acidental.
-4. A pessoa pode guardar vários horários desejados de lembrete. A tela informa que eles ainda não enviam notificações.
+4. A pessoa pode guardar vários horários de lembrete. O controle “Avisos neste dispositivo” explica quando os avisos estão ativos e permite enviar um teste, ativar ou desativar.
 
 ## 7. Mais áreas e navegação
 
@@ -63,13 +63,19 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 
 1. O perfil mantém nome opcional e altura usada apenas para contextualizar o IMC. Alturas fora de 50–250 cm e pesos acima de 350 kg são recusados como provável erro de digitação; valores negativos já são inválidos.
 2. O backup JSON pode ser exportado. Antes de importar, o app valida o arquivo, mostra a data de alteração e a quantidade por categoria, e pede confirmação; quando existem dados locais, prepara uma cópia anterior para download.
-3. Google Drive permite conectar uma conta opcionalmente pelo topo e sincroniza alterações automaticamente enquanto a página está aberta. Configurações mostra a última cópia e oferece sincronização manual. Alterações concorrentes exigem escolha explícita; ao restaurar a versão remota, o app prepara um JSON local antes da substituição. O uso local não depende de login.
+3. Google Drive permite conectar uma conta opcionalmente pelo topo e sincroniza alterações automaticamente enquanto a página está aberta. A sessão pode continuar após recarregar; se a renovação do Google falhar, a pessoa conecta novamente. Configurações mostra a última cópia e oferece sincronização manual. Alterações concorrentes exigem escolha explícita; ao restaurar a versão remota, o app prepara um JSON local antes da substituição. O uso local não depende de login.
 
 **Próxima melhoria possível:** comparar lado a lado a cópia escolhida e os dados locais, além de mostrar a data da última cópia feita pela pessoa. O app não consegue garantir que um download iniciado foi guardado em local seguro.
+
+## 9. Instalação, apoio e privacidade
+
+1. **Instalar no celular** oferece passos para Safari no iPhone e Chrome no Android. No iPhone, a tela distingue um atalho que abre no navegador de um app instalado que abre sem barra de endereço; isso ajuda a entender por que a permissão de avisos pode não aparecer.
+2. **Apoiar** explica que a contribuição por Pix é opcional e mostra um QR code e uma chave para copiar.
+3. **Como seus dados são usados** explica armazenamento local, cópia no Drive, avisos e métricas, com um contato para dúvidas. A escolha de métricas aparece também na primeira abertura e em Configurações.
 
 ## Regras de experiência aplicadas
 
 - O botão **Desfazer** fica disponível durante a sessão, inclusive depois de navegar. Ele deixa de valer quando a pessoa o dispensa, importa outro backup ou recarrega o app.
 - Reutilizar um registro cria uma nova entrada; nunca altera automaticamente a anterior. Hidratação repete em um toque; as outras áreas abrem um rascunho para revisão.
 - Ações de registro e exclusão usam rótulos visíveis e áreas de toque adequadas para celular. Dados de saúde não são enviados ao projeto.
-- Notificações e sincronização só serão apresentadas como ativas quando essas integrações existirem e houver consentimento.
+- Sincronização aparece como ativa após conectar a conta. Avisos aparecem como ativos após a inscrição do dispositivo; essa indicação não garante que o sistema exibirá cada notificação.

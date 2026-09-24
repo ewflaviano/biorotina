@@ -1,10 +1,10 @@
-# Arquitetura inicial da Biorotina
+# Arquitetura da Biorotina
 
 **Estado:** app local funcional, serviço Web Push e infraestrutura AWS implementados. Login opcional no topo e sincronização automática com o Google Drive implementados.
 
 ## Decisão principal
 
-O primeiro aplicativo é **React + TypeScript + Vite**, com interface mobile first e dados em **IndexedDB**. O site pode ser distribuído como arquivos estáticos por **S3 privado + CloudFront com Origin Access Control**. Um backend não é necessário para registrar dados nem para uma futura sincronização direta com o Google Drive da pessoa. [Vite](https://vite.dev/guide/) produz os arquivos estáticos; [AWS](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/GettingStarted.SimpleDistribution.html) documenta o uso de S3 com OAC.
+O aplicativo usa **React + TypeScript + Vite**, com interface mobile first e dados em **IndexedDB**. O site é distribuído como arquivos estáticos por **S3 privado + CloudFront com Origin Access Control**. O registro de dados e a sincronização direta com o Google Drive da pessoa não dependem do backend. [Vite](https://vite.dev/guide/) produz os arquivos estáticos; [AWS](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/GettingStarted.SimpleDistribution.html) documenta o uso de S3 com OAC.
 
 ```
 Celular / navegador
@@ -22,7 +22,7 @@ Service Worker / PushSubscription ── API Gateway ── Lambda Rust com Axum
 EventBridge Scheduler ── Lambda Rust de envio ── Web Push
 ```
 
-## O que existe no esqueleto
+## Funcionalidades existentes
 
 - Rotas para Hoje, Peso, Atividades, Alimentação, Medicação, Hidratação e Configurações. No celular, “Mais” reúne áreas secundárias em uma barra inferior de cinco destinos.
 - Registros locais de peso, atividade, refeição, água, medicamento e uso de medicamento; perfil com nome opcional e altura para IMC. Hidratação e medicamentos permitem vários horários diários de lembrete.
@@ -33,13 +33,13 @@ EventBridge Scheduler ── Lambda Rust de envio ── Web Push
 
 ## Sincronização Google Drive
 
-Usar a biblioteca oficial **Google Identity Services** no navegador, com consentimento no momento de conectar o Drive. Pedir apenas o escopo `drive.appdata` e guardar o JSON em `appDataFolder`, uma pasta de dados do aplicativo que não aparece na interface normal do Drive. O [modelo de token do Google](https://developers.google.com/identity/oauth2/web/guides/use-token-model) permite chamar a API pelo navegador sem guardar refresh token em backend; os tokens de acesso são curtos e a pessoa poderá precisar autorizar novamente. A [documentação do Drive](https://developers.google.com/workspace/drive/api/guides/appdata) descreve o escopo e a pasta.
+O navegador usa **Google Identity Services**, com consentimento no momento de conectar o Drive. Solicita `openid`, `email` e `drive.appdata` para identificar a conta exibida e guardar o JSON em `appDataFolder`, uma pasta de dados do aplicativo que não aparece na interface normal do Drive. O [modelo de token do Google](https://developers.google.com/identity/oauth2/web/guides/use-token-model) permite chamar a API pelo navegador sem guardar refresh token em backend; os tokens de acesso são curtos e a pessoa poderá precisar autorizar novamente. A [documentação do Drive](https://developers.google.com/workspace/drive/api/guides/appdata) descreve o escopo e a pasta.
 
-O botão de conexão no topo está ativo quando `VITE_GOOGLE_CLIENT_ID` está definido. O cliente OAuth Web e a API do Drive estão configurados no projeto Google Cloud `biorotina`; a aplicação está em modo de teste com a conta do proprietário. O token de acesso fica apenas em memória. Após conectar, o app compara as versões, sincroniza alterações locais automaticamente com breve espera para agrupar edições e tenta novamente ao recuperar conexão ou foco. Isso funciona enquanto a página está aberta e o token é válido; ao recarregar, a pessoa precisa conectar novamente. Cada sincronização cria um novo snapshot JSON na pasta privada do app, preservando as versões anteriores. O IndexedDB guarda, por conta Google, o ID do último snapshot sincronizado e o hash SHA-256 do conteúdo local. A pessoa pode continuar usando o app sem conta e exportar JSON.
+O botão de conexão no topo está ativo quando `VITE_GOOGLE_CLIENT_ID` está definido. O cliente OAuth Web e a API do Drive estão configurados no projeto Google Cloud `biorotina`. O token de acesso fica no armazenamento local do navegador para manter a sessão após recarregar e é renovado, quando possível, pelo Google Identity Services. Se a renovação falhar, a pessoa precisa conectar novamente. Após conectar, o app compara as versões, sincroniza alterações locais automaticamente com breve espera para agrupar edições e tenta novamente ao recuperar conexão ou foco. Cada sincronização cria um novo snapshot JSON na pasta privada do app, preservando as versões anteriores. O IndexedDB guarda, por conta Google, o ID do último snapshot sincronizado e o hash SHA-256 do conteúdo local. A pessoa pode continuar usando o app sem conta e exportar JSON.
 
 **Regra para conflitos:** comparar o último snapshot remoto e o hash do conteúdo local. Quando ambos mudaram, mostrar a quantidade de registros e a data da versão do Drive, sem substituir os dados automaticamente. A pessoa pode manter a versão local, criando outro snapshot, ou restaurar a remota após confirmar e iniciar o download de um JSON da versão local. O armazenamento de metadados separado por identificador da conta impede misturar estados de contas Google diferentes. A restauração verifica a revisão local antes de gravar, para recusar mudanças concorrentes. O JSON permanece versionado e migrável.
 
-O **OAuth client ID** de aplicativo web é um identificador público e poderá entrar em uma configuração `VITE_`. **Client secret, tokens e credenciais AWS jamais entram no bundle.** O [Vite informa](https://vite.dev/guide/env-and-mode) que variáveis `VITE_` são expostas no código enviado ao navegador. O arquivo `.env.example` contém apenas um exemplo de identificador público; arquivos `.env` locais estão ignorados pelo Git.
+O **OAuth client ID** de aplicativo web é um identificador público e entra em uma configuração `VITE_`. **Client secret, tokens de usuário e credenciais AWS jamais entram no código ou no bundle publicado.** O token de cada pessoa existe apenas no armazenamento do próprio navegador, conforme sua escolha de conectar. O [Vite informa](https://vite.dev/guide/env-and-mode) que variáveis `VITE_` são expostas no código enviado ao navegador. O arquivo `.env.example` contém apenas exemplos de identificadores públicos; arquivos `.env` locais estão ignorados pelo Git.
 
 ## Métricas de acesso opcionais
 
@@ -62,11 +62,11 @@ Isso dispensa identificar a pessoa por nome ou e-mail **para o envio por disposi
 ## Quando um backend adicional faria sentido
 
 - Integrações com **client secret**, webhooks, filas ou dados que precisem ser processados fora do navegador.
-- Notificações opt-in, como acima.
+- Novos tipos de notificações que precisem de processamento fora do navegador.
 - Métricas operacionais agregadas do serviço, com desenho de privacidade próprio. Nunca enviar eventos que incluam peso, refeições, medicamentos, dose ou outros registros pessoais por padrão.
 - Recursos de IA que exijam chave mantida pelo projeto; nesse caso, os dados enviados e o consentimento precisarão ser explícitos. Uma chave fornecida pela pessoa exige um desenho separado de armazenamento e risco.
 
-Evitar um backend para dados pessoais só por antecipação. A migração de uma arquitetura estática para API Gateway + Lambda pode acontecer quando um recurso concreto precisar dela.
+Evitar ampliar o backend para dados pessoais só por antecipação. O serviço atual existe para notificações; novos dados só devem entrar quando um recurso concreto precisar deles.
 
 ## Segurança e futuro código aberto
 

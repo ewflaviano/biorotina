@@ -206,7 +206,7 @@ export function MedicationPage() {
                 <input
                   id="med-name"
                   maxLength={120}
-                  placeholder="Ex.: Medicamento informado por você"
+                  placeholder="Nome do medicamento"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   required

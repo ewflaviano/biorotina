@@ -1,10 +1,10 @@
 # Biorotina Design System
 
-**Versão:** 1.0 · **Estado:** direção de produto para implementação · **Idioma inicial:** português do Brasil · **Tema inicial:** claro
+**Versão:** 1.0 · **Estado:** guia visual do app em evolução · **Idioma:** português do Brasil · **Tema:** claro
 
 > **Seu cuidado, no seu ritmo.** Um diário pessoal de saúde e bem-estar que ajuda a reconhecer padrões sem julgar a pessoa. A interface deve transmitir calma, clareza e controle sobre os próprios dados.
 
-Este documento é o contrato de design para a futura interface. Os valores prontos para CSS estão em [`tokens.css`](tokens.css); o [`catálogo visual`](design-system.html) demonstra a aparência e os estados principais. Os exemplos são conceituais: não significam que as funções já existem.
+Este documento reúne as regras visuais e de conteúdo da interface. Os valores prontos para CSS estão em [`tokens.css`](tokens.css); o [`catálogo visual`](design-system.html) demonstra a aparência e estados principais. Exemplos conceituais do catálogo podem diferir de telas já implementadas; consulte o código do app para o comportamento atual.
 
 ## 1. Referências e decisões
 

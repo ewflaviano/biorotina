@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: 24
       - name: Test change selection
-        run: node --test scripts/changed-areas.check.mjs
+        run: node --test scripts/*.check.mjs
       - name: Detect affected areas
         id: detect
         env:

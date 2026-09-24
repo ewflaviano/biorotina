@@ -215,7 +215,7 @@ describe("hidratação", () => {
       expect((await loadData()).hydrationReminderTimes).toEqual(["09:00"]),
     );
     expect(
-      screen.getByText(/Os horários ficam no seu navegador/),
+      screen.getByText(/A quantidade de água que você bebe não é enviada/),
     ).toBeInTheDocument();
     await user.click(
       screen.getByRole("button", { name: "Remover horário 09:00" }),

@@ -24,7 +24,7 @@ export function PushControl() {
       <h2 id="push-title">Avisos neste dispositivo</h2>
       <p className="muted">
         {active
-          ? "Ativos: o serviço envia avisos mesmo quando a página está fechada."
+          ? "Avisos ativados. Você pode recebê-los mesmo com a página fechada."
           : "Ative para receber avisos nos horários escolhidos, mesmo com a página fechada."}
       </p>
       <p className="muted">
@@ -41,8 +41,9 @@ export function PushControl() {
       )}
       {status === "unavailable" && (
         <p className="muted">
-          Este navegador não oferece avisos neste modo. Confira se você está
-          usando HTTPS e uma versão recente do sistema.
+          Este navegador não permite avisos aqui. Veja como instalar a Biorotina
+          no celular para receber lembretes.
+          <Link to="/instalar"> Ver passo a passo</Link>
         </p>
       )}
       {status === "install_required" && (
