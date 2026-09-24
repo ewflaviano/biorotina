@@ -10,6 +10,7 @@ use std::sync::Arc;
 use subtle::ConstantTimeEq;
 
 const GEMINI_MODEL: &str = "gemini-3.8-flash";
+const ASAAS_USER_AGENT: &str = "Biorotina/0.1 (+https://biorotina.app.br)";
 const PROMPT: &str = "Analise apenas os alimentos e bebidas visíveis nesta foto de refeição. Responda em português do Brasil com JSON. Para cada alimento visível, dê um nome simples, uma porção aproximada (gramas ou medida caseira) e as calorias aproximadas dessa porção. Não invente ingredientes invisíveis. Se a foto não permitir identificar uma refeição, retorne foods vazio. Não faça recomendações médicas ou nutricionais. A pessoa vai revisar tudo.";
 
 #[derive(Clone)]
@@ -171,6 +172,7 @@ impl Billing {
             table: std::env::var("BILLING_TABLE_NAME")?,
             client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(24))
+                .user_agent(ASAAS_USER_AGENT)
                 .build()?,
             asaas_key: Arc::new(asaas_key),
             gemini_key: Arc::new(gemini_key),
@@ -343,7 +345,7 @@ impl Billing {
         }
         .await;
         if safe_to_release {
-            let _ = self
+            if let Err(error) = self
                 .db
                 .delete_item()
                 .table_name(&self.table)
@@ -352,7 +354,10 @@ impl Billing {
                 .expression_attribute_names("#data", "data")
                 .expression_attribute_values(":owner", A::S(lock_data))
                 .send()
-                .await;
+                .await
+            {
+                eprintln!("billing checkout lock release failed: {error}");
+            }
         }
         outcome
     }
