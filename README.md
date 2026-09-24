@@ -10,9 +10,11 @@ Biorotina é um aplicativo web gratuito em desenvolvimento para acompanhar saúd
 - Exportação e importação de arquivo JSON para cópia e recuperação dos registros.
 - Sincronização opcional com o **Google Drive da própria pessoa** para usar os dados em outro navegador ou dispositivo.
 - Sem banco de dados central de registros pessoais operado pelo projeto na primeira fase.
-- Métricas de acesso opcionais, com escolha explícita em Configurações e sem envio de registros de saúde.
+- Métricas de acesso opcionais, com escolha explícita na primeira abertura e em Configurações, sem envio de registros de saúde.
 
 O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação permitem usar uma entrada como modelo, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. Água e medicamentos permitem vários horários de lembrete. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; falta validar a entrega em dispositivos reais.
+
+No celular, há um convite discreto para adicionar a Biorotina à tela inicial e uma página com instruções para Safari e Chrome. A página **Apoiar** apresenta um Pix estático opcional para financiar o projeto. O repositório continua privado enquanto a licença e o histórico são revisados para abertura do código.
 
 O [catálogo de atividades e a fórmula de estimativa](docs/activity-reference.md) documentam os valores usados no preenchimento automático.
 
@@ -47,6 +49,8 @@ Para manutenção, `make check` executa a checagem do frontend, Clippy e testes 
 - [Arquitetura](docs/architecture.md): dados locais, Google Drive, backend opcional para notificações e cuidados para abrir o código.
 - [Próximas etapas](docs/next-steps.md): critérios de entrega para Google Drive e lembretes.
 - [Revisão de UX/UI](docs/ux-review.md): passo a passo das telas, ajustes feitos e pontos para próximas iterações.
+- [Instalação no celular](docs/installation.md): convite, compatibilidade e transferência de registros.
+- [Apoio ao projeto](docs/support.md): origem e manutenção do Pix estático.
 
 ## Decisões ainda abertas
 

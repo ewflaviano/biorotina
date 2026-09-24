@@ -1,4 +1,11 @@
-import { Apple, ArrowRight, Pill, Settings2 } from "lucide-react";
+import {
+  Apple,
+  ArrowRight,
+  HeartHandshake,
+  Pill,
+  Settings2,
+  Smartphone,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/Layout";
 
@@ -20,6 +27,18 @@ const links = [
     label: "Configurações",
     detail: "Perfil e backup dos seus dados",
     icon: Settings2,
+  },
+  {
+    to: "/instalar",
+    label: "Instalar no celular",
+    detail: "Acesso rápido pela tela inicial",
+    icon: Smartphone,
+  },
+  {
+    to: "/apoiar",
+    label: "Apoiar o projeto",
+    detail: "Ajude a manter a Biorotina gratuita",
+    icon: HeartHandshake,
   },
 ];
 

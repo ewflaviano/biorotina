@@ -8,6 +8,7 @@ import {
   CloudUpload,
   Droplets,
   HeartPulse,
+  HeartHandshake,
   House,
   LayoutGrid,
   Pill,
@@ -18,6 +19,9 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { AnalyticsConsentDialog } from "../analytics/AnalyticsConsentDialog";
+import { getAnalyticsPreference } from "../analytics/visits";
+import { InstallPrompt } from "./InstallApp";
 import { useAppData } from "../state/AppDataContext";
 import { useDriveSync } from "../sync/DriveSyncContext";
 
@@ -62,6 +66,12 @@ export function Layout() {
   const { data, undoLabel, undoCount, undoLast, dismissUndo } = useAppData();
   const drive = useDriveSync();
   const location = useLocation();
+  const [showAnalyticsConsent, setShowAnalyticsConsent] = useState(
+    () => getAnalyticsPreference() === "unset",
+  );
+  const [hadAnalyticsChoiceAtOpen] = useState(
+    () => getAnalyticsPreference() !== "unset",
+  );
   const [undoFailure, setUndoFailure] = useState<{
     label: string;
     count: number;
@@ -135,6 +145,14 @@ export function Layout() {
             <span>Seu espaço de cuidado{name ? `, ${name}` : ""}</span>
           </div>
           <div className="topbar-actions">
+            <NavLink
+              className="support-topbar"
+              to="/apoiar"
+              aria-label="Apoiar o projeto"
+            >
+              <HeartHandshake size={17} aria-hidden="true" />
+              <span>Apoiar</span>
+            </NavLink>
             {drive.account ? (
               <NavLink
                 className={`drive-topbar ${drive.status}`}
@@ -242,6 +260,17 @@ export function Layout() {
           ))}
         </nav>
       </div>
+      {showAnalyticsConsent && (
+        <AnalyticsConsentDialog
+          onClose={() => setShowAnalyticsConsent(false)}
+        />
+      )}
+      {location.pathname === "/" && (
+        <InstallPrompt
+          enabled={!showAnalyticsConsent}
+          delayMs={hadAnalyticsChoiceAtOpen ? 1800 : 8000}
+        />
+      )}
     </div>
   );
 }

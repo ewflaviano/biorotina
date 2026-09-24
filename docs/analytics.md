@@ -16,7 +16,7 @@ Os quatro identificadores públicos do app (`VITE_FIREBASE_API_KEY`, `VITE_FIREB
 
 ## Validação de lançamento
 
-- O pacote oficial `firebase` é carregado sob demanda somente após a escolha “Permitir métricas” no domínio de produção. A preferência inicial é `unset`. Login e sincronização com Drive não alteram essa escolha. Falhas do Firebase não bloqueiam a abertura do app ou seus registros.
+- A primeira abertura mostra uma janela com as escolhas “Permitir métricas”, “Não permitir” e “Agora não”. Esta última fecha a janela só durante a visita, sem autorizar coleta; ela reaparece ao recarregar. A escolha persistida pode ser alterada em Configurações. O pacote oficial `firebase` é carregado sob demanda somente após “Permitir métricas” no domínio de produção. A preferência inicial é `unset`. Login e sincronização com Drive não alteram essa escolha. Falhas do Firebase não bloqueiam a abertura do app ou seus registros.
 - A página “Como seus dados são usados” explica a coleta e a revogação. Antes de divulgação ampla, completar a identificação e um canal público de contato do responsável, conforme a política de privacidade escolhida pelo projeto; não publicar o e-mail pessoal sem autorização.
 - O deploy de 23/09/2026 publicou o app com as variáveis públicas; o site e os ícones retornaram HTTP 200. Sem escolha de métricas no navegador testado, nenhum script do Firebase/Analytics estava carregado. Ainda falta validar em DebugView, com consentimento em um perfil de teste, que `app_visit` é o único evento **personalizado**, que eventos básicos automáticos usam apenas URL canônica e que não há novos eventos de medição após revogação. A coleta só mede visitantes que aceitaram; não representa todo o tráfego do site.
 

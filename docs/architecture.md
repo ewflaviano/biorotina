@@ -43,7 +43,7 @@ O **OAuth client ID** de aplicativo web é um identificador público e poderá e
 
 ## Métricas de acesso opcionais
 
-O Firebase Analytics está vinculado ao mesmo projeto Google Cloud `biorotina`. O app só carrega o SDK no domínio de produção e após a pessoa permitir em Configurações; a preferência não depende do login Google. O evento próprio `app_visit` usa URL canônica e referência reduzida ao domínio. O SDK pode registrar eventos básicos de sessão. Nenhum registro de saúde ou perfil é fornecido ao módulo. Uma falha do Firebase não bloqueia armazenamento local, sincronização, navegação ou notificações. Configuração do console e limitações de cobertura estão em [Métricas de acesso](analytics.md).
+O Firebase Analytics está vinculado ao mesmo projeto Google Cloud `biorotina`. Na primeira abertura, a pessoa pode permitir ou recusar as métricas em uma janela; a escolha também pode ser alterada em Configurações. O app só carrega o SDK no domínio de produção e após a permissão; ela não depende do login Google. O evento próprio `app_visit` usa URL canônica e referência reduzida ao domínio. O SDK pode registrar eventos básicos de sessão. Nenhum registro de saúde ou perfil é fornecido ao módulo. Uma falha do Firebase não bloqueia armazenamento local, sincronização, navegação ou notificações. Configuração do console e limitações de cobertura estão em [Métricas de acesso](analytics.md).
 
 ## Lembretes e backend mínimo
 
