@@ -193,7 +193,7 @@ h3 {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
-  padding: 6px 4px calc(17px + max(20px, env(safe-area-inset-bottom)));
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   box-shadow: 0 -4px 18px rgb(20 54 39 / 5%);
 }
 .bottom-link {
