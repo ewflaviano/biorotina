@@ -12,6 +12,7 @@ import {
   currentDeviceNeedsHomeScreen,
   requestNotificationPermission,
 } from "./pushAvailability";
+import { reportClientError } from "../observability/client";
 
 type PushStatus =
   | "install_required"
@@ -81,14 +82,20 @@ function readSession(key: string): DeviceSession | null {
       return { id: value.id, token: value.token };
     }
   } catch {
+    reportClientError("storage", "local_storage_failed");
     return null;
   }
   return null;
 }
 
 function saveSession(key: string, session: DeviceSession | null) {
-  if (session) localStorage.setItem(key, JSON.stringify(session));
-  else localStorage.removeItem(key);
+  try {
+    if (session) localStorage.setItem(key, JSON.stringify(session));
+    else localStorage.removeItem(key);
+  } catch (cause) {
+    reportClientError("storage", "local_storage_failed");
+    throw cause;
+  }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -98,9 +105,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       "content-type": "application/json",
       ...init?.headers,
     },
+  }).catch((cause: unknown) => {
+    reportClientError("push", "network_failed");
+    throw cause;
   });
-  const body: unknown = await response.json().catch(() => ({}));
+  const body: unknown = await response.json().catch(() => {
+    if (response.ok)
+      reportClientError("push", "response_invalid", response.status);
+    return {};
+  });
   if (!response.ok) {
+    if (response.status >= 500)
+      reportClientError("push", "push_failed", response.status);
     const message =
       body &&
       typeof body === "object" &&
@@ -228,6 +244,8 @@ export function PushProvider({ children }: { children: ReactNode }) {
         }
       } catch (cause) {
         if (!cancelled) {
+          if (!(cause instanceof PushApiError))
+            reportClientError("push", "push_failed");
           if (invalidSession(cause)) {
             saveSession(storageKey, null);
             setSession(null);
@@ -334,6 +352,8 @@ export function PushProvider({ children }: { children: ReactNode }) {
       setStatus("active");
       setMessage("Avisos ativados neste dispositivo.");
     } catch (cause) {
+      if (!(cause instanceof PushApiError))
+        reportClientError("push", "push_failed");
       if (createdSubscription && !session)
         await createdSubscription.unsubscribe().catch(() => undefined);
       setStatus("error");
@@ -376,6 +396,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
       setMessage("Avisos desativados neste dispositivo.");
       return true;
     } catch {
+      reportClientError("push", "push_failed");
       setStatus("error");
       setMessage("Não foi possível desativar os avisos. Tente novamente.");
       return false;
@@ -395,6 +416,8 @@ export function PushProvider({ children }: { children: ReactNode }) {
       });
       setMessage("Teste enviado. Confira as notificações deste dispositivo.");
     } catch (cause) {
+      if (!(cause instanceof PushApiError))
+        reportClientError("push", "push_failed");
       if (invalidSession(cause)) {
         saveSession(storageKey, null);
         setSession(null);

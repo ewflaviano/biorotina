@@ -18,6 +18,7 @@ import {
   hasRememberedGoogleAccount,
   rememberedGoogleAccountId,
 } from "../sync/google";
+import { reportClientError } from "../observability/client";
 
 type Update = (current: AppData) => AppData;
 
@@ -74,6 +75,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (!active) return;
+        reportClientError("storage", "local_storage_failed");
         setError(
           "Não foi possível abrir os dados neste navegador. Seus registros não foram alterados.",
         );
@@ -93,7 +95,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         revision: current.current.revision + 1,
         updatedAt: new Date().toISOString(),
       };
-      await saveData(stamped, scopeRef.current);
+      try {
+        await saveData(stamped, scopeRef.current);
+      } catch (cause) {
+        reportClientError("storage", "local_storage_failed");
+        throw cause;
+      }
       current.current = stamped;
       setData(stamped);
     });
@@ -123,6 +130,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       });
       queue.current = task.catch(() => undefined);
       return task.catch(() => {
+        reportClientError("storage", "local_storage_failed");
         setError(
           "Não foi possível abrir os dados desta conta. Seus registros não foram alterados.",
         );

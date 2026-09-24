@@ -18,8 +18,8 @@ export function AnalyticsChoice() {
     setPreference(getAnalyticsPreference());
     setMessage(
       value === "accepted"
-        ? "Métricas de acesso ativadas neste navegador."
-        : "Métricas de acesso desativadas neste navegador.",
+        ? "Métricas e diagnóstico de erros ativados neste navegador."
+        : "Métricas e diagnóstico de erros desativados neste navegador.",
     );
   }
 
@@ -50,9 +50,9 @@ export function AnalyticsChoice() {
         <p>
           Medimos visitas, origem aproximada, região e tipo de dispositivo para
           entender o uso do app. O Google Analytics usa identificadores do
-          navegador. Não usamos essas métricas para anúncios e nunca enviamos
-          peso, alimentação, medicamentos, perfil ou registros de saúde. Você
-          pode desativar a coleta aqui a qualquer momento.
+          navegador. Também enviamos códigos técnicos de erros, sem mensagens,
+          dados de saúde, fotos ou dados da conta. Não usamos essas métricas
+          para anúncios. Você pode desativar ambos aqui a qualquer momento.
         </p>
       </InfoDisclosure>
       {message && <p role="status">{message}</p>}

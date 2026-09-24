@@ -16,6 +16,10 @@ path = "src/bin/billing_api.rs"
 name = "biorotina-tick"
 path = "src/bin/tick.rs"
 
+[[bin]]
+name = "biorotina-telemetry"
+path = "src/bin/telemetry.rs"
+
 [dependencies]
 axum = "0.8"
 aws-config = "1"

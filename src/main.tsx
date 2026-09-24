@@ -21,7 +21,10 @@ import { PlanPage } from "./pages/PlanPage";
 import { AppDataProvider, useAppData } from "./state/AppDataContext";
 import { PushProvider } from "./state/PushContext";
 import { DriveSyncProvider } from "./sync/DriveSyncContext";
+import { ErrorBoundary } from "./observability/ErrorBoundary";
+import { installGlobalErrorHandlers } from "./observability/client";
 
+installGlobalErrorHandlers();
 void startVisitAnalytics();
 
 function AppRoutes() {
@@ -57,14 +60,16 @@ function AppRoutes() {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AppDataProvider>
-      <PushProvider>
-        <DriveSyncProvider>
-          <HashRouter>
-            <AppRoutes />
-          </HashRouter>
-        </DriveSyncProvider>
-      </PushProvider>
-    </AppDataProvider>
+    <ErrorBoundary>
+      <AppDataProvider>
+        <PushProvider>
+          <DriveSyncProvider>
+            <HashRouter>
+              <AppRoutes />
+            </HashRouter>
+          </DriveSyncProvider>
+        </PushProvider>
+      </AppDataProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

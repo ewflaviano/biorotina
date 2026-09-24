@@ -7,7 +7,7 @@ use axum::{
 use biorotina_push::{
     delivery::is_expired_endpoint,
     model::{validate, ReminderRequest, StoredSubscription},
-    App,
+    observability, App,
 };
 use chrono::Utc;
 use serde_json::{json, Value};
@@ -17,7 +17,10 @@ type ApiResponse = (StatusCode, [(HeaderName, &'static str); 1], Json<Value>);
 
 #[tokio::main]
 async fn main() -> Result<(), lambda_http::Error> {
-    let app = App::load().await?;
+    let app = App::load().await.map_err(|_| {
+        observability::error("push_api", "startup", "configuration_failed", None);
+        lambda_http::Error::from("push configuration failed")
+    })?;
     lambda_http::run(router(app)).await
 }
 
@@ -41,6 +44,11 @@ fn response(status: StatusCode, body: Value) -> ApiResponse {
     (status, [(CACHE_CONTROL, "no-store")], Json(body))
 }
 
+fn failure(operation: &'static str, code: &'static str, text: &'static str) -> ApiResponse {
+    observability::error("push_api", operation, code, Some(503));
+    response(StatusCode::SERVICE_UNAVAILABLE, json!({"error":text}))
+}
+
 async fn preflight() -> StatusCode {
     StatusCode::NO_CONTENT
 }
@@ -58,9 +66,10 @@ async fn create(State(app): State<App>, Json(request): Json<ReminderRequest>) ->
     }
     match app.store.create(request).await {
         Ok((id, token)) => response(StatusCode::CREATED, json!({"id":id,"token":token})),
-        Err(_) => response(
-            StatusCode::SERVICE_UNAVAILABLE,
-            json!({"error":"Não foi possível ativar os avisos."}),
+        Err(_) => failure(
+            "create",
+            "database_failed",
+            "Não foi possível ativar os avisos.",
         ),
     }
 }
@@ -88,9 +97,10 @@ async fn authorized(
             StatusCode::UNAUTHORIZED,
             json!({"error":"Inscrição não autorizada."}),
         )),
-        Err(_) => Err(response(
-            StatusCode::SERVICE_UNAVAILABLE,
-            json!({"error":"Serviço indisponível."}),
+        Err(_) => Err(failure(
+            "authorized",
+            "database_failed",
+            "Serviço indisponível.",
         )),
     }
 }
@@ -137,9 +147,10 @@ async fn update(
     let token = bearer_token(&headers).expect("verified by authorized");
     match app.store.update(&updated, token).await {
         Ok(()) => response(StatusCode::OK, json!({"active":true})),
-        Err(_) => response(
-            StatusCode::SERVICE_UNAVAILABLE,
-            json!({"error":"Não foi possível atualizar os avisos."}),
+        Err(_) => failure(
+            "update",
+            "database_failed",
+            "Não foi possível atualizar os avisos.",
         ),
     }
 }
@@ -150,9 +161,10 @@ async fn remove(State(app): State<App>, Path(id): Path<String>, headers: HeaderM
     }
     match app.store.delete(&id).await {
         Ok(()) => response(StatusCode::OK, json!({"active":false})),
-        Err(_) => response(
-            StatusCode::SERVICE_UNAVAILABLE,
-            json!({"error":"Não foi possível desativar os avisos."}),
+        Err(_) => failure(
+            "remove",
+            "database_failed",
+            "Não foi possível desativar os avisos.",
         ),
     }
 }
@@ -176,10 +188,7 @@ async fn test(State(app): State<App>, Path(id): Path<String>, headers: HeaderMap
             StatusCode::TOO_MANY_REQUESTS,
             json!({"error":"Aguarde um minuto antes de testar novamente."}),
         ),
-        Err(_) => response(
-            StatusCode::SERVICE_UNAVAILABLE,
-            json!({"error":"Serviço indisponível."}),
-        ),
+        Err(_) => failure("test", "claim_failed", "Serviço indisponível."),
         Ok(true) => match app
             .sender
             .send(
@@ -190,12 +199,18 @@ async fn test(State(app): State<App>, Path(id): Path<String>, headers: HeaderMap
         {
             Ok(()) => response(StatusCode::OK, json!({"sent":true})),
             Err(error) => {
-                if is_expired_endpoint(&error) {
-                    let _ = app.store.delete(&id).await;
+                if is_expired_endpoint(&error) && app.store.delete(&id).await.is_err() {
+                    observability::error(
+                        "push_api",
+                        "test",
+                        "expired_subscription_delete_failed",
+                        None,
+                    );
                 }
-                response(
-                    StatusCode::SERVICE_UNAVAILABLE,
-                    json!({"error":"Não foi possível enviar o teste."}),
+                failure(
+                    "test",
+                    "delivery_failed",
+                    "Não foi possível enviar o teste.",
                 )
             }
         },

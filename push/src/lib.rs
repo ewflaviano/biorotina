@@ -1,5 +1,6 @@
 pub mod delivery;
 pub mod model;
+pub mod observability;
 pub mod schedule;
 pub mod store;
 

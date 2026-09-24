@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { reportClientError } from "../observability/client";
 
 export const GEMINI_MODEL = "gemini-3.8-flash";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -163,6 +164,7 @@ export async function analyzeMealImage(
       signal: controller.signal,
     });
   } catch (cause) {
+    reportClientError("photo", "network_failed");
     if (controller.signal.aborted)
       throw new Error("A análise demorou demais. Tente novamente.", { cause });
     throw new Error(
@@ -185,10 +187,12 @@ export async function analyzeMealImage(
     throw new Error(
       "O limite de uso da sua chave Gemini foi atingido. Tente mais tarde.",
     );
-  if (!response.ok)
+  if (!response.ok) {
+    reportClientError("photo", "photo_analysis_failed", response.status);
     throw new Error(
       "O Gemini não conseguiu analisar esta foto agora. Tente novamente.",
     );
+  }
 
   const payload: unknown = await response.json().catch(() => null);
   const text = z
@@ -204,22 +208,27 @@ export async function analyzeMealImage(
     .safeParse(payload)
     .data?.candidates[0]?.content.parts.map((part) => part.text ?? "")
     .join("");
-  if (!text)
+  if (!text) {
+    reportClientError("photo", "response_invalid", response.status);
     throw new Error(
       "O Gemini não identificou alimentos nesta foto. Tente outra imagem.",
     );
+  }
   let json: unknown;
   try {
     json = JSON.parse(text);
   } catch {
+    reportClientError("photo", "response_invalid", response.status);
     throw new Error(
       "A sugestão veio incompleta. Tente outra foto ou registre manualmente.",
     );
   }
   const parsed = analysisSchema.safeParse(json);
-  if (!parsed.success)
+  if (!parsed.success) {
+    reportClientError("photo", "response_invalid", response.status);
     throw new Error(
       "A sugestão veio incompleta. Tente outra foto ou registre manualmente.",
     );
+  }
   return parsed.data;
 }

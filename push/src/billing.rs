@@ -1,3 +1,4 @@
+use crate::observability;
 use aws_config::BehaviorVersion;
 use aws_sdk_dynamodb::{types::AttributeValue as A, Client as Db};
 use aws_sdk_secretsmanager::Client as Secrets;
@@ -96,6 +97,38 @@ pub struct Food {
 pub struct Analysis {
     pub description: String,
     pub foods: Vec<Food>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum AnalysisFailure {
+    InvalidImage,
+    GeminiNetwork,
+    GeminiStatus(u16),
+    GeminiResponse,
+    MissingText,
+    InvalidJson,
+    InvalidSuggestion,
+}
+
+impl AnalysisFailure {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::InvalidImage => "invalid_image",
+            Self::GeminiNetwork => "gemini_network",
+            Self::GeminiStatus(_) => "gemini_status",
+            Self::GeminiResponse => "gemini_response",
+            Self::MissingText => "gemini_missing_text",
+            Self::InvalidJson => "gemini_invalid_json",
+            Self::InvalidSuggestion => "gemini_invalid_suggestion",
+        }
+    }
+
+    pub fn upstream_status(&self) -> Option<u16> {
+        match self {
+            Self::GeminiStatus(status) => Some(*status),
+            _ => None,
+        }
+    }
 }
 
 fn today() -> String {
@@ -373,7 +406,8 @@ impl Billing {
                 .send()
                 .await
             {
-                eprintln!("billing checkout lock release failed: {error}");
+                let _ = error;
+                observability::error("billing", "checkout", "lock_release_failed", None);
             }
         }
         outcome
@@ -612,7 +646,7 @@ impl Billing {
     }
 
     pub async fn refund_reservation(&self, key: &str) {
-        let _ = self
+        if self
             .db
             .update_item()
             .table_name(&self.table)
@@ -623,33 +657,37 @@ impl Billing {
             .expression_attribute_values(":one", A::N("1".into()))
             .expression_attribute_values(":zero", A::N("0".into()))
             .send()
-            .await;
+            .await
+            .is_err()
+        {
+            observability::error("billing", "refund_reservation", "database_failed", None);
+        }
     }
 
-    pub async fn analyze(&self, image: &str) -> Result<Analysis, String> {
+    pub async fn analyze(&self, image: &str) -> Result<Analysis, AnalysisFailure> {
         if image.len() > 480_000
             || image.len() < 100
             || !image
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'=')
         {
-            return Err("Imagem inválida ou grande demais".into());
+            return Err(AnalysisFailure::InvalidImage);
         }
         let body = json!({"contents":[{"parts":[{"text":PROMPT},{"inline_data":{"mime_type":"image/jpeg","data":image}}]}],"generationConfig":{"temperature":0.2,"maxOutputTokens":2048,"thinkingConfig":{"thinkingLevel":"LOW"},"responseFormat":{"text":{"mimeType":"APPLICATION_JSON","schema":{"type":"object","properties":{"description":{"type":"string"},"foods":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"string"},"caloriesKcal":{"type":"number"}},"required":["name","amount","caloriesKcal"]}}},"required":["description","foods"]}}}}});
-        let response = self.client.post(format!("https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent")).header("x-goog-api-key", self.gemini_key.as_str()).json(&body).send().await.map_err(|_| "Gemini indisponível".to_owned())?;
+        let response = self.client.post(format!("https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent")).header("x-goog-api-key", self.gemini_key.as_str()).json(&body).send().await.map_err(|_| AnalysisFailure::GeminiNetwork)?;
         if !response.status().is_success() {
-            return Err(format!("Gemini indisponível ({})", response.status()));
+            return Err(AnalysisFailure::GeminiStatus(response.status().as_u16()));
         }
         let result: Value = response
             .json()
             .await
-            .map_err(|_| "Resposta inválida do Gemini".to_owned())?;
+            .map_err(|_| AnalysisFailure::GeminiResponse)?;
         let text = result
             .pointer("/candidates/0/content/parts/0/text")
             .and_then(Value::as_str)
-            .ok_or("Gemini não identificou alimentos")?;
+            .ok_or(AnalysisFailure::MissingText)?;
         let analysis: Analysis =
-            serde_json::from_str(text).map_err(|_| "Sugestão incompleta".to_owned())?;
+            serde_json::from_str(text).map_err(|_| AnalysisFailure::InvalidJson)?;
         if analysis.description.trim().is_empty()
             || analysis.description.len() > 120
             || analysis.foods.is_empty()
@@ -664,7 +702,7 @@ impl Billing {
                     || f.calories_kcal > 5000.0
             })
         {
-            return Err("Sugestão inválida".into());
+            return Err(AnalysisFailure::InvalidSuggestion);
         }
         Ok(analysis)
     }

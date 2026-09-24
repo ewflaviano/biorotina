@@ -118,6 +118,7 @@ jobs:
           cp push/target/lambda/biorotina-api/bootstrap.zip push/target/lambda/biorotina-api.zip
           cp push/target/lambda/biorotina-tick/bootstrap.zip push/target/lambda/biorotina-tick.zip
           cp push/target/lambda/biorotina-billing-api/bootstrap.zip push/target/lambda/biorotina-billing-api.zip
+          cp push/target/lambda/biorotina-telemetry/bootstrap.zip push/target/lambda/biorotina-telemetry.zip
       - name: Deploy AWS stack
         run: npx serverless deploy
         env:

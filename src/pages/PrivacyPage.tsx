@@ -88,6 +88,19 @@ export function PrivacyPage() {
           </p>
         </section>
         <section className="panel">
+          <h2>Diagnóstico de erros</h2>
+          <p>
+            Quando algo falha, o app pode enviar à Biorotina somente a área da
+            falha, um código técnico, a tela geral e, quando houver, o status
+            HTTP. Não enviamos mensagens de erro, endereço completo da página,
+            dados de saúde, fotos, e-mail, chave Gemini, tokens ou
+            identificadores da conta. Esses registros técnicos ficam nos logs do
+            serviço por até 14 dias para ajudar a corrigir problemas. Se você
+            desativar as métricas nas Configurações, o app também deixa de
+            enviar esses diagnósticos.
+          </p>
+        </section>
+        <section className="panel">
           <h2>Contato</h2>
           <p>
             Para dúvidas sobre privacidade ou uso da Biorotina, escreva para{" "}
@@ -98,7 +111,7 @@ export function PrivacyPage() {
           </p>
         </section>
         <section className="panel">
-          <h2>Métricas de acesso</h2>
+          <h2>Métricas e diagnóstico de erros</h2>
           <p>
             Usamos Google Analytics para medir visitas, origem aproximada,
             região e tipo de dispositivo. Ele usa identificadores do navegador;
@@ -108,9 +121,9 @@ export function PrivacyPage() {
             pode contar sessões e primeiras visitas.
           </p>
           <p>
-            Você pode desativar ou reativar a medição a qualquer momento em{" "}
-            <Link to="/configuracoes">Configurações</Link>. A coleta fica
-            desativada neste navegador após sua escolha.
+            Você pode desativar ou reativar a medição e o envio de diagnósticos
+            a qualquer momento em <Link to="/configuracoes">Configurações</Link>
+            . A coleta fica desativada neste navegador após sua escolha.
           </p>
         </section>
       </div>
