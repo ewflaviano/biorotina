@@ -27,6 +27,15 @@ describe("support page", () => {
       PIX_COPY_PASTE,
     );
     expect(screen.getByText(PIX_KEY)).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByRole("heading", { level: 2 })
+        .map((heading) => heading.textContent),
+    ).toEqual([
+      "Se o app ajuda você, considere apoiar o projeto.",
+      "Apoiar com Pix",
+      "Sua opinião também ajuda",
+    ]);
   });
 
   it("copies the complete code", async () => {
