@@ -156,7 +156,7 @@ export async function analyzeMealImage(
           maxOutputTokens: 2_048,
           thinkingConfig: { thinkingLevel: "LOW" },
           responseFormat: {
-            text: { mimeType: "application/json", schema: responseSchema },
+            text: { mimeType: "APPLICATION_JSON", schema: responseSchema },
           },
         },
       }),
@@ -173,11 +173,11 @@ export async function analyzeMealImage(
     clearTimeout(timeout);
   }
 
-  if (
-    response.status === 400 ||
-    response.status === 401 ||
-    response.status === 403
-  )
+  if (response.status === 400)
+    throw new Error(
+      "O Gemini recusou o formato da solicitação. Atualize a Biorotina e tente novamente.",
+    );
+  if (response.status === 401 || response.status === 403)
     throw new Error(
       "O Gemini não aceitou a chave ou a solicitação. Confira sua chave no Google AI Studio.",
     );

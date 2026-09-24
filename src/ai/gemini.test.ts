@@ -12,7 +12,7 @@ describe("análise de refeição com Gemini", () => {
       const body = JSON.parse(String(options.body));
       expect(body.contents[0].parts[1].inline_data.data).toBe("Zm9v");
       expect(body.generationConfig.responseFormat.text.mimeType).toBe(
-        "application/json",
+        "APPLICATION_JSON",
       );
       expect(body.generationConfig.thinkingConfig.thinkingLevel).toBe("LOW");
       return new Response(
@@ -58,6 +58,19 @@ describe("análise de refeição com Gemini", () => {
     await expect(
       analyzeMealImage("chave", image, fetcher as typeof fetch),
     ).rejects.toThrow("limite de uso");
+  });
+
+  it("distingue um pedido inválido de uma chave recusada", async () => {
+    const invalidRequest = vi.fn(
+      async () => new Response("{}", { status: 400 }),
+    );
+    await expect(
+      analyzeMealImage("chave", image, invalidRequest as typeof fetch),
+    ).rejects.toThrow("formato da solicitação");
+    const invalidKey = vi.fn(async () => new Response("{}", { status: 403 }));
+    await expect(
+      analyzeMealImage("chave", image, invalidKey as typeof fetch),
+    ).rejects.toThrow("não aceitou a chave");
   });
 
   it("rejeita sugestões malformadas sem preencher o diário", async () => {
