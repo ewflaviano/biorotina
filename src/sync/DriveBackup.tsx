@@ -1,9 +1,94 @@
-import { CloudDownload, CloudUpload, LogOut, RefreshCw } from "lucide-react";
+import {
+  CloudDownload,
+  CloudUpload,
+  Download,
+  LogOut,
+  RefreshCw,
+} from "lucide-react";
+import { useState } from "react";
 import { dateTimePt, totalRecords } from "../domain/data";
+import { useAppData } from "../state/AppDataContext";
+import {
+  loadData,
+  loadLegacyData,
+  loadOtherAccountData,
+} from "../storage/indexedDb";
+import { downloadJson } from "./download";
 import { useDriveSync } from "./DriveSyncContext";
+
+type ExitBackup = {
+  id: string;
+  label: string;
+  suffix: string;
+  data: Awaited<ReturnType<typeof loadData>>;
+};
+
+function containsRecords(data: ExitBackup["data"]): boolean {
+  return (
+    totalRecords(data) > 0 ||
+    Boolean(
+      data.profile.displayName ||
+      data.profile.heightCm ||
+      data.hydrationReminderTimes.length,
+    )
+  );
+}
 
 export function DriveBackup() {
   const drive = useDriveSync();
+  const { data } = useAppData();
+  const [exitBackups, setExitBackups] = useState<ExitBackup[] | null>(null);
+  const [downloaded, setDownloaded] = useState<string[]>([]);
+  const [exitError, setExitError] = useState("");
+
+  async function startSignOut() {
+    setExitError("");
+    try {
+      const guest = await loadData(null);
+      const legacy = await loadLegacyData();
+      const otherAccounts = drive.account
+        ? await loadOtherAccountData(drive.account.id)
+        : [];
+      const backups: ExitBackup[] = [
+        { id: "account", label: "Dados desta conta", suffix: "-conta", data },
+        {
+          id: "guest",
+          label: "Dados sem conta",
+          suffix: "-sem-conta",
+          data: guest,
+        },
+        ...(legacy
+          ? [
+              {
+                id: "legacy",
+                label: "Registros antigos",
+                suffix: "-antigos",
+                data: legacy,
+              },
+            ]
+          : []),
+        ...otherAccounts.map((other, index) => ({
+          id: `other-${index}`,
+          label: `Dados de outra conta ${index + 1}`,
+          suffix: `-outra-conta-${index + 1}`,
+          data: other,
+        })),
+      ].filter((entry) => containsRecords(entry.data));
+      if (
+        drive.status === "synced" &&
+        backups.every((entry) => entry.id === "account")
+      ) {
+        await drive.disconnect();
+      } else {
+        setDownloaded([]);
+        setExitBackups(backups);
+      }
+    } catch {
+      setExitError(
+        "Não foi possível conferir os dados locais. Tente novamente.",
+      );
+    }
+  }
 
   if (!drive.available)
     return (
@@ -42,16 +127,94 @@ export function DriveBackup() {
               className="button secondary"
               type="button"
               disabled={drive.busy}
-              onClick={drive.disconnect}
+              onClick={() => void startSignOut()}
             >
-              <LogOut size={17} aria-hidden="true" /> Desconectar
+              <LogOut size={17} aria-hidden="true" /> Sair e apagar dados
             </button>
           </div>
+          {exitBackups && (
+            <div
+              className="drive-exit-choices"
+              role="group"
+              aria-label="Escolha como sair"
+            >
+              <strong>
+                Há dados neste navegador que podem não estar no Drive
+              </strong>
+              <p>
+                Escolha como sair. O app removerá os registros locais, a chave
+                Gemini e a sessão Google deste navegador.
+              </p>
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setExitBackups(null)}
+              >
+                Esperar conexão e continuar aqui
+              </button>
+              {exitBackups.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  className="button secondary"
+                  onClick={() => {
+                    downloadJson(entry.data, entry.suffix);
+                    setDownloaded((current) => [
+                      ...new Set([...current, entry.id]),
+                    ]);
+                  }}
+                >
+                  <Download size={17} aria-hidden="true" /> Baixar JSON:{" "}
+                  {entry.label}
+                </button>
+              ))}
+              {exitBackups.length > 0 && (
+                <button
+                  type="button"
+                  className="button primary"
+                  disabled={exitBackups.some(
+                    (entry) => !downloaded.includes(entry.id),
+                  )}
+                  onClick={() => void drive.disconnect(true)}
+                >
+                  Conferi os downloads: apagar e sair
+                </button>
+              )}
+              <button
+                type="button"
+                className="entry-action danger"
+                onClick={() => void drive.disconnect(true)}
+              >
+                Apagar sem backup e sair
+              </button>
+            </div>
+          )}
+          {exitError && (
+            <p className="drive-error" role="alert">
+              {exitError}
+            </p>
+          )}
           <p className="muted small">
             {drive.latest
               ? `Backup mais recente: ${dateTimePt(drive.latest.createdTime)}.`
               : "Nenhum backup encontrado nesta conta."}
           </p>
+          {drive.canCopyGuest && (
+            <div className="drive-guest-copy">
+              <p>
+                Há registros salvos neste navegador sem conta. Eles não são
+                enviados automaticamente para {drive.account.email}.
+              </p>
+              <button
+                className="button secondary"
+                type="button"
+                disabled={drive.busy}
+                onClick={() => void drive.copyGuest()}
+              >
+                Copiar registros para esta conta
+              </button>
+            </div>
+          )}
           {drive.status === "pending" && (
             <p className="drive-pending">
               Há alterações neste navegador aguardando sincronização.

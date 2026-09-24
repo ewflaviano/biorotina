@@ -7,7 +7,13 @@ import {
   Upload,
   UserRound,
 } from "lucide-react";
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import {
   dateTimePt,
   parseBackup,
@@ -25,6 +31,7 @@ import { DriveBackup } from "../sync/DriveBackup";
 import { AnalyticsChoice } from "../analytics/AnalyticsChoice";
 import { GeminiSettings } from "../ai/GeminiSettings";
 import { Link } from "react-router-dom";
+import { loadLegacyData } from "../storage/indexedDb";
 
 export function SettingsPage() {
   const { data, mutate, replace } = useAppData();
@@ -43,7 +50,14 @@ export function SettingsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<AppData | null>(null);
+  const [legacy, setLegacy] = useState<AppData | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void loadLegacyData()
+      .then(setLegacy)
+      .catch(() => undefined);
+  }, []);
 
   async function saveProfile(event: FormEvent) {
     event.preventDefault();
@@ -264,6 +278,23 @@ export function SettingsPage() {
             O arquivo contém seus dados pessoais em texto legível. Guarde a
             cópia com cuidado.
           </Notice>
+          {legacy && (
+            <div className="drive-guest-copy">
+              <strong>Registros anteriores neste navegador</strong>
+              <p>
+                Encontramos {totalRecords(legacy)} registros de uma versão
+                anterior. Eles não foram atribuídos à conta Google atual.
+              </p>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={() => downloadJson(legacy, "-antigos")}
+              >
+                <Download size={18} aria-hidden="true" /> Baixar registros
+                anteriores
+              </button>
+            </div>
+          )}
         </section>
         <section className="panel">
           <div className="card-title">

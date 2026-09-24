@@ -107,6 +107,11 @@ fn google_key(sub: &str) -> String {
     format!("GOOGLE#{:x}", Sha256::digest(sub.as_bytes()))
 }
 
+fn checkout_url(id: &str) -> Result<String, String> {
+    uuid::Uuid::parse_str(id).map_err(|_| "Checkout sem identificador válido".to_owned())?;
+    Ok(format!("https://asaas.com/checkoutSession/show?id={id}"))
+}
+
 fn add_month(date: NaiveDate) -> NaiveDate {
     let (year, month) = if date.month() == 12 {
         (date.year() + 1, 1)
@@ -272,11 +277,14 @@ impl Billing {
             }
         }
         let expires = Utc::now().timestamp() + 3600;
+        let reference = uuid::Uuid::new_v4().to_string();
+        let lock_key = format!("LOCK#{key}");
+        let lock_data = json!({"owner":reference}).to_string();
         self.db
             .put_item()
             .table_name(&self.table)
-            .item("pk", A::S(format!("LOCK#{key}")))
-            .item("data", A::S(json!({"key":key}).to_string()))
+            .item("pk", A::S(lock_key.clone()))
+            .item("data", A::S(lock_data.clone()))
             .item("expires", A::N(expires.to_string()))
             .item("ttl", A::N((expires + 86400).to_string()))
             .condition_expression("attribute_not_exists(pk) OR expires < :now")
@@ -286,54 +294,67 @@ impl Billing {
             .map_err(|_| {
                 "Já existe uma assinatura em andamento para esta conta Google.".to_owned()
             })?;
-        let reference = uuid::Uuid::new_v4().to_string();
-        let callback = format!("{}/#/assinatura", self.app_url.trim_end_matches('/'));
-        let payload = json!({
-            "billingTypes": ["CREDIT_CARD"], "chargeTypes": ["RECURRENT"],
-            "minutesToExpire": 60, "externalReference": reference,
-            "callback": {"successUrl":callback,"cancelUrl":callback,"expiredUrl":callback},
-            "items": [{"name":"Biorotina IA", "description":"Até 10 análises de refeições por foto ao dia", "quantity":1,"value":8.99}],
-            "subscription": {"cycle":"MONTHLY","nextDueDate":(Utc::now() + Duration::minutes(65)).with_timezone(&Sao_Paulo).format("%Y-%m-%d %H:%M:%S").to_string()}
-        });
-        let response = self
-            .client
-            .post(format!("{}/v3/checkouts", self.asaas_url))
-            .header("access_token", self.asaas_key.as_str())
-            .json(&payload)
-            .send()
-            .await
-            .map_err(|_| "Asaas indisponível".to_owned())?;
-        if !response.status().is_success() {
-            return Err(format!("Asaas recusou o checkout ({})", response.status()));
+        let mut safe_to_release = false;
+        let outcome = async {
+            let callback = format!("{}/#/assinatura", self.app_url.trim_end_matches('/'));
+            let payload = json!({
+                "billingTypes": ["CREDIT_CARD"], "chargeTypes": ["RECURRENT"],
+                "minutesToExpire": 60, "externalReference": reference,
+                "callback": {"successUrl":callback,"cancelUrl":callback,"expiredUrl":callback},
+                "items": [{"name":"Biorotina IA", "description":"Até 10 análises de refeições por foto ao dia", "quantity":1,"value":8.99}],
+                "subscription": {"cycle":"MONTHLY","nextDueDate":(Utc::now() + Duration::minutes(65)).with_timezone(&Sao_Paulo).format("%Y-%m-%d %H:%M:%S").to_string()}
+            });
+            let response = self
+                .client
+                .post(format!("{}/v3/checkouts", self.asaas_url))
+                .header("access_token", self.asaas_key.as_str())
+                .json(&payload)
+                .send()
+                .await
+                .map_err(|_| "Asaas indisponível".to_owned())?;
+            if !response.status().is_success() {
+                safe_to_release = response.status().is_client_error();
+                return Err(format!("Asaas recusou o checkout ({})", response.status()));
+            }
+            let result: Value = response
+                .json()
+                .await
+                .map_err(|_| "Resposta inválida do Asaas".to_owned())?;
+            let checkout_id = str_field(&result, "id").ok_or("Checkout sem identificador")?;
+            let checkout_url = checkout_url(&checkout_id)?;
+            let account = Account {
+                key: key.clone(),
+                checkout_id: checkout_id.clone(),
+                checkout_url: checkout_url.clone(),
+                checkout_expires_at: Utc::now().timestamp() + 3600,
+                customer_id: None,
+                subscription_id: None,
+                paid_through: None,
+                next_charge: None,
+                revoked: false,
+                cancelled: false,
+                last_payment_id: None,
+            };
+            self.save_account(&account).await?;
+            self.put(&format!("CHECKOUT#{checkout_id}"), &json!({"key":key}))
+                .await?;
+            safe_to_release = true;
+            Ok((checkout_url, account))
         }
-        let result: Value = response
-            .json()
-            .await
-            .map_err(|_| "Resposta inválida do Asaas".to_owned())?;
-        let checkout_id = str_field(&result, "id").ok_or("Checkout sem identificador")?;
-        let checkout_url = str_field(&result, "link").ok_or("Checkout sem endereço")?;
-        if !checkout_url.starts_with("https://asaas.com/")
-            && !checkout_url.starts_with("https://sandbox.asaas.com/")
-        {
-            return Err("Endereço de checkout inválido".into());
+        .await;
+        if safe_to_release {
+            let _ = self
+                .db
+                .delete_item()
+                .table_name(&self.table)
+                .key("pk", A::S(lock_key))
+                .condition_expression("#data = :owner")
+                .expression_attribute_names("#data", "data")
+                .expression_attribute_values(":owner", A::S(lock_data))
+                .send()
+                .await;
         }
-        let account = Account {
-            key: key.clone(),
-            checkout_id: checkout_id.clone(),
-            checkout_url: checkout_url.clone(),
-            checkout_expires_at: Utc::now().timestamp() + 3600,
-            customer_id: None,
-            subscription_id: None,
-            paid_through: None,
-            next_charge: None,
-            revoked: false,
-            cancelled: false,
-            last_payment_id: None,
-        };
-        self.save_account(&account).await?;
-        self.put(&format!("CHECKOUT#{checkout_id}"), &json!({"key":key}))
-            .await?;
-        Ok((checkout_url, account))
+        outcome
     }
 
     pub async fn status(&self, account: &Account) -> Result<Value, String> {
@@ -665,6 +686,15 @@ mod tests {
         assert!(!valid_webhook_token(&secret, Some("a")));
         assert!(!valid_webhook_token(&secret, Some(&"b".repeat(64))));
         assert!(valid_webhook_token(&secret, Some(&secret)));
+    }
+    #[test]
+    fn checkout_link_uses_the_id_returned_by_asaas() {
+        let id = "c7b1c696-b27b-4d3d-80b9-d1c018e387f8";
+        assert_eq!(
+            checkout_url(id).unwrap(),
+            format!("https://asaas.com/checkoutSession/show?id={id}")
+        );
+        assert!(checkout_url("https://example.com").is_err());
     }
     #[test]
     fn monthly_period_clamps_short_months() {

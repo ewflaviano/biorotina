@@ -9,6 +9,7 @@ import {
 } from "react";
 import { totalRecords, type AppData } from "../domain/data";
 import { useAppData } from "../state/AppDataContext";
+import { useOptionalPush } from "../state/PushContext";
 import { loadData, loadDriveSync, saveDriveSync } from "../storage/indexedDb";
 import { decideSync } from "./decision";
 import { downloadJson } from "./download";
@@ -56,10 +57,12 @@ interface DriveSyncValue {
   message: string;
   error: string;
   connect: () => Promise<void>;
-  disconnect: () => void;
+  disconnect: (discardPending?: boolean) => Promise<void>;
   sync: () => Promise<void>;
   resolveWithLocal: () => Promise<void>;
   resolveWithDrive: () => Promise<void>;
+  canCopyGuest: boolean;
+  copyGuest: () => Promise<void>;
 }
 
 const Context = createContext<DriveSyncValue | null>(null);
@@ -71,7 +74,9 @@ export function DriveSyncProvider({
   children: ReactNode;
   googleClientId?: string;
 }) {
-  const { data, replaceIfRevision } = useAppData();
+  const { data, scope, loading, replace, replaceIfRevision, switchScope } =
+    useAppData();
+  const push = useOptionalPush();
   const [account, setAccount] = useState<GoogleAccount | null>(
     currentGoogleAccount,
   );
@@ -85,6 +90,14 @@ export function DriveSyncProvider({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [settledRevision, setSettledRevision] = useState<number | null>(null);
+  const [guestCopyAvailable, setGuestCopyAvailable] = useState(false);
+  const canCopyGuest = Boolean(
+    account &&
+    scope === account.id &&
+    status === "synced" &&
+    !latest &&
+    guestCopyAvailable,
+  );
   const running = useRef(false);
   const rerun = useRef(false);
   const previousRevision = useRef(data.revision);
@@ -134,7 +147,7 @@ export function DriveSyncProvider({
           const snapshots = await listDriveSnapshots(connected.token);
           const remote = snapshots[0] ?? null;
           setLatest(remote);
-          const local = await loadData();
+          const local = await loadData(connected.id);
           const localHash = await contentHash(local);
           const previous = await loadDriveSync(connected.id);
           const remoteData =
@@ -198,7 +211,7 @@ export function DriveSyncProvider({
             decision === "restore" ? local.revision + 1 : local.revision,
           );
           if (
-            (await contentHash(await loadData())) !== localHash &&
+            (await contentHash(await loadData(connected.id))) !== localHash &&
             decision !== "restore"
           )
             rerun.current = true;
@@ -212,6 +225,7 @@ export function DriveSyncProvider({
           forgetGoogleAccount();
           accountRef.current = null;
           setAccount(null);
+          await switchScope(null);
         }
         setError(description);
         setStatus("error");
@@ -220,7 +234,7 @@ export function DriveSyncProvider({
         setBusy(false);
       }
     },
-    [googleClientId, replaceIfRevision],
+    [googleClientId, replaceIfRevision, switchScope],
   );
 
   useEffect(() => {
@@ -229,12 +243,12 @@ export function DriveSyncProvider({
     let cancelled = false;
     renewal.current ??= renewGoogle(googleClientId);
     void renewal.current
-      .then((restored) => {
+      .then(async (restored) => {
         if (!restored || cancelled || accountRef.current) return;
+        await switchScope(restored.id);
         rememberGoogleAccount(restored);
         accountRef.current = restored;
         setAccount(restored);
-        void syncAccount(restored);
       })
       .catch(() => {
         if (!cancelled && !accountRef.current)
@@ -243,7 +257,7 @@ export function DriveSyncProvider({
     return () => {
       cancelled = true;
     };
-  }, [googleClientId, syncAccount]);
+  }, [googleClientId, switchScope, syncAccount]);
 
   const sync = useCallback(async () => {
     if (accountRef.current) await syncAccount(accountRef.current);
@@ -256,6 +270,7 @@ export function DriveSyncProvider({
     setMessage("");
     try {
       const connected = await connectGoogle(googleClientId);
+      await switchScope(connected.id);
       rememberGoogleAccount(connected);
       accountRef.current = connected;
       setAccount(connected);
@@ -271,19 +286,50 @@ export function DriveSyncProvider({
     }
     setBusy(false);
     if (accountRef.current) await syncAccount(accountRef.current);
-  }, [googleClientId, syncAccount]);
+  }, [googleClientId, switchScope, syncAccount]);
 
-  const disconnect = useCallback(() => {
-    if (!accountRef.current || running.current) return;
-    disconnectGoogle(accountRef.current);
-    accountRef.current = null;
-    setAccount(null);
-    setLatest(null);
-    setConflict(null);
-    setError("");
-    setMessage("");
-    setStatus("disconnected");
-  }, []);
+  const disconnect = useCallback(
+    async (discardPending = false) => {
+      const connected = accountRef.current;
+      if (!connected || running.current) return;
+      if (
+        (status !== "synced" || data.revision !== settledRevision) &&
+        hasLocalContent(data) &&
+        !discardPending
+      ) {
+        setError(
+          "Escolha como guardar ou apagar os registros pendentes antes de sair.",
+        );
+        return;
+      }
+      setBusy(true);
+      try {
+        if (push?.subscribed && !(await push.disable())) {
+          setError(
+            "Não foi possível desativar os avisos deste dispositivo. Tente sair novamente.",
+          );
+          return;
+        }
+        await switchScope(null, { clearAll: true });
+        disconnectGoogle(connected);
+        accountRef.current = null;
+        setAccount(null);
+        setLatest(null);
+        setConflict(null);
+        setError("");
+        setMessage("");
+        setStatus("disconnected");
+        setGuestCopyAvailable(false);
+      } catch {
+        setError(
+          "Não foi possível remover os dados desta conta do navegador. Tente novamente.",
+        );
+      } finally {
+        setBusy(false);
+      }
+    },
+    [data, push, settledRevision, status, switchScope],
+  );
 
   useEffect(() => {
     if (previousRevision.current === data.revision) return;
@@ -310,10 +356,8 @@ export function DriveSyncProvider({
   }, [account, sync]);
 
   useEffect(() => {
-    if (account) void sync();
-    // A session restored in memory needs one initial comparison.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (account && !loading && scope === account.id) void sync();
+  }, [account, loading, scope, sync]);
 
   const resolveWithLocal = useCallback(async () => {
     const connected = accountRef.current;
@@ -322,7 +366,7 @@ export function DriveSyncProvider({
     setBusy(true);
     setError("");
     try {
-      const current = await loadData();
+      const current = await loadData(connected.id);
       const currentHash = await contentHash(current);
       const remote = (await listDriveSnapshots(connected.token))[0];
       if (
@@ -365,7 +409,7 @@ export function DriveSyncProvider({
     setBusy(true);
     setError("");
     try {
-      const current = await loadData();
+      const current = await loadData(connected.id);
       const currentHash = await contentHash(current);
       const remote = (await listDriveSnapshots(connected.token))[0];
       if (
@@ -407,6 +451,53 @@ export function DriveSyncProvider({
     }
   }, [conflict, replaceIfRevision, syncAccount]);
 
+  useEffect(() => {
+    if (!account || scope !== account.id || status !== "synced" || latest)
+      return;
+    let active = true;
+    void Promise.all([loadData(null), loadData(account.id)])
+      .then(([guest, local]) => {
+        if (active)
+          setGuestCopyAvailable(
+            hasLocalContent(guest) && !hasLocalContent(local),
+          );
+      })
+      .catch(() => {
+        if (active) setGuestCopyAvailable(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [account, scope, status, latest, data.revision]);
+
+  const copyGuest = useCallback(async () => {
+    const connected = accountRef.current;
+    if (!connected || !canCopyGuest || running.current || latest) return;
+    const guest = await loadData(null);
+    const local = await loadData(connected.id);
+    if (!hasLocalContent(guest) || hasLocalContent(local)) return;
+    if (
+      !window.confirm(
+        `Copiar os registros sem conta deste navegador para ${connected.email}? A cópia sem conta permanecerá aqui até você sair.`,
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      await replace(guest);
+      setGuestCopyAvailable(false);
+      await syncAccount(connected);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível copiar os registros.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [canCopyGuest, latest, replace, syncAccount]);
+
   const visibleStatus: DriveSyncStatus =
     account && status === "synced" && data.revision !== settledRevision
       ? "pending"
@@ -428,6 +519,8 @@ export function DriveSyncProvider({
         sync,
         resolveWithLocal,
         resolveWithDrive,
+        canCopyGuest,
+        copyGuest,
       }}
     >
       {children}

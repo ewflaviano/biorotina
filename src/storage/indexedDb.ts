@@ -1,8 +1,13 @@
 import { openDB, type DBSchema } from "idb";
-import { emptyData, parseBackup, type AppData } from "../domain/data";
+import {
+  emptyData,
+  parseBackup,
+  totalRecords,
+  type AppData,
+} from "../domain/data";
 
 interface BiorotinaDb extends DBSchema {
-  app: { key: "main"; value: AppData | Record<string, unknown> };
+  app: { key: string; value: AppData | Record<string, unknown> };
   geminiKey: { key: "current"; value: string };
   driveSync: {
     key: string;
@@ -18,17 +23,86 @@ const dbPromise = openDB<BiorotinaDb>("biorotina", 3, {
   },
 });
 
-export async function loadData(): Promise<AppData> {
+function dataKey(accountId: string | null): string {
+  return accountId ? `account:${accountId}` : "main";
+}
+
+export async function prepareAccountScopes(
+  hadRememberedAccount: boolean,
+): Promise<void> {
   const db = await dbPromise;
-  const saved = await db.get("app", "main");
+  const tx = db.transaction(["app", "driveSync"], "readwrite");
+  const app = tx.objectStore("app");
+  if (!(await app.get("__scoped-v1"))) {
+    const syncedAccounts = await tx.objectStore("driveSync").getAllKeys();
+    const oldData = await app.get("main");
+    if (oldData && (hadRememberedAccount || syncedAccounts.length > 0)) {
+      await app.put(oldData, "legacy-unassigned");
+      await app.put(emptyData(), "main");
+    }
+    await app.put({ done: true }, "__scoped-v1");
+  }
+  await tx.done;
+}
+
+export async function loadLegacyData(): Promise<AppData | null> {
+  const saved = await (await dbPromise).get("app", "legacy-unassigned");
+  if (!saved) return null;
+  const data = parseBackup(saved);
+  return totalRecords(data) > 0 ||
+    data.profile.displayName ||
+    data.profile.heightCm ||
+    data.hydrationReminderTimes.length
+    ? data
+    : null;
+}
+
+export async function loadData(
+  accountId: string | null = null,
+): Promise<AppData> {
+  const db = await dbPromise;
+  const key = dataKey(accountId);
+  const saved = await db.get("app", key);
   if (!saved) return emptyData();
   const data = parseBackup(saved);
-  if (saved.schemaVersion !== 4) await db.put("app", data, "main");
+  if (saved.schemaVersion !== 4) await db.put("app", data, key);
   return data;
 }
 
-export async function saveData(data: AppData): Promise<void> {
-  await (await dbPromise).put("app", data, "main");
+export async function loadOtherAccountData(
+  currentAccountId: string,
+): Promise<AppData[]> {
+  const db = await dbPromise;
+  const keys = await db.getAllKeys("app");
+  const otherIds = keys
+    .filter(
+      (key): key is string =>
+        typeof key === "string" &&
+        key.startsWith("account:") &&
+        key !== dataKey(currentAccountId),
+    )
+    .map((key) => key.slice("account:".length));
+  return Promise.all(otherIds.map((id) => loadData(id)));
+}
+
+export async function saveData(
+  data: AppData,
+  accountId: string | null = null,
+): Promise<void> {
+  await (await dbPromise).put("app", data, dataKey(accountId));
+}
+
+export async function clearLocalData(): Promise<void> {
+  const tx = (await dbPromise).transaction(
+    ["app", "driveSync", "geminiKey"],
+    "readwrite",
+  );
+  await Promise.all([
+    tx.objectStore("app").clear(),
+    tx.objectStore("driveSync").clear(),
+    tx.objectStore("geminiKey").clear(),
+  ]);
+  await tx.done;
 }
 
 export async function loadDriveSync(accountId: string) {

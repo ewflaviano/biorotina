@@ -33,7 +33,7 @@ interface PushContextValue {
   scheduleCount: number;
   subscribed: boolean;
   enable: () => Promise<void>;
-  disable: () => Promise<void>;
+  disable: () => Promise<boolean>;
   test: () => Promise<void>;
 }
 
@@ -318,7 +318,8 @@ export function PushProvider({ children }: { children: ReactNode }) {
   }
 
   async function disable() {
-    if (busy.current || !session) return;
+    if (busy.current) return false;
+    if (!session) return true;
     busy.current = true;
     setStatus("connecting");
     try {
@@ -343,9 +344,11 @@ export function PushProvider({ children }: { children: ReactNode }) {
       lastSynced.current = "";
       setStatus("off");
       setMessage("Avisos desativados neste dispositivo.");
+      return true;
     } catch {
       setStatus("error");
       setMessage("Não foi possível desativar os avisos. Tente novamente.");
+      return false;
     } finally {
       busy.current = false;
     }
@@ -402,4 +405,8 @@ export function usePush(): PushContextValue {
   const value = useContext(Context);
   if (!value) throw new Error("PushProvider ausente.");
   return value;
+}
+
+export function useOptionalPush(): PushContextValue | null {
+  return useContext(Context);
 }
