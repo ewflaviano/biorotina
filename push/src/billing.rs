@@ -1,6 +1,9 @@
 use crate::observability;
 use aws_config::BehaviorVersion;
-use aws_sdk_dynamodb::{types::AttributeValue as A, Client as Db};
+use aws_sdk_dynamodb::{
+    types::{AttributeValue as A, Put, TransactWriteItem},
+    Client as Db,
+};
 use aws_sdk_secretsmanager::Client as Secrets;
 use aws_sdk_sqs::Client as Sqs;
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -687,6 +690,50 @@ impl Billing {
         .await
     }
 
+    async fn save_checkout_bindings(
+        &self,
+        account: &Account,
+        reference: &str,
+        attempt_ttl: i64,
+    ) -> Result<(), String> {
+        let account_data = serde_json::to_string(account).map_err(|_| "Conta inválida")?;
+        let account_put = Put::builder()
+            .table_name(&self.table)
+            .item("pk", A::S(account.key.clone()))
+            .item("data", A::S(account_data))
+            .build()
+            .map_err(|_| "Conta inválida")?;
+        let mapping_put = Put::builder()
+            .table_name(&self.table)
+            .item("pk", A::S(format!("CHECKOUT#{}", account.checkout_id)))
+            .item("data", A::S(json!({"key":account.key}).to_string()))
+            .condition_expression("attribute_not_exists(pk)")
+            .build()
+            .map_err(|_| "Mapeamento inválido")?;
+        let attempt_put = Put::builder()
+            .table_name(&self.table)
+            .item("pk", A::S(format!("CHECKOUT_ATTEMPT#{reference}")))
+            .item(
+                "data",
+                A::S(
+                    json!({"key":account.key,"checkoutId":account.checkout_id,"state":"created"})
+                        .to_string(),
+                ),
+            )
+            .item("ttl", A::N(attempt_ttl.to_string()))
+            .build()
+            .map_err(|_| "Tentativa inválida")?;
+        self.db
+            .transact_write_items()
+            .transact_items(TransactWriteItem::builder().put(account_put).build())
+            .transact_items(TransactWriteItem::builder().put(mapping_put).build())
+            .transact_items(TransactWriteItem::builder().put(attempt_put).build())
+            .send()
+            .await
+            .map_err(|_| "Não foi possível salvar o checkout".to_owned())?;
+        Ok(())
+    }
+
     pub async fn checkout(&self, key: String) -> Result<(String, Account), String> {
         if let Some(existing) = self.account(&key).await? {
             if let Some(reusable) = existing_checkout(existing)? {
@@ -695,6 +742,7 @@ impl Billing {
         }
         let expires = Utc::now().timestamp() + 3600;
         let reference = uuid::Uuid::new_v4().to_string();
+        let attempt_ttl = expires + 14 * 86400;
         let lock_key = format!("LOCK#{key}");
         let lock_data = json!({"owner":reference}).to_string();
         self.db
@@ -720,6 +768,19 @@ impl Billing {
                     return Ok(reusable);
                 }
             }
+            self.db
+                .put_item()
+                .table_name(&self.table)
+                .item("pk", A::S(format!("CHECKOUT_ATTEMPT#{reference}")))
+                .item(
+                    "data",
+                    A::S(json!({"key":key,"state":"requested","createdAt":Utc::now().timestamp()}).to_string()),
+                )
+                .item("ttl", A::N(attempt_ttl.to_string()))
+                .condition_expression("attribute_not_exists(pk)")
+                .send()
+                .await
+                .map_err(|_| "Não foi possível iniciar o checkout".to_owned())?;
             // Após chamar o Asaas, uma falha de rede pode ter criado um
             // checkout externo; nesse caso mantemos o bloqueio temporário.
             safe_to_release = false;
@@ -762,13 +823,15 @@ impl Billing {
                 cancelled: false,
                 last_payment_id: None,
             };
-            self.save_account(&account).await?;
-            self.put(&format!("CHECKOUT#{checkout_id}"), &json!({"key":key}))
+            self.save_checkout_bindings(&account, &reference, attempt_ttl)
                 .await?;
             safe_to_release = true;
             Ok((checkout_url, account))
         }
         .await;
+        if outcome.is_err() && !safe_to_release {
+            observability::error("billing", "checkout", "outcome_needs_reconciliation", None);
+        }
         if safe_to_release {
             if let Err(error) = self
                 .db
