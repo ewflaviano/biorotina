@@ -294,8 +294,14 @@ resources:
                     Fn::GetAtt: [BillingEventsQueue, Arn]
     PushTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BillingMode: PAY_PER_REQUEST
+        DeletionProtectionEnabled: true
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+          RecoveryPeriodInDays: 35
         AttributeDefinitions:
           - AttributeName: pk
             AttributeType: S
@@ -333,8 +339,14 @@ resources:
           ExcludePunctuation: true
     BillingTable:
       Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
       Properties:
         BillingMode: PAY_PER_REQUEST
+        DeletionProtectionEnabled: true
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+          RecoveryPeriodInDays: 35
         AttributeDefinitions:
           - AttributeName: pk
             AttributeType: S
