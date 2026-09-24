@@ -15,8 +15,15 @@ uma lista fixa, sem query string. O cliente deduplica por um minuto, limita a
 respeita a mesma preferência de métricas em Configurações; com `declined`, nada
 é enviado pelo cliente. O diagnóstico é de melhor esforço: falhas offline ou antes de o JavaScript
 iniciar não chegam ao servidor. CORS limita navegadores conhecidos, mas não é
-controle de abuso contra clientes automatizados; se necessário, adicionar WAF
-ou throttling no API Gateway antes de ampliar tráfego.
+controle de abuso contra clientes automatizados. O API Gateway limita a taxa
+agregada da rota pública de diagnóstico (2 requisições/s, rajada de 10); isso
+não substitui um controle por origem ou WAF se houver abuso distribuído. A rota
+pública de criação de avisos tem limite agregado de 5 requisições/s (rajada de
+10) e até 30 novas inscrições por dia por origem. Para esse último limite, a
+API usa o endereço recebido do próprio API Gateway, grava somente um
+pseudônimo diário derivado com segredo e marca o contador para expirar em três
+dias (a exclusão física é assíncrona).
+O endereço não entra nos registros do aplicativo.
 
 Para investigar erros de análise, consultar o grupo
 `/aws/lambda/biorotina-dev-billingApi` e filtrar por `operation=analyze`.

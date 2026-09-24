@@ -83,6 +83,12 @@ export function PrivacyPage() {
             doses ou seu histórico de saúde.
           </p>
           <p>
+            Para evitar ativações automatizadas em excesso, limitamos novas
+            inscrições por conexão. Guardamos somente um identificador técnico
+            temporário, derivado do endereço da conexão, com expiração em três
+            dias; não guardamos o endereço nesse contador.
+          </p>
+          <p>
             Desativar os avisos remove a inscrição deste dispositivo do serviço.
             Inscrições sem atualização expiram automaticamente.
           </p>

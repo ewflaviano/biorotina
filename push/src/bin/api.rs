@@ -1,5 +1,5 @@
 use axum::{
-    extract::{DefaultBodyLimit, Path, State},
+    extract::{DefaultBodyLimit, Extension, Path, State},
     http::{header::AUTHORIZATION, header::CACHE_CONTROL, HeaderMap, HeaderName, StatusCode},
     routing::{get, post},
     Json, Router,
@@ -7,10 +7,15 @@ use axum::{
 use biorotina_push::{
     delivery::is_expired_endpoint,
     model::{validate, ReminderRequest, StoredSubscription},
-    observability, App,
+    observability,
+    store::PUBLIC_CREATE_LIMIT_PER_DAY,
+    App,
 };
 use chrono::Utc;
+use chrono_tz::America::Sao_Paulo;
+use lambda_http::request::RequestContext;
 use serde_json::{json, Value};
+use std::net::IpAddr;
 use uuid::Uuid;
 
 type ApiResponse = (StatusCode, [(HeaderName, &'static str); 1], Json<Value>);
@@ -60,9 +65,45 @@ async fn config(State(app): State<App>) -> ApiResponse {
     )
 }
 
-async fn create(State(app): State<App>, Json(request): Json<ReminderRequest>) -> ApiResponse {
+fn trusted_source_ip(context: &RequestContext) -> Option<IpAddr> {
+    match context {
+        RequestContext::ApiGatewayV2(value) => value.http.source_ip.as_deref()?.parse().ok(),
+        _ => None,
+    }
+}
+
+async fn create(
+    State(app): State<App>,
+    Extension(context): Extension<RequestContext>,
+    Json(request): Json<ReminderRequest>,
+) -> ApiResponse {
     if let Err(message) = validate(&request) {
         return response(StatusCode::BAD_REQUEST, json!({"error":message}));
+    }
+    let Some(ip) = trusted_source_ip(&context) else {
+        return failure(
+            "create",
+            "source_unavailable",
+            "Não foi possível ativar os avisos agora.",
+        );
+    };
+    let day = Utc::now().with_timezone(&Sao_Paulo).date_naive();
+    let key = app.sender.create_limit_key(ip, day);
+    match app.store.reserve_public_create(&key).await {
+        Ok(true) => {}
+        Ok(false) => {
+            return response(
+                StatusCode::TOO_MANY_REQUESTS,
+                json!({"error":format!("Muitas ativações de avisos nesta conexão hoje (limite de {PUBLIC_CREATE_LIMIT_PER_DAY}). Tente novamente amanhã.")}),
+            )
+        }
+        Err(_) => {
+            return failure(
+                "create",
+                "rate_limit_failed",
+                "Não foi possível ativar os avisos agora.",
+            )
+        }
     }
     match app.store.create(request).await {
         Ok((id, token)) => response(StatusCode::CREATED, json!({"id":id,"token":token})),
@@ -220,6 +261,18 @@ async fn test(State(app): State<App>, Path(id): Path<String>, headers: HeaderMap
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lambda_http::aws_lambda_events::apigw::ApiGatewayV2httpRequestContext;
+
+    #[test]
+    fn create_limit_uses_only_gateway_source_not_untrusted_headers() {
+        let mut gateway = ApiGatewayV2httpRequestContext::default();
+        gateway.http.source_ip = Some("203.0.113.10".into());
+        let context = RequestContext::ApiGatewayV2(gateway);
+        assert_eq!(
+            trusted_source_ip(&context),
+            Some("203.0.113.10".parse().unwrap())
+        );
+    }
 
     #[test]
     fn bearer_token_requires_explicit_header() {
