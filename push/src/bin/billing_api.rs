@@ -7,7 +7,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use biorotina_push::billing::{Account, Billing, TRIAL_LIMIT};
+use biorotina_push::billing::{Account, AnalysisFailure, Billing, TRIAL_LIMIT};
 use biorotina_push::observability;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -26,6 +26,22 @@ fn error(status: StatusCode, text: &str) -> Response {
 fn failure(operation: &'static str, code: &'static str, text: &'static str) -> Response {
     observability::error("billing_api", operation, code, Some(503));
     error(StatusCode::SERVICE_UNAVAILABLE, text)
+}
+fn analysis_failure_response(reason: AnalysisFailure) -> Response {
+    match reason {
+        AnalysisFailure::GeminiStatus(503) => error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "O Gemini está temporariamente indisponível. Tente novamente com a mesma foto em instantes.",
+        ),
+        AnalysisFailure::InvalidImage => error(
+            StatusCode::BAD_REQUEST,
+            "Imagem inválida ou grande demais.",
+        ),
+        _ => error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Não foi possível aproveitar a sugestão agora. Tente novamente ou registre manualmente.",
+        ),
+    }
 }
 
 #[tokio::main]
@@ -280,10 +296,7 @@ async fn analyze(
                 reason.upstream_status(),
             );
             billing.refund_reservation(&usage_key).await;
-            error(
-                StatusCode::SERVICE_UNAVAILABLE,
-                "A análise não funcionou agora. Tente outra foto.",
-            )
+            analysis_failure_response(reason)
         }
     }
 }
@@ -291,6 +304,15 @@ async fn analyze(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_503_asks_to_retry_the_same_photo() {
+        let response = analysis_failure_response(AnalysisFailure::GeminiStatus(503));
+        assert_eq!(response.0, StatusCode::SERVICE_UNAVAILABLE);
+        assert!(response.2 .0["error"]
+            .as_str()
+            .unwrap()
+            .contains("mesma foto"));
+    }
     #[test]
     fn rejects_missing_google_token() {
         let mut headers = HeaderMap::new();

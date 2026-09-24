@@ -29,7 +29,7 @@ const mealV3Schema = z
   .object({
     ...datedEntry,
     eatenAt: z.string().datetime(),
-    name: z.string().trim().min(1).max(120),
+    name: z.string().trim().min(1).max(500),
     caloriesKcal: z.number().nonnegative().finite().nullable(),
   })
   .strict();

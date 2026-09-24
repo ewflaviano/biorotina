@@ -548,7 +548,7 @@ export function FoodPage() {
                 <input
                   id="meal-name"
                   placeholder="Ex.: Café da manhã"
-                  maxLength={120}
+                  maxLength={500}
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   required
