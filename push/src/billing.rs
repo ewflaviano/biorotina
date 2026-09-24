@@ -3,6 +3,7 @@ use aws_config::BehaviorVersion;
 use aws_sdk_dynamodb::{types::AttributeValue as A, Client as Db};
 use aws_sdk_secretsmanager::Client as Secrets;
 use aws_sdk_sqs::Client as Sqs;
+use base64::{engine::general_purpose::STANDARD, Engine};
 use chrono::{Datelike, Duration, NaiveDate, Utc};
 use chrono_tz::America::Sao_Paulo;
 use serde::{Deserialize, Serialize};
@@ -16,6 +17,7 @@ const GEMINI_FALLBACK_MODEL: &str = "gemini-3.1-pro-preview";
 const GEMINI_TOTAL_BUDGET: std::time::Duration = std::time::Duration::from_secs(24);
 pub const TRIAL_LIMIT: u32 = 5;
 pub const FAILED_ANALYSIS_LIMIT: u32 = 5;
+pub const DAILY_ATTEMPT_LIMIT: u32 = 40;
 const ASAAS_USER_AGENT: &str = "Biorotina/0.1 (+https://biorotina.app.br)";
 const PROMPT: &str = "Analise apenas os alimentos e bebidas visíveis nesta foto de refeição. Responda em português do Brasil com JSON. Para cada alimento visível, dê um nome simples, uma porção aproximada (gramas ou medida caseira) e as calorias aproximadas dessa porção. Não invente ingredientes invisíveis. Se a foto não permitir identificar uma refeição, retorne foods vazio. Não faça recomendações médicas ou nutricionais. A pessoa vai revisar tudo.";
 
@@ -409,6 +411,64 @@ fn str_field(value: &Value, name: &str) -> Option<String> {
 
 fn bounded_field(value: &Value, name: &str) -> Option<String> {
     str_field(value, name).filter(|field| field.len() <= 200)
+}
+
+pub fn valid_jpeg_image(image: &str) -> bool {
+    if !(100..=480_000).contains(&image.len()) {
+        return false;
+    }
+    let Ok(bytes) = STANDARD.decode(image) else {
+        return false;
+    };
+    if bytes.len() < 32
+        || bytes.len() > 360_000
+        || !bytes.starts_with(&[0xff, 0xd8])
+        || !bytes.ends_with(&[0xff, 0xd9])
+    {
+        return false;
+    }
+    let mut cursor = 2;
+    let mut dimensions_found = false;
+    while cursor < bytes.len() - 2 {
+        if bytes[cursor] != 0xff {
+            return false;
+        }
+        while cursor < bytes.len() - 2 && bytes[cursor] == 0xff {
+            cursor += 1;
+        }
+        let marker = bytes[cursor];
+        cursor += 1;
+        if marker == 0xda {
+            if cursor + 2 > bytes.len() - 2 {
+                return false;
+            }
+            let length = u16::from_be_bytes([bytes[cursor], bytes[cursor + 1]]) as usize;
+            return dimensions_found && length >= 2 && cursor + length < bytes.len() - 2;
+        }
+        if marker == 0xd8 || marker == 0xd9 || (0xd0..=0xd7).contains(&marker) {
+            return false;
+        }
+        if cursor + 2 > bytes.len() - 2 {
+            return false;
+        }
+        let length = u16::from_be_bytes([bytes[cursor], bytes[cursor + 1]]) as usize;
+        if length < 2 || cursor + length > bytes.len() - 2 {
+            return false;
+        }
+        if matches!(marker, 0xc0..=0xc3 | 0xc5..=0xc7 | 0xc9..=0xcb | 0xcd..=0xcf) {
+            if length < 8 {
+                return false;
+            }
+            let height = u16::from_be_bytes([bytes[cursor + 3], bytes[cursor + 4]]) as u32;
+            let width = u16::from_be_bytes([bytes[cursor + 5], bytes[cursor + 6]]) as u32;
+            if height == 0 || width == 0 || height > 4096 || width > 4096 {
+                return false;
+            }
+            dimensions_found = true;
+        }
+        cursor += length;
+    }
+    false
 }
 
 fn compact_webhook_event(event: &Value) -> Value {
@@ -845,6 +905,41 @@ impl Billing {
         }
     }
 
+    // This separate ceiling also counts upstream errors. It protects the paid
+    // provider without consuming the person's successful-analysis quota.
+    pub async fn reserve_attempt_slot(&self, account_key: &str) -> Result<bool, String> {
+        let key = format!("AI_ATTEMPT#{account_key}#{}", today());
+        let result = self
+            .db
+            .update_item()
+            .table_name(&self.table)
+            .key("pk", A::S(key))
+            .update_expression("SET #used = if_not_exists(#used, :zero) + :one, #ttl = :ttl")
+            .condition_expression("attribute_not_exists(#used) OR #used < :limit")
+            .expression_attribute_names("#used", "used")
+            .expression_attribute_names("#ttl", "ttl")
+            .expression_attribute_values(":zero", A::N("0".into()))
+            .expression_attribute_values(":one", A::N("1".into()))
+            .expression_attribute_values(":limit", A::N(DAILY_ATTEMPT_LIMIT.to_string()))
+            .expression_attribute_values(
+                ":ttl",
+                A::N((Utc::now().timestamp() + 3 * 86400).to_string()),
+            )
+            .send()
+            .await;
+        match result {
+            Ok(_) => Ok(true),
+            Err(error)
+                if error
+                    .as_service_error()
+                    .is_some_and(|service| service.is_conditional_check_failed_exception()) =>
+            {
+                Ok(false)
+            }
+            Err(error) => Err(error.to_string()),
+        }
+    }
+
     async fn asaas_get(&self, path: &str) -> Result<Value, String> {
         let response = self
             .client
@@ -1038,12 +1133,7 @@ impl Billing {
     }
 
     pub async fn analyze(&self, image: &str, paid: bool) -> Result<Analysis, AnalysisFailure> {
-        if image.len() > 480_000
-            || image.len() < 100
-            || !image
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'=')
-        {
+        if !valid_jpeg_image(image) {
             return Err(AnalysisFailure::InvalidImage);
         }
         let body = gemini_request_body(image);
@@ -1264,6 +1354,23 @@ mod tests {
         assert!(analysis.foods[0].name.len() <= 100);
         assert!(analysis.foods[0].amount.len() <= 80);
         assert!(analysis.description.ends_with('…'));
+    }
+
+    #[test]
+    fn rejects_fake_or_oversized_jpeg_before_using_gemini() {
+        let mut jpeg = vec![
+            0xff, 0xd8, 0xff, 0xc0, 0, 11, 8, 0, 1, 0, 1, 1, 1, 0x11, 0, 0xff, 0xda, 0, 8, 1, 1, 0,
+            0, 0x3f, 0,
+        ];
+        jpeg.extend([0; 80]);
+        jpeg.extend([0xff, 0xd9]);
+        assert!(valid_jpeg_image(&STANDARD.encode(&jpeg)));
+        assert!(!valid_jpeg_image(&STANDARD.encode(vec![0; 200])));
+        assert!(!valid_jpeg_image(&STANDARD.encode(&jpeg[..jpeg.len() - 2])));
+        jpeg[9] = 0x10;
+        jpeg[10] = 0x01;
+        assert!(!valid_jpeg_image(&STANDARD.encode(&jpeg)));
+        assert!(!valid_jpeg_image(&"a".repeat(481_000)));
     }
 
     #[test]
