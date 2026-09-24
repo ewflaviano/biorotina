@@ -87,7 +87,8 @@ export function FoodPage() {
       ? accountPlanStatus.value
       : null;
   const selectedPhotoMode =
-    photoMode === "trial" && (!trialEnabled || !drive.account)
+    photoMode === "trial" &&
+    (planStatus?.active || !trialEnabled || !drive.account)
       ? planStatus?.active
         ? "plan"
         : "key"
@@ -449,7 +450,7 @@ export function FoodPage() {
                     role="group"
                     aria-label="Como analisar a foto"
                   >
-                    {trialEnabled && drive.account && (
+                    {trialEnabled && drive.account && !planStatus?.active && (
                       <button
                         type="button"
                         aria-pressed={selectedPhotoMode === "trial"}
@@ -473,13 +474,17 @@ export function FoodPage() {
                       Minha chave Gemini
                     </button>
                   </div>
-                  {trialEnabled &&
-                  drive.account &&
-                  selectedPhotoMode === "trial" ? (
+                  {planStatus?.active ? (
                     <p className="muted small">
-                      {planStatus?.active
+                      {selectedPhotoMode === "plan"
                         ? "Seu plano está ativo: até 10 análises por dia."
-                        : `Teste até 5 fotos grátis com sua conta Google${planStatus ? ` · ${Math.max(0, planStatus.trialLimit - planStatus.trialUsed)} restantes` : ""}.`}
+                        : "Esta análise usará sua chave Gemini. Seu plano também está ativo."}
+                    </p>
+                  ) : trialEnabled &&
+                    drive.account &&
+                    selectedPhotoMode === "trial" ? (
+                    <p className="muted small">
+                      {`Teste até 5 fotos grátis com sua conta Google${planStatus ? ` · ${Math.max(0, planStatus.trialLimit - planStatus.trialUsed)} restantes` : ""}.`}
                     </p>
                   ) : (
                     <p className="muted small">
@@ -525,13 +530,14 @@ export function FoodPage() {
                         cinco análises.
                       </span>
                     ) : selectedPhotoMode === "plan" ? (
-                      <Link to="/assinatura">Ver plano de R$ 8,99/mês</Link>
+                      !planStatus?.active && (
+                        <Link to="/assinatura">Ver plano de R$ 8,99/mês</Link>
+                      )
                     ) : (
                       <Link to="/configuracoes">
                         Configurar minha chave Gemini
                       </Link>
                     )}
-                    .
                   </p>
                 </div>
               )}

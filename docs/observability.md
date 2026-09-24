@@ -33,6 +33,10 @@ vazios e calorias inválidas (`gemini_no_candidate`, `gemini_safety_blocked`,
 `gemini_empty_description`, `gemini_empty_foods`,
 `gemini_too_many_foods`, `gemini_empty_food_name`, `gemini_empty_food_amount`,
 `gemini_invalid_calories`). Nunca registrar o conteúdo retornado pelo Gemini.
+Para assinantes, um segundo 503 do Flash pode iniciar uma única tentativa com
+`gemini-3.1-pro-preview`: `gemini_fallback_pro` e
+`gemini_fallback_pro_recovered` indicam início e recuperação; `gemini_pro_status`,
+`gemini_pro_timeout` e `gemini_pro_network` identificam falhas nesse modelo.
 Os demais grupos são
 `biorotina-dev-api`, `biorotina-dev-tick` e `biorotina-dev-telemetry` com o
 prefixo `/aws/lambda/`.
