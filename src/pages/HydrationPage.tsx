@@ -281,9 +281,6 @@ export function HydrationPage() {
                 Adicionar
               </button>
             </form>
-            <small className="muted">
-              Horários em formato de 24 horas, a cada 30 minutos.
-            </small>
             {reminderError && (
               <p className="form-error" role="alert">
                 {reminderError}
