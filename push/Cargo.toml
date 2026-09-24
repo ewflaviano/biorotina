@@ -26,10 +26,10 @@ path = "src/bin/telemetry.rs"
 
 [dependencies]
 axum = "0.8"
-aws-config = "1"
-aws-sdk-dynamodb = "1"
-aws-sdk-secretsmanager = "1"
-aws-sdk-sqs = "1"
+aws-config = { version = "1", default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-dynamodb = { version = "1", default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-secretsmanager = { version = "1", default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-sqs = { version = "1", default-features = false, features = ["default-https-client", "rt-tokio"] }
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10"
