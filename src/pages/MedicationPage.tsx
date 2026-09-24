@@ -205,7 +205,7 @@ export function MedicationPage() {
       <PageHeader
         eyebrow="Cuidados"
         title="Medicação"
-        description="Guarde seus medicamentos e registre cada uso, mesmo várias vezes no dia."
+        description="Guarde seus medicamentos e registre cada uso."
       />
       <div className="page-grid">
         <div className="main-stack">
