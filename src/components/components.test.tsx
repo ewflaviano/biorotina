@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { openDB } from "idb";
@@ -9,7 +9,7 @@ import { AppDataProvider } from "../state/AppDataContext";
 import { PushProvider } from "../state/PushContext";
 import { loadData, saveData } from "../storage/indexedDb";
 import { Layout } from "./Layout";
-import { ActivityWeekChart, WeightTrend } from "./ProgressCharts";
+import { WeeklyOverviewChart, WeightTrend } from "./ProgressCharts";
 import { HydrationPage } from "../pages/HydrationPage";
 import { DateTimeField } from "./DateTimeField";
 import { DriveSyncProvider } from "../sync/DriveSyncContext";
@@ -49,19 +49,34 @@ describe("navegação", () => {
     expect(
       await screen.findByText("Seu espaço de cuidado, Ana"),
     ).toBeInTheDocument();
+    const mobileNav = screen.getByRole("navigation", {
+      name: "Navegação principal no celular",
+    });
+    expect(
+      within(mobileNav)
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Água", "Medicação", "Refeição", "Atividade", "Mais"]);
+    expect(
+      within(mobileNav).getByRole("link", { name: "Água" }),
+    ).not.toHaveClass("active");
     await user.click(screen.getAllByRole("link", { name: "Peso" })[0]);
     expect(await screen.findByText("Área de peso")).toBeInTheDocument();
     await user.click(screen.getAllByRole("link", { name: "Hidratação" })[0]);
     expect(await screen.findByText("Área de hidratação")).toBeInTheDocument();
-    await user.click(screen.getByRole("link", { name: "Mais áreas" }));
+    await user.click(within(mobileNav).getByRole("link", { name: "Mais" }));
     expect(await screen.findByText("Outras áreas")).toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: "Abrir configurações" }));
     expect(
       await screen.findByText("Área de configurações"),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Mais áreas" })).toHaveClass(
+    expect(within(mobileNav).getByRole("link", { name: "Mais" })).toHaveClass(
       "active",
     );
+    await user.click(
+      screen.getAllByRole("link", { name: "Biorotina: início" })[1],
+    );
+    expect(await screen.findByText("Início de teste")).toBeInTheDocument();
   });
 
   it("permite desfazer exclusão mesmo depois de navegar para outra tela", async () => {
@@ -137,11 +152,12 @@ describe("visualizações de progresso", () => {
     ).toBeInTheDocument();
   });
 
-  it("identifica os dias sem registro como zero, sem inventar atividade", () => {
-    render(<ActivityWeekChart entries={[]} />);
-    expect(screen.getByRole("img", { name: /0 minutos/ })).toBeInTheDocument();
+  it("identifica os dias sem registros sem inventar progresso", () => {
+    render(<WeeklyOverviewChart data={emptyData()} />);
     expect(
-      screen.getByText(/Dias vazios indicam apenas ausência de registro/),
+      screen.getByRole("img", {
+        name: /Áreas com registros nos últimos sete dias:.*nenhuma/,
+      }),
     ).toBeInTheDocument();
   });
 });

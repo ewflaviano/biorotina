@@ -13,11 +13,11 @@ export function PrivacyPage() {
         <section className="panel">
           <h2>Registros de saúde</h2>
           <p>
-            Peso, atividades, alimentação, hidratação, medicamentos e perfil
-            ficam no armazenamento deste navegador. Se você conectar o Google
-            Drive, uma cópia JSON vai diretamente para a área privada do app no
-            seu Drive. A Biorotina não recebe esses registros em um banco de
-            dados próprio.
+            Peso, atividades, alimentação, hidratação, medicamentos, hábitos e
+            perfil ficam no armazenamento deste navegador. Se você conectar o
+            Google Drive, uma cópia JSON vai diretamente para a área privada do
+            app no seu Drive. A Biorotina não recebe esses registros em um banco
+            de dados próprio.
           </p>
           <p>
             Você pode consultar e apagar registros no app, exportar uma cópia e
@@ -39,11 +39,12 @@ export function PrivacyPage() {
             conectado.
           </p>
           <p>
-            Com o plano mensal, a foto reduzida passa pelo serviço da Biorotina
-            para análise no Gemini. Não guardamos a foto ou o resultado no
-            servidor. Guardamos um identificador derivado da conta Google, o
-            identificador da assinatura, datas de cobrança e a contagem diária
-            de análises. O Asaas coleta os dados de pagamento no checkout; a
+            No teste grátis e no plano mensal, a foto reduzida passa pelo
+            serviço da Biorotina para análise no Gemini. Não guardamos a foto ou
+            o resultado no servidor. Guardamos um identificador derivado da
+            conta Google e as contagens de análises do teste e do plano. Quando
+            houver assinatura, guardamos também seu identificador e as datas de
+            cobrança. O Asaas coleta os dados de pagamento no checkout; a
             Biorotina não recebe os dados do cartão.
           </p>
         </section>
@@ -57,9 +58,9 @@ export function PrivacyPage() {
             token de acesso temporário fica no armazenamento deste navegador
             para manter a conexão ao atualizar a página. O app tenta renová-lo
             quando expira, e você pode se desconectar a qualquer momento. Para o
-            plano de IA, o token temporário é enviado ao serviço da Biorotina
-            apenas para confirmar a conta Google; ele não é armazenado no
-            servidor nem usado para acessar seu Drive.
+            teste grátis ou o plano de IA, o token temporário é enviado ao
+            serviço da Biorotina apenas para confirmar a conta Google; ele não é
+            armazenado no servidor nem usado para acessar seu Drive.
           </p>
           <p>
             Ao sair da conta no app, os registros, a chave Gemini pessoal e a
@@ -78,8 +79,8 @@ export function PrivacyPage() {
             Quando você ativa notificações, o serviço guarda os dados técnicos
             necessários para entregar avisos neste dispositivo, como a inscrição
             do navegador, fuso horário e próximos horários. O texto do aviso é
-            genérico. O serviço não recebe nomes de medicamentos, doses ou seu
-            histórico de saúde.
+            genérico. O serviço não recebe nomes de medicamentos ou hábitos,
+            doses ou seu histórico de saúde.
           </p>
           <p>
             Desativar os avisos remove a inscrição deste dispositivo do serviço.

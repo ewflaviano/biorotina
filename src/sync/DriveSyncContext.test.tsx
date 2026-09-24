@@ -118,7 +118,7 @@ beforeEach(async () => {
       createdTime: new Date(Date.now() + snapshots.length).toISOString(),
     };
     snapshots.unshift(saved);
-    expect(data.schemaVersion).toBe(5);
+    expect(data.schemaVersion).toBe(6);
     return saved;
   });
   vi.mocked(downloadDriveSnapshot).mockReset();
@@ -230,11 +230,9 @@ describe("login e sincronização automática", () => {
     expect((await loadData(account.id)).profile.displayName).toBe("Ana");
     expect((await loadData()).profile.displayName).toBe("Ana");
     await user.click(
-      within(
-        screen.getByRole("navigation", {
-          name: "Navegação principal no celular",
-        }),
-      ).getByRole("link", { name: "Hoje" }),
+      within(screen.getByRole("banner")).getByRole("link", {
+        name: "Biorotina: início",
+      }),
     );
     expect(
       await screen.findByRole("link", { name: "Google Drive: sincronizado" }),
@@ -363,11 +361,9 @@ describe("login e sincronização automática", () => {
     expect((await loadData(second.id)).hydrationEntries).toHaveLength(0);
     expect(uploadDriveSnapshot).toHaveBeenCalledTimes(1);
     await user.click(
-      within(
-        screen.getByRole("navigation", {
-          name: "Navegação principal no celular",
-        }),
-      ).getByRole("link", { name: "Hoje" }),
+      within(screen.getByRole("banner")).getByRole("link", {
+        name: "Biorotina: início",
+      }),
     );
     expect(screen.getByText("0 registros de água")).toBeInTheDocument();
     await user.click(

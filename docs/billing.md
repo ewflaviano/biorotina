@@ -9,6 +9,11 @@
 3. O webhook autenticado confirma o pagamento. A URL de retorno do navegador serve apenas para voltar ao app; não libera o plano.
 4. Pagamentos confirmados estendem o acesso. Cada conta Google pode ter um plano com renovação ativa e até dez análises de refeições por foto por dia, no fuso de São Paulo.
 5. Cancelar no app chama `DELETE /v3/subscriptions/{id}` no Asaas, encerra futuras renovações e mantém o acesso até o fim do período pago.
+6. Antes da assinatura, cada conta Google pode fazer até cinco análises grátis, uma única vez por conta. O backend reserva cada análise de forma atômica e devolve a cota se a análise falhar. A chave Gemini pessoal não usa essa cota.
+
+## Controle do teste grátis
+
+O teste grátis fica habilitado por padrão. Para interrompê-lo, grave o item `CONFIG#PHOTO_TRIAL` na tabela DynamoDB `BillingTable` com o atributo `data` igual a `{"enabled":false}`. Para reativar, use `{"enabled":true}` ou remova o item. O backend consulta essa configuração ao mostrar a opção e antes de reservar cada análise. A contagem vitalícia fica no item `TRIAL#<identificador derivado da conta>`; não há foto ou resultado nesse item. Não apague os itens de contagem ao desligar o recurso.
 
 ## Configuração automática de produção
 

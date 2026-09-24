@@ -1,7 +1,18 @@
-import type { AppData, Medication, MedicationLog } from "./data";
+import type {
+  AppData,
+  Habit,
+  HabitLog,
+  Medication,
+  MedicationLog,
+} from "./data";
 
 export type EntryCollection =
-  "weights" | "activities" | "meals" | "hydrationEntries" | "medicationLogs";
+  | "weights"
+  | "activities"
+  | "meals"
+  | "hydrationEntries"
+  | "medicationLogs"
+  | "habitLogs";
 
 export function removeEntry<K extends EntryCollection>(
   data: AppData,
@@ -49,6 +60,32 @@ export function restoreMedication(
     medicationLogs: [
       ...logs.filter((item) => !existingLogIds.has(item.id)),
       ...data.medicationLogs,
+    ],
+  };
+}
+
+export function removeHabit(data: AppData, id: string): AppData {
+  if (!data.habits.some((item) => item.id === id)) return data;
+  return {
+    ...data,
+    habits: data.habits.filter((item) => item.id !== id),
+    habitLogs: data.habitLogs.filter((item) => item.habitId !== id),
+  };
+}
+
+export function restoreHabit(
+  data: AppData,
+  habit: Habit,
+  logs: HabitLog[],
+): AppData {
+  if (data.habits.some((item) => item.id === habit.id)) return data;
+  const existing = new Set(data.habitLogs.map((item) => item.id));
+  return {
+    ...data,
+    habits: [habit, ...data.habits],
+    habitLogs: [
+      ...logs.filter((item) => !existing.has(item.id)),
+      ...data.habitLogs,
     ],
   };
 }

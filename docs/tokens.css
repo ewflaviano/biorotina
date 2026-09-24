@@ -72,6 +72,8 @@
   --chart-activity: var(--blue-700);
   --chart-food: var(--amber-700);
   --chart-medication: var(--purple-700);
+  --chart-habit: var(--green-700);
+  --chart-hydration: #3496ad;
   --chart-grid: var(--neutral-200);
 
   --space-0: 0;

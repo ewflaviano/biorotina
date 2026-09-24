@@ -116,6 +116,9 @@ functions:
       - httpApi:
           path: /api/ai/meal
           method: ANY
+      - httpApi:
+          path: /api/ai/trial-config
+          method: ANY
 
 resources:
   extensions:

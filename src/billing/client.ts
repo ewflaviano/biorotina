@@ -11,6 +11,9 @@ const statusSchema = z.object({
   usedToday: z.number().int().min(0),
   dailyLimit: z.number().int().positive(),
   checkoutUrl: z.string().nullable().optional(),
+  trialEnabled: z.boolean().default(false),
+  trialUsed: z.number().int().min(0).default(0),
+  trialLimit: z.number().int().positive().default(5),
 });
 export type PlanStatus = z.infer<typeof statusSchema>;
 const analysisSchema = z.object({
@@ -63,6 +66,15 @@ async function request(
 
 export async function getPlanStatus(googleToken: string): Promise<PlanStatus> {
   return statusSchema.parse(await request("/api/billing/status", googleToken));
+}
+
+export async function getTrialConfig(): Promise<boolean> {
+  const response = await fetch(API + "/api/ai/trial-config", {
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Teste grátis indisponível.");
+  const payload: unknown = await response.json();
+  return z.object({ trialEnabled: z.boolean() }).parse(payload).trialEnabled;
 }
 export async function createPlanCheckout(googleToken: string): Promise<string> {
   const value = z

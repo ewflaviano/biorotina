@@ -26,7 +26,7 @@ interface DeviceSession {
   id: string;
   token: string;
 }
-type ReminderKind = "hydration" | "medication";
+type ReminderKind = "hydration" | "medication" | "habit";
 interface RemoteReminder {
   time: string;
   days: number[];
@@ -163,8 +163,8 @@ export function PushProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState("");
   const busy = useRef(false);
   const lastSynced = useRef("");
-  const reminders = useMemo<RemoteReminder[]>(
-    () => [
+  const reminders = useMemo<RemoteReminder[]>(() => {
+    const all: RemoteReminder[] = [
       ...data.hydrationReminderTimes.map((time) => ({
         time,
         days: [0, 1, 2, 3, 4, 5, 6],
@@ -177,9 +177,26 @@ export function PushProvider({ children }: { children: ReactNode }) {
           kind: "medication" as const,
         })),
       ),
-    ],
-    [data.hydrationReminderTimes, data.medications],
-  );
+      ...data.habits.flatMap((habit) =>
+        habit.reminderTimes.map((time) => ({
+          time,
+          days: habit.reminderWeekdays,
+          kind: "habit" as const,
+        })),
+      ),
+    ];
+    return [
+      ...new Map(
+        all.map((item) => {
+          const days = [...item.days].sort();
+          return [
+            `${item.kind}:${item.time}:${days.join(",")}`,
+            { ...item, days },
+          ] as const;
+        }),
+      ).values(),
+    ];
+  }, [data.hydrationReminderTimes, data.medications, data.habits]);
   const timeZone =
     Intl.DateTimeFormat().resolvedOptions().timeZone || "Etc/UTC";
   const scheduleKey = timeZone + "|" + JSON.stringify(reminders);

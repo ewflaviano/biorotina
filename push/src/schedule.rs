@@ -26,6 +26,26 @@ pub fn due_slot(
         .map(|kind| (local.format("%Y-%m-%d").to_string(), time, kind))
 }
 
+pub fn due_kinds(subscription: &StoredSubscription, now: DateTime<Utc>) -> Vec<ReminderKind> {
+    if subscription.expires_at <= now.timestamp() {
+        return Vec::new();
+    }
+    let Ok(zone) = subscription.time_zone.parse::<Tz>() else {
+        return Vec::new();
+    };
+    let local = now.with_timezone(&zone);
+    let time = local.format("%H:%M").to_string();
+    let day = local.weekday().num_days_from_sunday() as u8;
+    let mut kinds = Vec::new();
+    for reminder in &subscription.reminders {
+        if reminder.time == time && reminder.days.contains(&day) && !kinds.contains(&reminder.kind)
+        {
+            kinds.push(reminder.kind.clone());
+        }
+    }
+    kinds
+}
+
 pub fn next_due_utc(
     subscription: &StoredSubscription,
     after: DateTime<Utc>,
@@ -144,5 +164,18 @@ mod tests {
             slot_key(next_due_utc(&subscription, before).unwrap()),
             "2026-03-09T06:30"
         );
+    }
+
+    #[test]
+    fn keeps_distinct_reminder_types_at_the_same_time() {
+        let mut subscription = example();
+        subscription.reminders[1].time = "08:00".into();
+        subscription.reminders.push(crate::model::Reminder {
+            time: "08:00".into(),
+            days: vec![0, 1, 2, 3, 4, 5, 6],
+            kind: crate::model::ReminderKind::Habit,
+        });
+        let now = Utc.with_ymd_and_hms(2026, 9, 23, 11, 0, 0).unwrap();
+        assert_eq!(due_kinds(&subscription, now).len(), 3);
     }
 }

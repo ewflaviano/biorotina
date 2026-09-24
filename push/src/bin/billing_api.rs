@@ -7,7 +7,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use biorotina_push::billing::{Account, Billing};
+use biorotina_push::billing::{Account, Billing, TRIAL_LIMIT};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -38,11 +38,22 @@ fn router(billing: Billing) -> Router {
         .route("/api/billing/cancel", post(cancel).options(preflight))
         .route("/api/billing/webhook", post(webhook))
         .route("/api/ai/meal", post(analyze).options(preflight))
+        .route("/api/ai/trial-config", get(trial_config).options(preflight))
         .layer(DefaultBodyLimit::max(600_000))
         .with_state(billing)
 }
 async fn preflight() -> StatusCode {
     StatusCode::NO_CONTENT
+}
+
+async fn trial_config(State(billing): State<Billing>) -> Response {
+    match billing.trial_enabled().await {
+        Ok(enabled) => reply(StatusCode::OK, json!({"trialEnabled":enabled})),
+        Err(_) => error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Configuração indisponível.",
+        ),
+    }
 }
 
 fn bearer_token(headers: &HeaderMap) -> Option<&str> {
@@ -100,18 +111,29 @@ async fn status(State(billing): State<Billing>, headers: HeaderMap) -> Response 
         Err(error) => return error,
     };
     let account = match billing.account(&key).await {
-        Ok(Some(account)) => account,
-        Ok(None) => {
-            return reply(
-                StatusCode::OK,
-                json!({"active":false,"cancelled":false,"renewalActive":false,"paidThrough":null,"nextCharge":null,"usedToday":0,"dailyLimit":10,"checkoutUrl":null}),
-            )
-        }
+        Ok(account) => account,
         Err(_) => return error(StatusCode::SERVICE_UNAVAILABLE, "Assinatura indisponível."),
     };
-    match billing.status(&account).await {
-        Ok(value) => reply(StatusCode::OK, value),
-        Err(_) => error(
+    let (trial_enabled, trial_used, plan) = tokio::join!(
+        billing.trial_enabled(),
+        billing.trial_used(&key),
+        async {
+            match account.as_ref() {
+                Some(account) => billing.status(account).await,
+                None => Ok(
+                    json!({"active":false,"cancelled":false,"renewalActive":false,"paidThrough":null,"nextCharge":null,"usedToday":0,"dailyLimit":10,"checkoutUrl":null}),
+                ),
+            }
+        },
+    );
+    match (trial_enabled, trial_used, plan) {
+        (Ok(enabled), Ok(used), Ok(mut value)) => {
+            value["trialEnabled"] = json!(enabled);
+            value["trialUsed"] = json!(used);
+            value["trialLimit"] = json!(TRIAL_LIMIT);
+            reply(StatusCode::OK, value)
+        }
+        _ => error(
             StatusCode::SERVICE_UNAVAILABLE,
             "Não foi possível consultar a assinatura.",
         ),
@@ -167,22 +189,56 @@ async fn analyze(
     headers: HeaderMap,
     Json(body): Json<ImageRequest>,
 ) -> Response {
-    let account = match authorized(&billing, &headers).await {
-        Ok(a) => a,
-        Err(e) => return e,
+    let key = match account_key(&billing, &headers).await {
+        Ok(key) => key,
+        Err(error) => return error,
     };
-    if !account.active() {
-        return error(StatusCode::PAYMENT_REQUIRED, "Assinatura não está ativa.");
-    }
     if body.image.len() > 480_000 || body.image.len() < 100 {
         return error(StatusCode::BAD_REQUEST, "Imagem inválida ou grande demais.");
     }
-    let usage_key = match billing.reserve(&account).await {
+    let account = match billing.account(&key).await {
+        Ok(account) => account,
+        Err(_) => return error(StatusCode::SERVICE_UNAVAILABLE, "Assinatura indisponível."),
+    };
+    let paid = account.as_ref().is_some_and(Account::active);
+    if !paid {
+        match billing.trial_enabled().await {
+            Ok(true) => {}
+            Ok(false) => {
+                return error(
+                    StatusCode::PAYMENT_REQUIRED,
+                    "O teste grátis não está disponível. Escolha o plano ou use sua chave Gemini.",
+                )
+            }
+            Err(_) => {
+                return error(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "Não foi possível verificar o teste grátis.",
+                )
+            }
+        }
+    }
+    let reserved = if paid {
+        billing
+            .reserve(account.as_ref().expect("active account"))
+            .await
+    } else {
+        billing.reserve_trial(&key).await
+    };
+    let usage_key = match reserved {
         Ok(Some(key)) => key,
         Ok(None) => {
             return error(
-                StatusCode::TOO_MANY_REQUESTS,
-                "Você já usou as 10 análises de hoje. Amanhã sua cota renova.",
+                if paid {
+                    StatusCode::TOO_MANY_REQUESTS
+                } else {
+                    StatusCode::PAYMENT_REQUIRED
+                },
+                if paid {
+                    "Você já usou as 10 análises de hoje. Amanhã sua cota renova."
+                } else {
+                    "Você já usou as 5 análises grátis. Escolha o plano ou use sua chave Gemini."
+                },
             )
         }
         Err(_) => {

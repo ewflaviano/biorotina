@@ -15,6 +15,7 @@ import {
   Scale,
   Settings2,
   ShieldCheck,
+  Sprout,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -35,13 +36,13 @@ const desktopNav = [
   {
     to: "/alimentacao",
     label: "Alimentação",
-    mobileLabel: "Refeições",
+    mobileLabel: "Refeição",
     icon: Apple,
   },
   {
     to: "/medicamentos",
     label: "Medicação",
-    mobileLabel: "Remédios",
+    mobileLabel: "Medicação",
     icon: Pill,
   },
   {
@@ -50,13 +51,19 @@ const desktopNav = [
     mobileLabel: "Água",
     icon: Droplets,
   },
+  {
+    to: "/habitos",
+    label: "Hábitos",
+    mobileLabel: "Hábitos",
+    icon: Sprout,
+  },
 ] as const;
 
 const mobileNav = [
-  desktopNav[0],
-  desktopNav[1],
-  desktopNav[2],
   desktopNav[5],
+  desktopNav[4],
+  desktopNav[3],
+  desktopNav[2],
   { to: "/mais", label: "Mais áreas", mobileLabel: "Mais", icon: LayoutGrid },
 ] as const;
 
@@ -91,12 +98,12 @@ export function Layout() {
   return (
     <div className="app-shell">
       <aside className="side-nav" aria-label="Navegação principal">
-        <div className="brand">
+        <Link to="/" className="brand" aria-label="Biorotina: início">
           <img src="/biorotina-mark.svg" alt="" />
           <span>
             Biorotina<small>Seu cuidado, no seu ritmo</small>
           </span>
-        </div>
+        </Link>
         <nav className="side-links">
           {desktopNav.map(({ to, label, icon: Icon }) => (
             <NavLink
@@ -128,10 +135,10 @@ export function Layout() {
       </aside>
       <div className="main-column">
         <header className="topbar">
-          <div className="mobile-brand">
+          <Link to="/" className="mobile-brand" aria-label="Biorotina: início">
             <img src="/biorotina-mark.svg" alt="" />
             <span>Biorotina</span>
-          </div>
+          </Link>
           <div className="topbar-copy">
             <HeartPulse size={18} aria-hidden="true" />
             <span>Seu espaço de cuidado{name ? `, ${name}` : ""}</span>
@@ -244,14 +251,13 @@ export function Layout() {
           </div>
         )}
         <nav className="bottom-nav" aria-label="Navegação principal no celular">
-          {mobileNav.map(({ to, label, mobileLabel, icon: Icon }) => (
+          {mobileNav.map(({ to, mobileLabel, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
-              aria-label={label}
-              end={to === "/"}
+              aria-label={mobileLabel}
               className={({ isActive }) =>
-                `bottom-link${isActive || (to === "/mais" && ["/alimentacao", "/medicamentos", "/configuracoes"].includes(location.pathname)) ? " active" : ""}`
+                `bottom-link${isActive || (to === "/mais" && location.pathname !== "/" && !mobileNav.some((item) => item.to === location.pathname)) ? " active" : ""}`
               }
             >
               <Icon size={20} aria-hidden="true" />

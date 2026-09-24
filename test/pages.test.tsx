@@ -8,6 +8,7 @@ import { ActivityPage } from "../src/pages/ActivityPage";
 import { DashboardPage } from "../src/pages/DashboardPage";
 import { FoodPage } from "../src/pages/FoodPage";
 import { HydrationPage } from "../src/pages/HydrationPage";
+import { HabitsPage } from "../src/pages/HabitsPage";
 import { MedicationPage } from "../src/pages/MedicationPage";
 import { SettingsPage } from "../src/pages/SettingsPage";
 import { WeightPage } from "../src/pages/WeightPage";
@@ -89,7 +90,7 @@ describe("painel", () => {
     ).toHaveTextContent("400 kcal informadas");
     expect(
       screen.getByRole("img", {
-        name: /Minutos de atividade nos últimos sete dias/,
+        name: /Áreas com registros nos últimos sete dias/,
       }),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Água hoje/ })).toHaveTextContent(
@@ -520,6 +521,39 @@ describe("atividade e alimentação", () => {
     await user.click(screen.getByRole("button", { name: "Salvar refeição" }));
     await waitFor(async () => expect((await loadData()).meals).toHaveLength(2));
     expect((await loadData()).meals[0].caloriesKcal).toBe(230.125);
+  });
+});
+
+describe("hábitos", () => {
+  it("cria um hábito com dias e horários, registra e desfaz a exclusão", async () => {
+    const user = await renderPage(<HabitsPage />);
+    await user.type(screen.getByLabelText("Nome"), "Ler");
+    await user.selectOptions(
+      screen.getByLabelText(/Horários de lembrete/),
+      "20:30",
+    );
+    await user.click(screen.getByRole("button", { name: "Adicionar" }));
+    await user.click(screen.getByRole("button", { name: "Salvar hábito" }));
+    await waitFor(async () =>
+      expect((await loadData()).habits[0]).toMatchObject({
+        name: "Ler",
+        reminderTimes: ["20:30"],
+        reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
+      }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Quer receber este lembrete?" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Agora não" }));
+    await user.click(screen.getByRole("button", { name: "Registrar agora" }));
+    await waitFor(async () =>
+      expect((await loadData()).habitLogs).toHaveLength(1),
+    );
+    await user.click(screen.getByRole("button", { name: "Excluir Ler" }));
+    await waitFor(async () =>
+      expect((await loadData()).habits).toHaveLength(0),
+    );
+    expect((await loadData()).habitLogs).toHaveLength(0);
   });
 });
 

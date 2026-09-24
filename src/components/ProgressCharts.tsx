@@ -1,7 +1,7 @@
 import {
   numberPt,
   toLocalDateTime,
-  type ActivityEntry,
+  type AppData,
   type WeightEntry,
 } from "../domain/data";
 
@@ -58,49 +58,83 @@ export function WeightTrend({ entries }: { entries: WeightEntry[] }) {
   );
 }
 
-export function ActivityWeekChart({ entries }: { entries: ActivityEntry[] }) {
+const overviewAreas = [
+  { key: "habits", label: "Hábitos" },
+  { key: "meals", label: "Alimentação" },
+  { key: "medications", label: "Medicação" },
+  { key: "activities", label: "Atividades" },
+  { key: "hydration", label: "Hidratação" },
+] as const;
+
+export function WeeklyOverviewChart({ data }: { data: AppData }) {
+  const dates = {
+    habits: new Set(
+      data.habitLogs.map((item) =>
+        toLocalDateTime(item.completedAt).slice(0, 10),
+      ),
+    ),
+    meals: new Set(
+      data.meals.map((item) => toLocalDateTime(item.eatenAt).slice(0, 10)),
+    ),
+    medications: new Set(
+      data.medicationLogs.map((item) =>
+        toLocalDateTime(item.takenAt).slice(0, 10),
+      ),
+    ),
+    activities: new Set(
+      data.activities.map((item) =>
+        toLocalDateTime(item.occurredAt).slice(0, 10),
+      ),
+    ),
+    hydration: new Set(
+      data.hydrationEntries.map((item) =>
+        toLocalDateTime(item.drankAt).slice(0, 10),
+      ),
+    ),
+  };
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
     date.setHours(12, 0, 0, 0);
     date.setDate(date.getDate() - (6 - index));
     const key = toLocalDateTime(date.toISOString()).slice(0, 10);
-    const minutes = entries
-      .filter((entry) => toLocalDateTime(entry.occurredAt).slice(0, 10) === key)
-      .reduce((sum, entry) => sum + entry.durationMinutes, 0);
     return {
       key,
-      minutes,
+      areas: overviewAreas.filter((area) => dates[area.key].has(key)),
       label: new Intl.DateTimeFormat("pt-BR", { weekday: "short" })
         .format(date)
         .replace(".", ""),
     };
   });
-  const max = Math.max(30, ...days.map((day) => day.minutes));
   return (
-    <figure className="week-figure">
+    <figure className="week-figure overview-figure">
       <div
         className="week-bars"
         role="img"
-        aria-label={`Minutos de atividade nos últimos sete dias: ${days.map((day) => `${day.label} ${numberPt(day.minutes)} minutos`).join(", ")}`}
+        aria-label={`Áreas com registros nos últimos sete dias: ${days.map((day) => `${day.label}: ${day.areas.length ? day.areas.map((area) => area.label).join(", ") : "nenhuma"}`).join("; ")}`}
       >
         {days.map((day) => (
           <div className="week-day" key={day.key}>
-            <strong>{day.minutes ? numberPt(day.minutes) : ""}</strong>
-            <div className="bar-track">
-              <span
-                style={{
-                  height: `${day.minutes ? Math.max(4, (day.minutes / max) * 100) : 0}%`,
-                }}
-              />
+            <strong>{day.areas.length ? `${day.areas.length}/5` : ""}</strong>
+            <div className="bar-track overview-track">
+              {day.areas.map((area) => (
+                <span
+                  key={area.key}
+                  className={`overview-segment overview-${area.key}`}
+                />
+              ))}
             </div>
             <small>{day.label}</small>
           </div>
         ))}
       </div>
-      <figcaption>
-        Minutos de atividade registrados por dia. Dias vazios indicam apenas
-        ausência de registro.
-      </figcaption>
+      <div className="overview-legend" aria-hidden="true">
+        {overviewAreas.map((area) => (
+          <span key={area.key}>
+            <i className={`overview-${area.key}`} />
+            {area.label}
+          </span>
+        ))}
+      </div>
     </figure>
   );
 }

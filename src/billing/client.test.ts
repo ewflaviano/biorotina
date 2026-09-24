@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createPlanCheckout, getPlanStatus } from "./client";
+import { createPlanCheckout, getPlanStatus, getTrialConfig } from "./client";
 
 beforeEach(() => vi.restoreAllMocks());
 
@@ -49,6 +49,12 @@ describe("plano vinculado ao Google", () => {
       ),
     );
     expect((await getPlanStatus("google-token")).usedToday).toBe(2);
+  });
+  it("lê o controle público do teste grátis", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ trialEnabled: false }), { status: 200 }),
+    );
+    expect(await getTrialConfig()).toBe(false);
   });
   it("traduz serviço ainda não publicado sem sugerir assinatura ativa", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(

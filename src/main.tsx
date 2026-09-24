@@ -11,6 +11,7 @@ import { ActivityPage } from "./pages/ActivityPage";
 import { FoodPage } from "./pages/FoodPage";
 import { MedicationPage } from "./pages/MedicationPage";
 import { HydrationPage } from "./pages/HydrationPage";
+import { HabitsPage } from "./pages/HabitsPage";
 import { MorePage } from "./pages/MorePage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
@@ -41,6 +42,7 @@ function AppRoutes() {
         <Route path="alimentacao" element={<FoodPage />} />
         <Route path="medicamentos" element={<MedicationPage />} />
         <Route path="hidratacao" element={<HydrationPage />} />
+        <Route path="habitos" element={<HabitsPage />} />
         <Route path="mais" element={<MorePage />} />
         <Route path="configuracoes" element={<SettingsPage />} />
         <Route path="privacidade" element={<PrivacyPage />} />

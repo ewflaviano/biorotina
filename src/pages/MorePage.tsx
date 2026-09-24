@@ -1,26 +1,26 @@
 import {
-  Apple,
   ArrowRight,
   HeartHandshake,
-  Pill,
+  Scale,
   Settings2,
   Smartphone,
+  Sprout,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/Layout";
 
 const links = [
   {
-    to: "/alimentacao",
-    label: "Alimentação",
-    detail: "Refeições e calorias informadas",
-    icon: Apple,
+    to: "/habitos",
+    label: "Hábitos",
+    detail: "Seus bons hábitos e lembretes",
+    icon: Sprout,
   },
   {
-    to: "/medicamentos",
-    label: "Medicação",
-    detail: "Medicamentos e registros de uso",
-    icon: Pill,
+    to: "/peso",
+    label: "Peso",
+    detail: "Medidas e evolução",
+    icon: Scale,
   },
   {
     to: "/configuracoes",
