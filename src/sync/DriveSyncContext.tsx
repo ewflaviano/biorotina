@@ -13,6 +13,7 @@ import { useOptionalPush } from "../state/PushContext";
 import { loadData, loadDriveSync, saveDriveSync } from "../storage/indexedDb";
 import { decideSync } from "./decision";
 import { downloadJson } from "./download";
+import { mergeAppData } from "./merge";
 import { reportClientError } from "../observability/client";
 import {
   connectGoogle,
@@ -62,6 +63,7 @@ interface DriveSyncValue {
   sync: () => Promise<void>;
   resolveWithLocal: () => Promise<void>;
   resolveWithDrive: () => Promise<void>;
+  resolveWithMerged: () => Promise<void>;
   canCopyGuest: boolean;
   copyGuest: () => Promise<void>;
 }
@@ -75,8 +77,7 @@ export function DriveSyncProvider({
   children: ReactNode;
   googleClientId?: string;
 }) {
-  const { data, scope, loading, replace, replaceIfRevision, switchScope } =
-    useAppData();
+  const { data, scope, loading, replaceIfRevision, switchScope } = useAppData();
   const push = useOptionalPush();
   const [account, setAccount] = useState<GoogleAccount | null>(
     currentGoogleAccount,
@@ -96,7 +97,6 @@ export function DriveSyncProvider({
     account &&
     scope === account.id &&
     status === "synced" &&
-    !latest &&
     guestCopyAvailable,
   );
   const running = useRef(false);
@@ -458,15 +458,67 @@ export function DriveSyncProvider({
     }
   }, [conflict, replaceIfRevision, syncAccount]);
 
+  const resolveWithMerged = useCallback(async () => {
+    const connected = accountRef.current;
+    if (!connected || !conflict || running.current) return;
+    running.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const current = await loadData(connected.id);
+      const currentHash = await contentHash(current);
+      const remote = (await listDriveSnapshots(connected.token))[0];
+      if (
+        currentHash !== conflict.localHash ||
+        remote?.id !== conflict.remote.id
+      )
+        throw new Error(
+          "Os dados mudaram. Sincronize novamente para comparar as versões.",
+        );
+      const result = mergeAppData(current, conflict.remoteData);
+      if (
+        !window.confirm(
+          `Juntar ${result.added} registros que só estão no Drive aos registros deste navegador? ${result.differing ? `${result.differing} registros com o mesmo identificador e conteúdo diferente manterão a versão deste navegador. ` : ""}O backup anterior do Drive permanecerá disponível. Continuar?`,
+        )
+      )
+        return;
+      if (result.changed)
+        await replaceIfRevision(current.revision, result.data);
+      const merged = await loadData(connected.id);
+      const mergedHash = await contentHash(merged);
+      const saved = await uploadDriveSnapshot(connected.token, merged);
+      await saveDriveSync(connected.id, {
+        snapshotId: saved.id,
+        contentHash: mergedHash,
+      });
+      setLatest(saved);
+      setConflict(null);
+      setStatus("synced");
+      setSettledRevision(merged.revision);
+      setMessage("Registros deste navegador e do Drive foram reunidos.");
+    } catch (cause) {
+      reportClientError("drive", "drive_sync_failed");
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível juntar os registros.",
+      );
+      setStatus("error");
+    } finally {
+      running.current = false;
+      setBusy(false);
+      if (rerun.current) void syncAccount(connected);
+    }
+  }, [conflict, replaceIfRevision, syncAccount]);
+
   useEffect(() => {
-    if (!account || scope !== account.id || status !== "synced" || latest)
-      return;
+    if (!account || scope !== account.id || status !== "synced") return;
     let active = true;
     void Promise.all([loadData(null), loadData(account.id)])
       .then(([guest, local]) => {
         if (active)
           setGuestCopyAvailable(
-            hasLocalContent(guest) && !hasLocalContent(local),
+            hasLocalContent(guest) && mergeAppData(local, guest).changed,
           );
       })
       .catch(() => {
@@ -480,19 +532,21 @@ export function DriveSyncProvider({
 
   const copyGuest = useCallback(async () => {
     const connected = accountRef.current;
-    if (!connected || !canCopyGuest || running.current || latest) return;
-    const guest = await loadData(null);
-    const local = await loadData(connected.id);
-    if (!hasLocalContent(guest) || hasLocalContent(local)) return;
-    if (
-      !window.confirm(
-        `Copiar os registros sem conta deste navegador para ${connected.email}? A cópia sem conta permanecerá aqui até você sair.`,
-      )
-    )
-      return;
+    if (!connected || !canCopyGuest || running.current) return;
     setBusy(true);
     try {
-      await replace(guest);
+      const guest = await loadData(null);
+      const local = await loadData(connected.id);
+      if (!hasLocalContent(guest)) return;
+      const result = mergeAppData(local, guest);
+      if (!result.changed) return;
+      if (
+        !window.confirm(
+          `Juntar ${result.added} registros salvos sem conta aos registros de ${connected.email}? ${result.differing ? `${result.differing} registros com o mesmo identificador e conteúdo diferente manterão a versão da conta. ` : ""}Os registros sem conta permanecerão neste navegador até você sair. Continuar?`,
+        )
+      )
+        return;
+      await replaceIfRevision(local.revision, result.data);
       setGuestCopyAvailable(false);
       await syncAccount(connected);
     } catch (cause) {
@@ -505,7 +559,7 @@ export function DriveSyncProvider({
     } finally {
       setBusy(false);
     }
-  }, [canCopyGuest, latest, replace, syncAccount]);
+  }, [canCopyGuest, replaceIfRevision, syncAccount]);
 
   const visibleStatus: DriveSyncStatus =
     account && status === "synced" && data.revision !== settledRevision
@@ -528,6 +582,7 @@ export function DriveSyncProvider({
         sync,
         resolveWithLocal,
         resolveWithDrive,
+        resolveWithMerged,
         canCopyGuest,
         copyGuest,
       }}

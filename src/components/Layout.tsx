@@ -21,6 +21,9 @@ import {
 import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { InstallPrompt } from "./InstallApp";
+import { GuestLoginPrompt } from "./GuestLoginPrompt";
+import { GuestMergePrompt } from "./GuestMergePrompt";
+import { SyncConflictPrompt } from "./SyncConflictPrompt";
 import { useAppData } from "../state/AppDataContext";
 import { useDriveSync } from "../sync/DriveSyncContext";
 
@@ -267,6 +270,9 @@ export function Layout() {
         </nav>
       </div>
       {location.pathname === "/" && <InstallPrompt enabled delayMs={1800} />}
+      <GuestLoginPrompt />
+      <SyncConflictPrompt />
+      <GuestMergePrompt />
     </div>
   );
 }

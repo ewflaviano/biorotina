@@ -10,7 +10,7 @@ import { openDB } from "idb";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Layout } from "../components/Layout";
-import { emptyData, type AppData } from "../domain/data";
+import { emptyData, todayIsoDate, type AppData } from "../domain/data";
 import { AppDataProvider, useAppData } from "../state/AppDataContext";
 import { loadData, saveData } from "../storage/indexedDb";
 import { DriveBackup } from "./DriveBackup";
@@ -125,6 +125,57 @@ beforeEach(async () => {
 });
 
 describe("login e sincronização automática", () => {
+  it("convida após o primeiro registro local, adia até outro dia e respeita nunca mais", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const record = await screen.findByRole("button", {
+      name: "Registrar água",
+    });
+    await waitFor(() => expect(record).toBeEnabled());
+    await user.click(record);
+    expect(
+      await screen.findByRole("dialog", { name: "Leve sua rotina com você" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Agora não" }));
+    expect(localStorage.getItem("biorotina:guest-login-prompt")).toBe(
+      todayIsoDate(),
+    );
+    await user.click(record);
+    expect(
+      screen.queryByRole("dialog", { name: "Leve sua rotina com você" }),
+    ).not.toBeInTheDocument();
+
+    localStorage.setItem("biorotina:guest-login-prompt", "2000-01-01");
+    await user.click(record);
+    expect(
+      await screen.findByRole("dialog", { name: "Leve sua rotina com você" }),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Não mostrar novamente" }),
+    );
+    expect(localStorage.getItem("biorotina:guest-login-prompt")).toBe("never");
+    await user.click(record);
+    expect(
+      screen.queryByRole("dialog", { name: "Leve sua rotina com você" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("não mostra convite para registros já existentes ao abrir o app", async () => {
+    const guest = emptyData();
+    guest.hydrationEntries.push({
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      drankAt: new Date().toISOString(),
+      amountMl: 200,
+    });
+    await saveData(guest);
+    render(<App />);
+    expect(await screen.findByText("1 registros de água")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Leve sua rotina com você" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("não exibe registros de uma sessão expirada antes da renovação", async () => {
     const old = emptyData();
     old.hydrationEntries.push({
@@ -215,13 +266,17 @@ describe("login e sincronização automática", () => {
     );
     expect(uploadDriveSnapshot).not.toHaveBeenCalled();
     expect((await loadData()).profile.displayName).toBe("Ana");
+    expect(
+      await screen.findByRole("dialog", { name: "Juntar seus registros?" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Decidir depois" }));
     await user.click(
       await screen.findByRole("link", { name: "Google Drive: sincronizado" }),
     );
     const confirmation = vi.spyOn(window, "confirm").mockReturnValue(true);
     await user.click(
       await screen.findByRole("button", {
-        name: "Copiar registros para esta conta",
+        name: "Juntar registros sem conta",
       }),
     );
     await waitFor(() => expect(uploadDriveSnapshot).toHaveBeenCalledTimes(1));
@@ -275,6 +330,94 @@ describe("login e sincronização automática", () => {
     expect(
       screen.getByRole("group", { name: "Escolher versão dos dados" }),
     ).toBeInTheDocument();
+  });
+
+  it("oferece juntar local e Drive e mantém a versão local de IDs divergentes", async () => {
+    const local = emptyData();
+    const id = crypto.randomUUID();
+    local.hydrationEntries.push({
+      id,
+      createdAt: new Date().toISOString(),
+      drankAt: new Date().toISOString(),
+      amountMl: 200,
+    });
+    const remote = emptyData();
+    remote.hydrationEntries.push(
+      { ...local.hydrationEntries[0], amountMl: 500 },
+      {
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        drankAt: new Date().toISOString(),
+        amountMl: 300,
+      },
+    );
+    await saveData(local, account.id);
+    snapshots.push({ id: "remote-1", createdTime: new Date().toISOString() });
+    vi.mocked(downloadDriveSnapshot).mockResolvedValue(remote);
+    const confirmation = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Entrar com Google para sincronizar",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Juntar registros" }),
+    );
+    await waitFor(() => expect(uploadDriveSnapshot).toHaveBeenCalledTimes(1));
+    expect(confirmation).toHaveBeenCalledWith(
+      expect.stringContaining("1 registros com o mesmo identificador"),
+    );
+    confirmation.mockRestore();
+    const combined = await loadData(account.id);
+    expect(combined.hydrationEntries).toHaveLength(2);
+    expect(
+      combined.hydrationEntries.find((entry) => entry.id === id)?.amountMl,
+    ).toBe(200);
+    expect(snapshots.map(({ id: snapshotId }) => snapshotId)).toContain(
+      "remote-1",
+    );
+  });
+
+  it("permite juntar registros sem conta a uma conta que já tem dados no Drive", async () => {
+    const guest = emptyData();
+    guest.hydrationEntries.push({
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      drankAt: new Date().toISOString(),
+      amountMl: 200,
+    });
+    await saveData(guest);
+    const remote = emptyData();
+    remote.hydrationEntries.push({
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      drankAt: new Date().toISOString(),
+      amountMl: 300,
+    });
+    snapshots.push({ id: "remote-1", createdTime: new Date().toISOString() });
+    vi.mocked(downloadDriveSnapshot).mockResolvedValue(remote);
+    const confirmation = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Entrar com Google para sincronizar",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("link", { name: "Google Drive: sincronizado" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Juntar registros sem conta" }),
+    );
+    await waitFor(() => expect(uploadDriveSnapshot).toHaveBeenCalledTimes(1));
+    confirmation.mockRestore();
+    expect((await loadData(account.id)).hydrationEntries).toHaveLength(2);
+    expect((await loadData()).hydrationEntries).toHaveLength(1);
   });
 
   it("guarda alterações offline e sincroniza quando a internet volta", async () => {
