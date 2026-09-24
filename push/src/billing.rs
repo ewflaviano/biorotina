@@ -14,6 +14,7 @@ const GEMINI_MODEL: &str = "gemini-3.8-flash";
 const GEMINI_FALLBACK_MODEL: &str = "gemini-3.1-pro-preview";
 const GEMINI_TOTAL_BUDGET: std::time::Duration = std::time::Duration::from_secs(24);
 pub const TRIAL_LIMIT: u32 = 5;
+pub const FAILED_ANALYSIS_LIMIT: u32 = 5;
 const ASAAS_USER_AGENT: &str = "Biorotina/0.1 (+https://biorotina.app.br)";
 const PROMPT: &str = "Analise apenas os alimentos e bebidas visíveis nesta foto de refeição. Responda em português do Brasil com JSON. Para cada alimento visível, dê um nome simples, uma porção aproximada (gramas ou medida caseira) e as calorias aproximadas dessa porção. Não invente ingredientes invisíveis. Se a foto não permitir identificar uma refeição, retorne foods vazio. Não faça recomendações médicas ou nutricionais. A pessoa vai revisar tudo.";
 
@@ -269,6 +270,19 @@ pub enum AnalysisFailure {
 }
 
 impl AnalysisFailure {
+    pub fn counts_toward_failure_limit(&self) -> bool {
+        !matches!(
+            self,
+            Self::InvalidImage
+                | Self::GeminiNetwork
+                | Self::GeminiTimeout
+                | Self::GeminiStatus(_)
+                | Self::GeminiProNetwork
+                | Self::GeminiProTimeout
+                | Self::GeminiProStatus(_)
+        )
+    }
+
     pub fn code(&self) -> &'static str {
         match self {
             Self::InvalidImage => "invalid_image",
@@ -655,6 +669,42 @@ impl Billing {
             .expression_attribute_values(":zero", A::N("0".into()))
             .expression_attribute_values(":one", A::N("1".into()))
             .expression_attribute_values(":limit", A::N(TRIAL_LIMIT.to_string()))
+            .send()
+            .await;
+        match result {
+            Ok(_) => Ok(Some(key)),
+            Err(error)
+                if error
+                    .as_service_error()
+                    .is_some_and(|service| service.is_conditional_check_failed_exception()) =>
+            {
+                Ok(None)
+            }
+            Err(error) => Err(error.to_string()),
+        }
+    }
+
+    // Reserve a slot before contacting Gemini so concurrent failed requests
+    // cannot all pass the daily failure limit. Successful or upstream-failed
+    // requests release the slot; unusable AI responses keep it until tomorrow.
+    pub async fn reserve_failure_slot(&self, account_key: &str) -> Result<Option<String>, String> {
+        let key = format!("AI_FAILURE#{account_key}#{}", today());
+        let result = self
+            .db
+            .update_item()
+            .table_name(&self.table)
+            .key("pk", A::S(key.clone()))
+            .update_expression("SET #used = if_not_exists(#used, :zero) + :one, #ttl = :ttl")
+            .condition_expression("attribute_not_exists(#used) OR #used < :limit")
+            .expression_attribute_names("#used", "used")
+            .expression_attribute_names("#ttl", "ttl")
+            .expression_attribute_values(":zero", A::N("0".into()))
+            .expression_attribute_values(":one", A::N("1".into()))
+            .expression_attribute_values(":limit", A::N(FAILED_ANALYSIS_LIMIT.to_string()))
+            .expression_attribute_values(
+                ":ttl",
+                A::N((Utc::now().timestamp() + 3 * 86400).to_string()),
+            )
             .send()
             .await;
         match result {
@@ -1136,6 +1186,28 @@ mod tests {
             parse_analysis(empty_foods).unwrap_err(),
             AnalysisFailure::EmptyFoods
         );
+    }
+
+    #[test]
+    fn only_unusable_ai_results_spend_the_daily_failure_budget() {
+        assert_eq!(FAILED_ANALYSIS_LIMIT, 5);
+        for failure in [
+            AnalysisFailure::EmptyFoods,
+            AnalysisFailure::SafetyBlocked,
+            AnalysisFailure::GeminiJsonSyntax,
+            AnalysisFailure::MissingText,
+        ] {
+            assert!(failure.counts_toward_failure_limit());
+        }
+        for failure in [
+            AnalysisFailure::InvalidImage,
+            AnalysisFailure::GeminiTimeout,
+            AnalysisFailure::GeminiStatus(503),
+            AnalysisFailure::GeminiProNetwork,
+            AnalysisFailure::GeminiProStatus(503),
+        ] {
+            assert!(!failure.counts_toward_failure_limit());
+        }
     }
 
     #[test]

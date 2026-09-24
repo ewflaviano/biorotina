@@ -183,4 +183,31 @@ describe("opções de foto para assinantes", () => {
     expect(screen.getByText("Alimentos sugeridos")).toBeInTheDocument();
     expect(screen.queryByText(/Você poderá revisar/)).not.toBeInTheDocument();
   });
+
+  it("mostra a falha da análise perto da foto e permite tentar outra", async () => {
+    vi.mocked(analyzeWithPlan).mockRejectedValueOnce(
+      new Error("Não identificamos uma refeição nesta foto."),
+    );
+    render(
+      <MemoryRouter>
+        <FoodPage />
+      </MemoryRouter>,
+    );
+    await screen.findByText("Seu plano está ativo: até 10 análises por dia.");
+    fireEvent.change(document.getElementById("meal-gallery")!, {
+      target: {
+        files: [new File(["photo"], "meal.jpg", { type: "image/jpeg" })],
+      },
+    });
+    await screen.findByRole("button", { name: "Analisar foto" });
+    fireEvent.click(screen.getByRole("button", { name: "Analisar foto" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Não identificamos uma refeição nesta foto.",
+    );
+    expect(alert.closest(".meal-photo-box")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Analisar foto" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Remover foto" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });

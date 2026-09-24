@@ -7,7 +7,9 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use biorotina_push::billing::{Account, AnalysisFailure, Billing, TRIAL_LIMIT};
+use biorotina_push::billing::{
+    Account, AnalysisFailure, Billing, FAILED_ANALYSIS_LIMIT, TRIAL_LIMIT,
+};
 use biorotina_push::observability;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -36,6 +38,10 @@ fn analysis_failure_response(reason: AnalysisFailure) -> Response {
         AnalysisFailure::InvalidImage => error(
             StatusCode::BAD_REQUEST,
             "Imagem inválida ou grande demais.",
+        ),
+        AnalysisFailure::EmptyFoods => error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "Não identificamos uma refeição nesta foto. Escolha outra imagem ou registre manualmente.",
         ),
         _ => error(
             StatusCode::SERVICE_UNAVAILABLE,
@@ -255,6 +261,24 @@ async fn analyze(
             }
         }
     }
+    let failure_slot = match billing.reserve_failure_slot(&key).await {
+        Ok(Some(slot)) => slot,
+        Ok(None) => {
+            return error(
+                StatusCode::TOO_MANY_REQUESTS,
+                &format!(
+                    "A análise de fotos não conseguiu gerar uma sugestão após {FAILED_ANALYSIS_LIMIT} tentativas hoje. Você pode registrar manualmente e tentar novamente amanhã."
+                ),
+            )
+        }
+        Err(_) => {
+            return failure(
+                "analyze",
+                "failure_limit_lookup_failed",
+                "Não foi possível verificar o limite de análises.",
+            )
+        }
+    };
     let reserved = if paid {
         billing
             .reserve(account.as_ref().expect("active account"))
@@ -265,6 +289,7 @@ async fn analyze(
     let usage_key = match reserved {
         Ok(Some(key)) => key,
         Ok(None) => {
+            billing.refund_reservation(&failure_slot).await;
             return error(
                 if paid {
                     StatusCode::TOO_MANY_REQUESTS
@@ -276,18 +301,22 @@ async fn analyze(
                 } else {
                     "Você já usou as 5 análises grátis. Escolha o plano ou use sua chave Gemini."
                 },
-            )
+            );
         }
         Err(_) => {
+            billing.refund_reservation(&failure_slot).await;
             return failure(
                 "analyze",
                 "quota_reservation_failed",
                 "Não foi possível verificar a cota.",
-            )
+            );
         }
     };
     match billing.analyze(&body.image, paid).await {
-        Ok(analysis) => reply(StatusCode::OK, json!(analysis)),
+        Ok(analysis) => {
+            billing.refund_reservation(&failure_slot).await;
+            reply(StatusCode::OK, json!(analysis))
+        }
         Err(reason) => {
             observability::error(
                 "billing_api",
@@ -296,6 +325,9 @@ async fn analyze(
                 reason.upstream_status(),
             );
             billing.refund_reservation(&usage_key).await;
+            if !reason.counts_toward_failure_limit() {
+                billing.refund_reservation(&failure_slot).await;
+            }
             analysis_failure_response(reason)
         }
     }
@@ -317,6 +349,15 @@ mod tests {
                 .unwrap()
                 .contains("mesma foto"));
         }
+    }
+    #[test]
+    fn a_photo_without_food_explains_the_problem_without_blame() {
+        let response = analysis_failure_response(AnalysisFailure::EmptyFoods);
+        assert_eq!(response.0, StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(response.2 .0["error"]
+            .as_str()
+            .unwrap()
+            .contains("Não identificamos uma refeição"));
     }
     #[test]
     fn rejects_missing_google_token() {
