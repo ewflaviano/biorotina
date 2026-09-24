@@ -1,19 +1,26 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PlanPage } from "../src/pages/PlanPage";
 
 const connect = vi.fn(async () => undefined);
+let account: { token: string; email: string } | null = null;
 vi.mock("../src/sync/DriveSyncContext", () => ({
   useDriveSync: () => ({
-    account: null,
+    account,
     available: true,
     busy: false,
     error: "",
     connect,
   }),
 }));
+
+beforeEach(() => {
+  account = null;
+  connect.mockClear();
+  vi.restoreAllMocks();
+});
 
 describe("assinatura sem conta conectada", () => {
   it("pede login Google antes do checkout e deixa a chave pessoal disponível", async () => {
@@ -32,5 +39,54 @@ describe("assinatura sem conta conectada", () => {
       .setup()
       .click(screen.getByRole("button", { name: "Entrar com Google" }));
     expect(connect).toHaveBeenCalledOnce();
+  });
+  it("mostra nenhum plano ativo após consulta bem-sucedida, sem datas vazias", async () => {
+    account = { token: "google-token", email: "pessoa@example.com" };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          active: false,
+          cancelled: false,
+          renewalActive: false,
+          paidThrough: null,
+          nextCharge: null,
+          usedToday: 0,
+          dailyLimit: 10,
+          checkoutUrl: null,
+        }),
+        { status: 200 },
+      ),
+    );
+    render(
+      <MemoryRouter>
+        <PlanPage />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByText("Nenhum plano ativo nesta conta."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Disponível até")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Assinar por R$ 8,99/mês" }),
+    ).toBeInTheDocument();
+  });
+  it("explica quando o serviço ainda não foi publicado sem mostrar erro técnico", async () => {
+    account = { token: "google-token", email: "pessoa@example.com" };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ message: "Not Found" }), { status: 404 }),
+    );
+    render(
+      <MemoryRouter>
+        <PlanPage />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByText(
+        "O plano de IA ainda não está disponível. Volte em breve.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Disponível até")).toBeNull();
+    expect(screen.queryByText("Failed to fetch")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Assinar por/ })).toBeNull();
   });
 });

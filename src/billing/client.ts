@@ -34,15 +34,24 @@ async function request(
 ): Promise<unknown> {
   if (!googleToken)
     throw new Error("Conecte sua conta Google para usar o plano.");
-  const response = await fetch(API + path, {
-    ...init,
-    headers: {
-      authorization: `Bearer ${googleToken}`,
-      "content-type": "application/json",
-      ...init.headers,
-    },
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(API + path, {
+      ...init,
+      headers: {
+        authorization: `Bearer ${googleToken}`,
+        "content-type": "application/json",
+        ...init.headers,
+      },
+      cache: "no-store",
+    });
+  } catch {
+    throw new Error(
+      "Não foi possível conectar ao serviço do plano. Tente novamente mais tarde.",
+    );
+  }
+  if (response.status === 404)
+    throw new Error("O plano de IA ainda não está disponível. Volte em breve.");
   const payload: unknown = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = z.object({ error: z.string() }).safeParse(payload)

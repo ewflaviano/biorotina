@@ -26,6 +26,10 @@ function datePt(date: string | null): string {
 
 export function PlanPage() {
   const drive = useDriveSync();
+  return <PlanContents key={drive.account?.id ?? "guest"} drive={drive} />;
+}
+
+function PlanContents({ drive }: { drive: ReturnType<typeof useDriveSync> }) {
   const token = drive.account?.token || "";
   const [status, setStatus] = useState<PlanStatus | null>(null);
   const [checkoutUrl, setCheckoutUrl] = useState("");
@@ -229,28 +233,33 @@ export function PlanPage() {
                     : "Nenhum plano ativo nesta conta."}
                 </Notice>
               ) : null}
-              <dl className="plan-facts">
-                <div>
-                  <dt>Disponível até</dt>
-                  <dd>{datePt(status?.paidThrough || null)}</dd>
-                </div>
-                <div>
-                  <dt>Próxima cobrança prevista</dt>
-                  <dd>
-                    {status?.cancelled
-                      ? "Sem nova cobrança"
-                      : datePt(status?.nextCharge || null)}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Análises hoje</dt>
-                  <dd>
-                    {status
-                      ? `${status.usedToday} de ${status.dailyLimit}`
-                      : "—"}
-                  </dd>
-                </div>
-              </dl>
+              {status &&
+                (status.paidThrough ||
+                  status.renewalActive ||
+                  status.checkoutUrl) && (
+                  <dl className="plan-facts">
+                    <div>
+                      <dt>Disponível até</dt>
+                      <dd>{datePt(status?.paidThrough || null)}</dd>
+                    </div>
+                    <div>
+                      <dt>Próxima cobrança prevista</dt>
+                      <dd>
+                        {status?.cancelled
+                          ? "Sem nova cobrança"
+                          : datePt(status?.nextCharge || null)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Análises hoje</dt>
+                      <dd>
+                        {status
+                          ? `${status.usedToday} de ${status.dailyLimit}`
+                          : "—"}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
               <button
                 className="button secondary"
                 onClick={() => void refresh()}
@@ -273,11 +282,7 @@ export function PlanPage() {
               )}
             </>
           )}
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
+          {error && <Notice kind="info">{error}</Notice>}
         </section>
         <section className="panel plan-alternative">
           <ShieldCheck size={20} aria-hidden="true" />

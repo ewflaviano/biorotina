@@ -50,4 +50,20 @@ describe("plano vinculado ao Google", () => {
     );
     expect((await getPlanStatus("google-token")).usedToday).toBe(2);
   });
+  it("traduz serviço ainda não publicado sem sugerir assinatura ativa", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ message: "Not Found" }), { status: 404 }),
+    );
+    await expect(getPlanStatus("google-token")).rejects.toThrow(
+      "O plano de IA ainda não está disponível",
+    );
+  });
+  it("traduz falha de conexão sem exibir erro técnico", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
+      new TypeError("Failed to fetch"),
+    );
+    await expect(getPlanStatus("google-token")).rejects.toThrow(
+      "Não foi possível conectar ao serviço do plano",
+    );
+  });
 });
