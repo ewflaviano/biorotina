@@ -51,55 +51,12 @@ provider:
         - DELETE
         - OPTIONS
       maxAge: 3600
-  iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - dynamodb:GetItem
-            - dynamodb:PutItem
-            - dynamodb:UpdateItem
-            - dynamodb:DeleteItem
-            - dynamodb:Query
-          Resource:
-            - Fn::GetAtt: [PushTable, Arn]
-            - Fn::Join:
-                - ''
-                - - Fn::GetAtt: [PushTable, Arn]
-                  - /index/DueIndex
-        - Effect: Allow
-          Action: secretsmanager:GetSecretValue
-          Resource:
-            Ref: PushVapidSeed
-        - Effect: Allow
-          Action:
-            - dynamodb:GetItem
-            - dynamodb:PutItem
-            - dynamodb:UpdateItem
-            - dynamodb:DeleteItem
-          Resource:
-            Fn::GetAtt: [BillingTable, Arn]
-        - Effect: Allow
-          Action: secretsmanager:GetSecretValue
-          Resource:
-            - Ref: BillingKeys
-            - Ref: BillingWebhookToken
-        - Effect: Allow
-          Action: sqs:SendMessage
-          Resource:
-            Fn::GetAtt: [BillingEventsQueue, Arn]
-        - Effect: Allow
-          Action:
-            - sqs:ReceiveMessage
-            - sqs:DeleteMessage
-            - sqs:GetQueueAttributes
-          Resource:
-            Fn::GetAtt: [BillingEventsQueue, Arn]
-
 functions:
   api:
     handler: bootstrap
     timeout: 28
+    role:
+      Fn::GetAtt: [PushApiExecutionRole, Arn]
     package:
       artifact: push/target/lambda/biorotina-api.zip
     events:
@@ -110,6 +67,8 @@ functions:
     handler: bootstrap
     timeout: 5
     memorySize: 128
+    role:
+      Fn::GetAtt: [TelemetryExecutionRole, Arn]
     package:
       artifact: push/target/lambda/biorotina-telemetry.zip
     events:
@@ -119,6 +78,8 @@ functions:
   tick:
     handler: bootstrap
     timeout: 120
+    role:
+      Fn::GetAtt: [TickExecutionRole, Arn]
     package:
       artifact: push/target/lambda/biorotina-tick.zip
     events:
@@ -130,6 +91,8 @@ functions:
   billingApi:
     handler: bootstrap
     timeout: 28
+    role:
+      Fn::GetAtt: [BillingApiExecutionRole, Arn]
     package:
       artifact: push/target/lambda/biorotina-billing-api.zip
     events:
@@ -145,6 +108,8 @@ functions:
   billingWorker:
     handler: bootstrap
     timeout: 120
+    role:
+      Fn::GetAtt: [BillingWorkerExecutionRole, Arn]
     package:
       artifact: push/target/lambda/biorotina-billing-worker.zip
     events:
@@ -173,6 +138,145 @@ resources:
     UseCustomDomain:
       Fn::Equals: ["${env:ENABLE_CUSTOM_DOMAIN, 'true'}", 'true']
   Resources:
+    PushApiExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: biorotina-${sls:stage}-push-api-execution
+        PermissionsBoundary: &executionBoundary
+          Fn::ImportValue: BiorotinaLambdaExecutionBoundaryArn
+        AssumeRolePolicyDocument: &lambdaTrust
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: push-api-data
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action: [logs:CreateLogStream, logs:PutLogEvents]
+                  Resource:
+                    Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-${sls:stage}-api:*
+                - Effect: Allow
+                  Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:DeleteItem, dynamodb:Query]
+                  Resource:
+                    - Fn::GetAtt: [PushTable, Arn]
+                    - Fn::Join:
+                        - ''
+                        - - Fn::GetAtt: [PushTable, Arn]
+                          - /index/DueIndex
+                - Effect: Allow
+                  Action: secretsmanager:GetSecretValue
+                  Resource:
+                    Ref: PushVapidSeed
+    TelemetryExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: biorotina-${sls:stage}-telemetry-execution
+        PermissionsBoundary: *executionBoundary
+        AssumeRolePolicyDocument: *lambdaTrust
+        Policies:
+          - PolicyName: telemetry-logs
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action: [logs:CreateLogStream, logs:PutLogEvents]
+                  Resource:
+                    Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-${sls:stage}-telemetry:*
+    TickExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: biorotina-${sls:stage}-tick-execution
+        PermissionsBoundary: *executionBoundary
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: [lambda.amazonaws.com, scheduler.amazonaws.com]
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: tick-data-and-schedule
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action: [logs:CreateLogStream, logs:PutLogEvents]
+                  Resource:
+                    Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-${sls:stage}-tick:*
+                - Effect: Allow
+                  Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:DeleteItem, dynamodb:Query]
+                  Resource:
+                    - Fn::GetAtt: [PushTable, Arn]
+                    - Fn::Join:
+                        - ''
+                        - - Fn::GetAtt: [PushTable, Arn]
+                          - /index/DueIndex
+                - Effect: Allow
+                  Action: secretsmanager:GetSecretValue
+                  Resource:
+                    Ref: PushVapidSeed
+                - Effect: Allow
+                  Action: lambda:InvokeFunction
+                  Resource:
+                    - Fn::Sub: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:biorotina-${sls:stage}-tick
+                    - Fn::Sub: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:biorotina-${sls:stage}-tick:*
+    BillingApiExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: biorotina-${sls:stage}-billing-api-execution
+        PermissionsBoundary: *executionBoundary
+        AssumeRolePolicyDocument: *lambdaTrust
+        Policies:
+          - PolicyName: billing-api-data
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action: [logs:CreateLogStream, logs:PutLogEvents]
+                  Resource:
+                    Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-${sls:stage}-billingApi:*
+                - Effect: Allow
+                  Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:DeleteItem]
+                  Resource:
+                    Fn::GetAtt: [BillingTable, Arn]
+                - Effect: Allow
+                  Action: secretsmanager:GetSecretValue
+                  Resource: [!Ref BillingKeys, !Ref BillingWebhookToken]
+                - Effect: Allow
+                  Action: sqs:SendMessage
+                  Resource:
+                    Fn::GetAtt: [BillingEventsQueue, Arn]
+    BillingWorkerExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: biorotina-${sls:stage}-billing-worker-execution
+        PermissionsBoundary: *executionBoundary
+        AssumeRolePolicyDocument: *lambdaTrust
+        Policies:
+          - PolicyName: billing-worker-data
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action: [logs:CreateLogStream, logs:PutLogEvents]
+                  Resource:
+                    Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-${sls:stage}-billingWorker:*
+                - Effect: Allow
+                  Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:DeleteItem]
+                  Resource:
+                    Fn::GetAtt: [BillingTable, Arn]
+                - Effect: Allow
+                  Action: secretsmanager:GetSecretValue
+                  Resource: [!Ref BillingKeys, !Ref BillingWebhookToken]
+                - Effect: Allow
+                  Action: [sqs:ReceiveMessage, sqs:DeleteMessage, sqs:GetQueueAttributes]
+                  Resource:
+                    Fn::GetAtt: [BillingEventsQueue, Arn]
     PushTable:
       Type: AWS::DynamoDB::Table
       Properties:
