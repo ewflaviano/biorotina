@@ -190,6 +190,22 @@ describe("Google Drive privado", () => {
     expect(body).toContain('"displayName":"Ana"');
   });
 
+  it("não cria um backup que o aplicativo não conseguiria restaurar", async () => {
+    const data = emptyData();
+    const fetcher = vi.fn();
+    const encode = vi
+      .spyOn(TextEncoder.prototype, "encode")
+      .mockReturnValue(new Uint8Array(10_000_001));
+    try {
+      await expect(uploadDriveSnapshot("token", data, fetcher)).rejects.toThrow(
+        "excede 10 MB",
+      );
+      expect(fetcher).not.toHaveBeenCalled();
+    } finally {
+      encode.mockRestore();
+    }
+  });
+
   it("valida o JSON remoto antes de restaurar", async () => {
     const fetcher = vi
       .fn()

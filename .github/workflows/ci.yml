@@ -67,8 +67,14 @@ jobs:
       - run: cargo test --manifest-path push/Cargo.toml
 
   deploy_backend:
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.backend == 'true'
-    needs: [changes, validate_backend]
+    if: >-
+      always() &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.backend == 'true' &&
+      needs.validate_backend.result == 'success' &&
+      (needs.validate_frontend.result == 'success' || needs.validate_frontend.result == 'skipped')
+    needs: [changes, validate_backend, validate_frontend]
     runs-on: ubuntu-latest
     permissions:
       contents: read

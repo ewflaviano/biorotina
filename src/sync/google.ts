@@ -7,6 +7,7 @@ import {
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
 const SCOPES = `openid email ${DRIVE_SCOPE}`;
 const BACKUP_NAME = "biorotina-backup.json";
+const MAX_BACKUP_BYTES = 10_000_000;
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
 const ACCOUNT_STORAGE_KEY = "biorotina:google-account";
@@ -304,7 +305,7 @@ export async function downloadDriveSnapshot(
   snapshot: DriveSnapshot,
   fetcher: typeof fetch = fetch,
 ): Promise<AppData> {
-  if (Number(snapshot.size ?? 0) > 10_000_000)
+  if (Number(snapshot.size ?? 0) > MAX_BACKUP_BYTES)
     throw new Error(
       "O backup no Drive ultrapassa o limite de importação de 10 MB.",
     );
@@ -332,6 +333,10 @@ export async function uploadDriveSnapshot(
   };
   const content = JSON.stringify(data);
   const size = new TextEncoder().encode(content).byteLength;
+  if (size > MAX_BACKUP_BYTES)
+    throw new Error(
+      "O backup do Drive não foi enviado porque excede 10 MB. Seus registros continuam neste navegador.",
+    );
   let response: Response;
   if (size <= 5_000_000) {
     const boundary = `biorotina-${crypto.randomUUID()}`;

@@ -337,6 +337,22 @@ fn checkout_url(id: &str) -> Result<String, String> {
     Ok(format!("https://asaas.com/checkoutSession/show?id={id}"))
 }
 
+fn existing_checkout(account: Account) -> Result<Option<(String, Account)>, String> {
+    if account.active() {
+        return Err("Já existe um plano ativo para esta conta Google".into());
+    }
+    if account.subscription_id.is_some() && !account.cancelled {
+        return Err("Existe uma assinatura em andamento no Asaas. Cancele a renovação antes de assinar novamente.".into());
+    }
+    if !account.checkout_url.is_empty()
+        && account.checkout_expires_at > Utc::now().timestamp()
+        && account.paid_through.is_none()
+    {
+        return Ok(Some((account.checkout_url.clone(), account)));
+    }
+    Ok(None)
+}
+
 fn add_month(date: NaiveDate) -> NaiveDate {
     let (year, month) = if date.month() == 12 {
         (date.year() + 1, 1)
@@ -475,6 +491,30 @@ impl Billing {
             .map_or(Ok(None), |v| Ok(Some(v)))
     }
 
+    async fn account_consistent(&self, key: &str) -> Result<Option<Account>, String> {
+        let output = self
+            .db
+            .get_item()
+            .table_name(&self.table)
+            .key("pk", A::S(key.into()))
+            .consistent_read(true)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        match output.item {
+            None => Ok(None),
+            Some(item) => {
+                let raw = item
+                    .get("data")
+                    .and_then(|value| value.as_s().ok())
+                    .ok_or_else(|| "Conta sem dados válidos".to_owned())?;
+                serde_json::from_str(raw)
+                    .map(Some)
+                    .map_err(|_| "Conta com dados inválidos".to_owned())
+            }
+        }
+    }
+
     async fn put(&self, key: &str, data: &Value) -> Result<(), String> {
         self.db
             .put_item()
@@ -505,17 +545,8 @@ impl Billing {
 
     pub async fn checkout(&self, key: String) -> Result<(String, Account), String> {
         if let Some(existing) = self.account(&key).await? {
-            if existing.active() {
-                return Err("Já existe um plano ativo para esta conta Google".into());
-            }
-            if existing.subscription_id.is_some() && !existing.cancelled {
-                return Err("Existe uma assinatura em andamento no Asaas. Cancele a renovação antes de assinar novamente.".into());
-            }
-            if !existing.checkout_url.is_empty()
-                && existing.checkout_expires_at > Utc::now().timestamp()
-                && existing.paid_through.is_none()
-            {
-                return Ok((existing.checkout_url.clone(), existing));
+            if let Some(reusable) = existing_checkout(existing)? {
+                return Ok(reusable);
             }
         }
         let expires = Utc::now().timestamp() + 3600;
@@ -536,8 +567,18 @@ impl Billing {
             .map_err(|_| {
                 "Já existe uma assinatura em andamento para esta conta Google.".to_owned()
             })?;
-        let mut safe_to_release = false;
+        let mut safe_to_release = true;
         let outcome = async {
+            // A leitura antes do bloqueio é só um atalho. Outra requisição pode
+            // ter criado o checkout enquanto aguardávamos o bloqueio.
+            if let Some(existing) = self.account_consistent(&key).await? {
+                if let Some(reusable) = existing_checkout(existing)? {
+                    return Ok(reusable);
+                }
+            }
+            // Após chamar o Asaas, uma falha de rede pode ter criado um
+            // checkout externo; nesse caso mantemos o bloqueio temporário.
+            safe_to_release = false;
             let callback = format!("{}/#/assinatura", self.app_url.trim_end_matches('/'));
             let payload = json!({
                 "billingTypes": ["CREDIT_CARD"], "chargeTypes": ["RECURRENT"],
@@ -1333,6 +1374,30 @@ mod tests {
             format!("https://asaas.com/checkoutSession/show?id={id}")
         );
         assert!(checkout_url("https://example.com").is_err());
+    }
+    #[test]
+    fn existing_checkout_reuses_the_same_session_and_rejects_paid_accounts() {
+        let account = Account {
+            key: "test".into(),
+            checkout_id: "checkout-1".into(),
+            checkout_url: "https://asaas.com/checkoutSession/show?id=checkout-1".into(),
+            checkout_expires_at: Utc::now().timestamp() + 3600,
+            customer_id: None,
+            subscription_id: None,
+            paid_through: None,
+            next_charge: None,
+            revoked: false,
+            cancelled: false,
+            last_payment_id: None,
+        };
+        let (url, original) = existing_checkout(account.clone()).unwrap().unwrap();
+        assert_eq!(url, account.checkout_url);
+        assert_eq!(original.checkout_id, account.checkout_id);
+        assert!(existing_checkout(Account {
+            paid_through: Some("2099-12-31".into()),
+            ..account
+        })
+        .is_err());
     }
     #[test]
     fn monthly_period_clamps_short_months() {
