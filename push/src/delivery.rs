@@ -77,6 +77,7 @@ impl PushSender {
         let payload = match kind {
             ReminderKind::Hydration => b"{\"kind\":\"hydration\"}".as_slice(),
             ReminderKind::Medication => b"{\"kind\":\"medication\"}".as_slice(),
+            ReminderKind::Habit => b"{\"kind\":\"habit\"}".as_slice(),
         };
         builder.set_payload(ContentEncoding::Aes128Gcm, payload);
         builder.set_vapid_signature(signature);

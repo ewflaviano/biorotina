@@ -99,18 +99,20 @@ describe("persistência local", () => {
     const current = emptyData();
     current.profile.displayName = "Bia";
     const oldData = Object.fromEntries(
-      Object.entries(current).filter(([key]) => !key.startsWith("hydration")),
+      Object.entries(current).filter(
+        ([key]) => !key.startsWith("hydration") && !key.startsWith("habit"),
+      ),
     );
     const db = await openDB("biorotina", 3);
     await db.put("app", { ...oldData, schemaVersion: 1 }, "main");
     db.close();
     const loaded = await loadData();
-    expect(loaded.schemaVersion).toBe(5);
+    expect(loaded.schemaVersion).toBe(6);
     expect(loaded.profile.displayName).toBe("Bia");
     expect(
       await (await openDB("biorotina", 3)).get("app", "main"),
     ).toMatchObject({
-      schemaVersion: 5,
+      schemaVersion: 6,
     });
   });
 });

@@ -36,6 +36,7 @@ pub struct Reminder {
 pub enum ReminderKind {
     Hydration,
     Medication,
+    Habit,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -62,7 +63,7 @@ pub fn valid_time(time: &str) -> bool {
 }
 
 pub fn validate(request: &ReminderRequest) -> Result<(), &'static str> {
-    if request.reminders.len() > 96
+    if request.reminders.len() > 256
         || request.reminders.iter().any(|reminder| {
             !valid_time(&reminder.time)
                 || reminder.days.is_empty()
@@ -139,6 +140,9 @@ mod tests {
     #[test]
     fn accepts_24_hour_times_and_known_push_hosts() {
         assert!(validate(&request()).is_ok());
+        let mut habit = request();
+        habit.reminders[0].kind = ReminderKind::Habit;
+        assert!(validate(&habit).is_ok());
         assert!(valid_time("00:00"));
         assert!(valid_time("23:59"));
         assert!(!valid_time("24:00"));

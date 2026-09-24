@@ -35,30 +35,36 @@ async fn send_due(app: &App) -> Result<usize, StoreError> {
             app.store.advance(&subscription, &due.slot, now).await?;
             continue;
         }
-        let Some((date, time, kind)) = schedule::due_slot(&subscription, due.at) else {
+        let Some((date, time, _)) = schedule::due_slot(&subscription, due.at) else {
             app.store.advance(&subscription, &due.slot, now).await?;
             continue;
         };
-        let slot = format!("{date}#{time}");
-        if !app
-            .store
-            .claim(&subscription.id, &slot, now.timestamp() + 3 * 24 * 60 * 60)
-            .await?
-        {
-            app.store.advance(&subscription, &due.slot, due.at).await?;
-            continue;
+        let mut retry = false;
+        let mut expired = false;
+        for kind in schedule::due_kinds(&subscription, due.at) {
+            let slot = format!("{date}#{time}#{kind:?}");
+            if !app
+                .store
+                .claim(&subscription.id, &slot, now.timestamp() + 3 * 24 * 60 * 60)
+                .await?
+            {
+                continue;
+            }
+            match app.sender.send(&subscription, kind).await {
+                Ok(()) => sent += 1,
+                Err(error) if is_expired_endpoint(&error) => {
+                    let _ = app.store.delete(&subscription.id).await;
+                    expired = true;
+                    break;
+                }
+                Err(_) => {
+                    let _ = app.store.release(&subscription.id, &slot).await;
+                    retry = true;
+                }
+            }
         }
-        match app.sender.send(&subscription, kind).await {
-            Ok(()) => {
-                sent += 1;
-                app.store.advance(&subscription, &due.slot, due.at).await?;
-            }
-            Err(error) if is_expired_endpoint(&error) => {
-                let _ = app.store.delete(&subscription.id).await;
-            }
-            Err(_) => {
-                let _ = app.store.release(&subscription.id, &slot).await;
-            }
+        if !retry && !expired {
+            app.store.advance(&subscription, &due.slot, due.at).await?;
         }
     }
     Ok(sent)

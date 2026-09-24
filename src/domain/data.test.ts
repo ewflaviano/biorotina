@@ -19,7 +19,7 @@ import {
 describe("modelo e backup", () => {
   it("cria um documento vazio com versão explícita e sem dados pessoais", () => {
     const data = emptyData();
-    expect(data.schemaVersion).toBe(5);
+    expect(data.schemaVersion).toBe(6);
     expect(data.profile).toEqual({ displayName: "", heightCm: null });
     expect(totalRecords(data)).toBe(0);
     expect(appDataSchema.parse(data)).toEqual(data);
@@ -66,6 +66,19 @@ describe("modelo e backup", () => {
       takenAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
     });
+    data.habits.push({
+      id: crypto.randomUUID(),
+      name: "Ler",
+      reminderTimes: ["20:30"],
+      reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
+      createdAt: new Date().toISOString(),
+    });
+    data.habitLogs.push({
+      id: crypto.randomUUID(),
+      habitId: data.habits[0].id,
+      completedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    });
     data.hydrationEntries.push({
       id: crypto.randomUUID(),
       amountMl: 250,
@@ -73,17 +86,19 @@ describe("modelo e backup", () => {
       createdAt: new Date().toISOString(),
     });
     data.hydrationReminderTimes.push("09:00", "14:00");
-    expect(totalRecords(parseBackup(JSON.parse(JSON.stringify(data))))).toBe(6);
+    expect(totalRecords(parseBackup(JSON.parse(JSON.stringify(data))))).toBe(8);
   });
 
   it("migra backup da versão 1 sem perder registros anteriores", () => {
     const data = emptyData();
     data.profile.displayName = "Ana";
     const oldData = Object.fromEntries(
-      Object.entries(data).filter(([key]) => !key.startsWith("hydration")),
+      Object.entries(data).filter(
+        ([key]) => !key.startsWith("hydration") && !key.startsWith("habit"),
+      ),
     );
     const migrated = parseBackup({ ...oldData, schemaVersion: 1 });
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.profile.displayName).toBe("Ana");
     expect(migrated.hydrationEntries).toEqual([]);
     expect(migrated.hydrationReminderTimes).toEqual([]);
@@ -91,8 +106,11 @@ describe("modelo e backup", () => {
 
   it("preserva o horário do medicamento ao migrar um backup da versão 2", () => {
     const current = emptyData();
+    const oldCurrent = Object.fromEntries(
+      Object.entries(current).filter(([key]) => !key.startsWith("habit")),
+    );
     const old = {
-      ...current,
+      ...oldCurrent,
       schemaVersion: 2,
       medications: [
         {
@@ -111,8 +129,11 @@ describe("modelo e backup", () => {
   it("migra refeições da versão 3 sem inventar alimentos ou análise por foto", () => {
     const current = emptyData();
     const date = new Date().toISOString();
+    const oldCurrent = Object.fromEntries(
+      Object.entries(current).filter(([key]) => !key.startsWith("habit")),
+    );
     const old = {
-      ...current,
+      ...oldCurrent,
       schemaVersion: 3,
       meals: [
         {
@@ -131,8 +152,21 @@ describe("modelo e backup", () => {
     });
   });
 
+  it("migra backups da versão 5 com hábitos vazios", () => {
+    const current = emptyData();
+    current.profile.displayName = "Ana";
+    const previous = Object.fromEntries(
+      Object.entries(current).filter(([key]) => !key.startsWith("habit")),
+    );
+    const migrated = parseBackup({ ...previous, schemaVersion: 5 });
+    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.profile.displayName).toBe("Ana");
+    expect(migrated.habits).toEqual([]);
+    expect(migrated.habitLogs).toEqual([]);
+  });
+
   it("rejeita versões futuras para evitar interpretar um formato desconhecido", () => {
-    expect(() => parseBackup({ ...emptyData(), schemaVersion: 6 })).toThrow();
+    expect(() => parseBackup({ ...emptyData(), schemaVersion: 7 })).toThrow();
   });
 
   it("rejeita valores de saúde impossíveis ou malformados na importação", () => {

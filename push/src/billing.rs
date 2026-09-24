@@ -10,6 +10,7 @@ use std::sync::Arc;
 use subtle::ConstantTimeEq;
 
 const GEMINI_MODEL: &str = "gemini-3.8-flash";
+pub const TRIAL_LIMIT: u32 = 5;
 const ASAAS_USER_AGENT: &str = "Biorotina/0.1 (+https://biorotina.app.br)";
 const PROMPT: &str = "Analise apenas os alimentos e bebidas visíveis nesta foto de refeição. Responda em português do Brasil com JSON. Para cada alimento visível, dê um nome simples, uma porção aproximada (gramas ou medida caseira) e as calorias aproximadas dessa porção. Não invente ingredientes invisíveis. Se a foto não permitir identificar uma refeição, retorne foods vazio. Não faça recomendações médicas ou nutricionais. A pessoa vai revisar tudo.";
 
@@ -399,6 +400,64 @@ impl Billing {
         Ok(
             json!({"active":account.active(),"cancelled":account.cancelled,"renewalActive":account.subscription_id.is_some() && !account.cancelled,"paidThrough":account.paid_through,"nextCharge":account.next_charge,"usedToday":used,"dailyLimit":10,"checkoutUrl":if account.active() || account.checkout_expires_at <= Utc::now().timestamp() {None} else {Some(account.checkout_url.as_str())}}),
         )
+    }
+
+    pub async fn trial_enabled(&self) -> Result<bool, String> {
+        match self.item("CONFIG#PHOTO_TRIAL").await? {
+            None => Ok(true),
+            Some(item) => item
+                .get("enabled")
+                .and_then(Value::as_bool)
+                .ok_or_else(|| "Configuração do teste grátis inválida".to_owned()),
+        }
+    }
+
+    pub async fn trial_used(&self, account_key: &str) -> Result<u32, String> {
+        let key = format!("TRIAL#{account_key}");
+        let result = self
+            .db
+            .get_item()
+            .table_name(&self.table)
+            .key("pk", A::S(key))
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(result
+            .item
+            .and_then(|item| {
+                item.get("used")
+                    .and_then(|value| value.as_n().ok())
+                    .and_then(|value| value.parse::<u32>().ok())
+            })
+            .unwrap_or(0))
+    }
+
+    pub async fn reserve_trial(&self, account_key: &str) -> Result<Option<String>, String> {
+        let key = format!("TRIAL#{account_key}");
+        let result = self
+            .db
+            .update_item()
+            .table_name(&self.table)
+            .key("pk", A::S(key.clone()))
+            .update_expression("SET #used = if_not_exists(#used, :zero) + :one")
+            .condition_expression("attribute_not_exists(#used) OR #used < :limit")
+            .expression_attribute_names("#used", "used")
+            .expression_attribute_values(":zero", A::N("0".into()))
+            .expression_attribute_values(":one", A::N("1".into()))
+            .expression_attribute_values(":limit", A::N(TRIAL_LIMIT.to_string()))
+            .send()
+            .await;
+        match result {
+            Ok(_) => Ok(Some(key)),
+            Err(error)
+                if error
+                    .as_service_error()
+                    .is_some_and(|service| service.is_conditional_check_failed_exception()) =>
+            {
+                Ok(None)
+            }
+            Err(error) => Err(error.to_string()),
+        }
     }
 
     async fn asaas_get(&self, path: &str) -> Result<Value, String> {

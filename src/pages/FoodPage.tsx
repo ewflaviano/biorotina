@@ -1,5 +1,12 @@
-import { Apple, Camera, ImagePlus, Sparkles, Trash2 } from "lucide-react";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { Apple, Camera, ImagePlus, Sparkles, Trash2, X } from "lucide-react";
+import {
+  useEffect,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type MouseEvent,
+} from "react";
+import { Link } from "react-router-dom";
 import {
   dateTimePt,
   fromLocalDateTime,
@@ -19,7 +26,12 @@ import {
   type PreparedImage,
 } from "../ai/gemini";
 import { loadGeminiKey } from "../storage/indexedDb";
-import { analyzeWithPlan, getPlanStatus } from "../billing/client";
+import {
+  analyzeWithPlan,
+  getPlanStatus,
+  getTrialConfig,
+  type PlanStatus,
+} from "../billing/client";
 import { useDriveSync } from "../sync/DriveSyncContext";
 
 type FoodDraft = { id: string; name: string; amount: string; calories: string };
@@ -43,9 +55,17 @@ export function FoodPage() {
   const [actionError, setActionError] = useState("");
   const [foods, setFoods] = useState<FoodDraft[]>([]);
   const [photo, setPhoto] = useState<PreparedImage | null>(null);
+  const [photoExpanded, setPhotoExpanded] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [photoMode, setPhotoMode] = useState<"plan" | "key">(
-    drive.account ? "plan" : "key",
+  const [photoMode, setPhotoMode] = useState<"trial" | "plan" | "key">("trial");
+  const [trialEnabled, setTrialEnabled] = useState(false);
+  const [hasGeminiKey, setHasGeminiKey] = useState<boolean | null>(null);
+  const [accountPlanStatus, setAccountPlanStatus] = useState<{
+    accountId: string;
+    value: PlanStatus;
+  } | null>(null);
+  const [photoOffer, setPhotoOffer] = useState<"exhausted" | "access" | null>(
+    null,
   );
   const [photoAssisted, setPhotoAssisted] = useState(false);
   const [totalEdited, setTotalEdited] = useState(false);
@@ -59,6 +79,61 @@ export function FoodPage() {
   const measuredMeals = meals.filter(
     (item) => item.caloriesKcal !== null,
   ).length;
+  const planStatus =
+    accountPlanStatus &&
+    drive.account &&
+    accountPlanStatus.accountId === drive.account.id
+      ? accountPlanStatus.value
+      : null;
+  const selectedPhotoMode =
+    photoMode === "trial" && (!trialEnabled || !drive.account)
+      ? planStatus?.active
+        ? "plan"
+        : "key"
+      : photoMode;
+
+  useEffect(() => {
+    let active = true;
+    loadGeminiKey()
+      .then((key) => {
+        if (active) setHasGeminiKey(Boolean(key));
+      })
+      .catch(() => {
+        if (active) setHasGeminiKey(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!drive.account?.id) return;
+    let active = true;
+    getTrialConfig()
+      .then((enabled) => {
+        if (active) setTrialEnabled(enabled);
+      })
+      .catch(() => {
+        if (active) setTrialEnabled(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [drive.account?.id]);
+
+  useEffect(() => {
+    if (!drive.account?.token) return;
+    let active = true;
+    const accountId = drive.account.id;
+    getPlanStatus(drive.account.token)
+      .then((status) => {
+        if (active) setAccountPlanStatus({ accountId, value: status });
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [drive.account?.id, drive.account?.token]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -153,24 +228,65 @@ export function FoodPage() {
     }
   }
 
+  function guardPhotoPicker(event: MouseEvent<HTMLLabelElement>) {
+    const accountCanAnalyze = Boolean(
+      drive.account?.token &&
+      (!planStatus ||
+        planStatus.active ||
+        (trialEnabled && planStatus.trialUsed < planStatus.trialLimit)),
+    );
+    if (!accountCanAnalyze && !hasGeminiKey) {
+      event.preventDefault();
+      setPhotoOffer(
+        drive.account &&
+          trialEnabled &&
+          planStatus &&
+          planStatus.trialUsed >= planStatus.trialLimit
+          ? "exhausted"
+          : "access",
+      );
+    } else if (!accountCanAnalyze && hasGeminiKey) {
+      setPhotoMode("key");
+    }
+  }
+
   async function analyzePhoto() {
     if (!photo) return;
     setError("");
     setAnalyzing(true);
     try {
       let suggestion;
-      if (photoMode === "plan") {
+      if (selectedPhotoMode === "trial" || selectedPhotoMode === "plan") {
         const token = drive.account?.token;
         if (!token)
           throw new Error(
-            "Entre com Google para usar o plano. Você também pode usar sua própria chave Gemini.",
+            "Entre com Google para testar as fotos ou usar o plano.",
           );
         const plan = await getPlanStatus(token);
-        if (!plan.active)
+        setAccountPlanStatus({ accountId: drive.account!.id, value: plan });
+        if (selectedPhotoMode === "trial" && !plan.active) {
+          if (!plan.trialEnabled) {
+            setTrialEnabled(false);
+            throw new Error("O teste grátis não está disponível agora.");
+          }
+          if (plan.trialUsed >= plan.trialLimit) {
+            setPhotoOffer("exhausted");
+            return;
+          }
+        }
+        if (selectedPhotoMode === "plan" && !plan.active)
           throw new Error(
             "Seu plano ainda não está ativo. Confira a assinatura.",
           );
         suggestion = await analyzeWithPlan(token, photo);
+        void getPlanStatus(token)
+          .then((status) =>
+            setAccountPlanStatus({
+              accountId: drive.account!.id,
+              value: status,
+            }),
+          )
+          .catch(() => undefined);
       } else {
         const key = await loadGeminiKey();
         if (!key)
@@ -197,11 +313,26 @@ export function FoodPage() {
       setTotalEdited(false);
       setPrefilled(false);
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Não foi possível analisar a foto.",
-      );
+      if (
+        selectedPhotoMode === "trial" &&
+        cause instanceof Error &&
+        /teste grátis não está disponível/.test(cause.message)
+      ) {
+        setTrialEnabled(false);
+        setError(cause.message);
+      } else if (
+        selectedPhotoMode === "trial" &&
+        cause instanceof Error &&
+        /análises grátis/.test(cause.message)
+      ) {
+        setPhotoOffer("exhausted");
+      } else {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Não foi possível analisar a foto.",
+        );
+      }
     } finally {
       setAnalyzing(false);
     }
@@ -255,95 +386,150 @@ export function FoodPage() {
         <div className="main-stack">
           <section className="panel">
             <h2>Nova refeição</h2>
-            <div className="meal-photo-box">
-              <div className="meal-photo-heading">
+            <div
+              className={`meal-photo-box${photoExpanded ? "" : " collapsed"}`}
+            >
+              <button
+                className="meal-photo-heading"
+                type="button"
+                aria-expanded={photoExpanded}
+                aria-controls="meal-photo-options"
+                onClick={() => setPhotoExpanded((expanded) => !expanded)}
+              >
                 <Sparkles size={21} aria-hidden="true" />
-                <div>
+                <span>
                   <strong>Preencher com uma foto</strong>
-                  <p>
-                    Receba uma sugestão de alimentos e calorias para revisar.
+                  {photoExpanded && (
+                    <p>
+                      Receba uma sugestão de alimentos e calorias para revisar.
+                    </p>
+                  )}
+                </span>
+              </button>
+              {photoExpanded && (
+                <div id="meal-photo-options">
+                  <div className="meal-photo-actions">
+                    <label
+                      className="button primary"
+                      htmlFor="meal-camera"
+                      onClick={guardPhotoPicker}
+                    >
+                      <Camera size={18} aria-hidden="true" /> Tirar foto
+                    </label>
+                    <input
+                      id="meal-camera"
+                      className="visually-hidden"
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={choosePhoto}
+                    />
+                    <label
+                      className="button secondary"
+                      htmlFor="meal-gallery"
+                      onClick={guardPhotoPicker}
+                    >
+                      <ImagePlus size={18} aria-hidden="true" /> Escolher imagem
+                    </label>
+                    <input
+                      id="meal-gallery"
+                      className="visually-hidden"
+                      type="file"
+                      accept="image/*"
+                      onChange={choosePhoto}
+                    />
+                  </div>
+                  <div
+                    className="meal-ai-modes"
+                    role="group"
+                    aria-label="Como analisar a foto"
+                  >
+                    {trialEnabled && drive.account && (
+                      <button
+                        type="button"
+                        aria-pressed={selectedPhotoMode === "trial"}
+                        onClick={() => setPhotoMode("trial")}
+                      >
+                        Testar grátis
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      aria-pressed={selectedPhotoMode === "plan"}
+                      onClick={() => setPhotoMode("plan")}
+                    >
+                      Meu plano
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={selectedPhotoMode === "key"}
+                      onClick={() => setPhotoMode("key")}
+                    >
+                      Minha chave Gemini
+                    </button>
+                  </div>
+                  {trialEnabled &&
+                  drive.account &&
+                  selectedPhotoMode === "trial" ? (
+                    <p className="muted small">
+                      {planStatus?.active
+                        ? "Seu plano está ativo: até 10 análises por dia."
+                        : `Teste até 5 fotos grátis com sua conta Google${planStatus ? ` · ${Math.max(0, planStatus.trialLimit - planStatus.trialUsed)} restantes` : ""}.`}
+                    </p>
+                  ) : (
+                    <p className="muted small">
+                      <Link to="/assinatura">
+                        Conhecer o plano por R$ 8,99/mês
+                      </Link>{" "}
+                      · Até 10 análises por dia.
+                    </p>
+                  )}
+                  {photo && (
+                    <div className="meal-photo-preview">
+                      <img
+                        src={photo.dataUrl}
+                        alt="Foto selecionada da refeição"
+                      />
+                      <button
+                        className="button primary"
+                        type="button"
+                        disabled={analyzing}
+                        onClick={analyzePhoto}
+                      >
+                        {analyzing ? "Analisando foto…" : "Analisar foto"}
+                      </button>
+                      <button
+                        className="entry-action"
+                        type="button"
+                        onClick={() => setPhoto(null)}
+                      >
+                        Remover foto
+                      </button>
+                    </div>
+                  )}
+                  <p className="muted small">
+                    A foto é enviada{" "}
+                    {selectedPhotoMode === "key"
+                      ? "ao Google"
+                      : "à Biorotina e ao Google"}{" "}
+                    somente quando você toca em “Analisar foto”. Ela não é
+                    guardada no servidor, no diário ou no backup.{" "}
+                    {selectedPhotoMode === "trial" ? (
+                      <span>
+                        O teste grátis exige uma conta Google para contar as
+                        cinco análises.
+                      </span>
+                    ) : selectedPhotoMode === "plan" ? (
+                      <Link to="/assinatura">Ver plano de R$ 8,99/mês</Link>
+                    ) : (
+                      <Link to="/configuracoes">
+                        Configurar minha chave Gemini
+                      </Link>
+                    )}
+                    .
                   </p>
                 </div>
-              </div>
-              <div className="meal-photo-actions">
-                <label className="button primary" htmlFor="meal-camera">
-                  <Camera size={18} aria-hidden="true" /> Tirar foto
-                </label>
-                <input
-                  id="meal-camera"
-                  className="visually-hidden"
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={choosePhoto}
-                />
-                <label className="button secondary" htmlFor="meal-gallery">
-                  <ImagePlus size={18} aria-hidden="true" /> Escolher imagem
-                </label>
-                <input
-                  id="meal-gallery"
-                  className="visually-hidden"
-                  type="file"
-                  accept="image/*"
-                  onChange={choosePhoto}
-                />
-              </div>
-              <div
-                className="meal-ai-modes"
-                role="group"
-                aria-label="Como analisar a foto"
-              >
-                <button
-                  type="button"
-                  aria-pressed={photoMode === "plan"}
-                  onClick={() => setPhotoMode("plan")}
-                >
-                  Meu plano
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={photoMode === "key"}
-                  onClick={() => setPhotoMode("key")}
-                >
-                  Minha chave Gemini
-                </button>
-              </div>
-              <p className="muted small">
-                <a href="#/assinatura">Conhecer o plano por R$ 8,99/mês</a> ·
-                Até 10 análises por dia.
-              </p>
-              {photo && (
-                <div className="meal-photo-preview">
-                  <img src={photo.dataUrl} alt="Foto selecionada da refeição" />
-                  <button
-                    className="button primary"
-                    type="button"
-                    disabled={analyzing}
-                    onClick={analyzePhoto}
-                  >
-                    {analyzing ? "Analisando foto…" : "Analisar foto"}
-                  </button>
-                  <button
-                    className="entry-action"
-                    type="button"
-                    onClick={() => setPhoto(null)}
-                  >
-                    Remover foto
-                  </button>
-                </div>
               )}
-              <p className="muted small">
-                A foto é enviada{" "}
-                {photoMode === "plan" ? "à Biorotina e ao Google" : "ao Google"}{" "}
-                somente quando você toca em “Analisar foto”. Ela não é guardada
-                no servidor, no diário ou no backup.{" "}
-                {photoMode === "plan" ? (
-                  <a href="#/assinatura">Ver plano de R$ 8,99/mês</a>
-                ) : (
-                  <a href="#/configuracoes">Configurar minha chave Gemini</a>
-                )}
-                .
-              </p>
             </div>
             {prefilled && (
               <p className="template-note" role="status">
@@ -545,6 +731,56 @@ export function FoodPage() {
           </Notice>
         </aside>
       </div>
+      {photoOffer && (
+        <div className="push-prompt-backdrop" role="presentation">
+          <section
+            className="push-prompt photo-offer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="trial-offer-title"
+          >
+            <button
+              className="push-prompt-close"
+              type="button"
+              aria-label="Fechar"
+              onClick={() => setPhotoOffer(null)}
+            >
+              <X size={20} aria-hidden="true" />
+            </button>
+            <Sparkles size={28} className="reminder-icon" aria-hidden="true" />
+            <h2 id="trial-offer-title">
+              {photoOffer === "exhausted"
+                ? "Suas fotos grátis acabaram"
+                : "Análise de fotos"}
+            </h2>
+            <p>
+              {photoOffer === "exhausted"
+                ? "As cinco análises grátis acabaram. Você ainda pode registrar refeições sem foto. Para analisar mais fotos, escolha o plano ou use sua chave Gemini."
+                : "A foto é opcional: você pode registrar sua refeição sem ela. Para receber sugestões pela foto, escolha o plano ou use sua chave Gemini."}
+            </p>
+            <div className="push-actions photo-offer-actions">
+              <Link className="button primary" to="/assinatura">
+                Ver plano
+              </Link>
+              <Link className="button primary" to="/configuracoes">
+                Usar minha chave
+              </Link>
+              <button
+                className="button secondary photo-offer-manual"
+                type="button"
+                onClick={() => {
+                  setPhotoOffer(null);
+                  setPhoto(null);
+                  setPhotoExpanded(false);
+                  document.getElementById("meal-name")?.focus();
+                }}
+              >
+                Continuar sem foto
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
 }

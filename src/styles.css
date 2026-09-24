@@ -80,6 +80,8 @@ h3 {
   gap: 9px;
   font-weight: 700;
   letter-spacing: -0.035em;
+  color: inherit;
+  text-decoration: none;
 }
 .mobile-brand {
   font-size: 20px;
@@ -303,10 +305,6 @@ h3 {
   font-weight: 700;
   text-decoration: none;
 }
-.dashboard-shortcut:first-child {
-  background: var(--color-action-soft);
-  border-color: var(--green-200);
-}
 .dashboard-shortcut:hover {
   background: var(--color-action-soft);
 }
@@ -332,6 +330,7 @@ h3 {
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: 12px;
 }
 .metric-card {
@@ -380,10 +379,6 @@ h3 {
   color: var(--color-text-secondary);
   font-size: 11px;
   margin: 4px 0 0;
-}
-.hydration-metric {
-  grid-column: 1 / -1;
-  background: var(--green-50);
 }
 .panel.hydration-hero {
   background: var(--green-50);
@@ -622,7 +617,7 @@ h3 {
 .push-prompt-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 50;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -655,6 +650,21 @@ h3 {
   border: 0;
   background: transparent;
   color: var(--color-text-secondary);
+}
+.photo-offer {
+  text-align: center;
+}
+.photo-offer > .reminder-icon {
+  display: block;
+  margin: 0 auto 14px;
+}
+.photo-offer-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-bottom: 0;
+}
+.photo-offer-actions .button {
+  justify-content: center;
 }
 .more-links {
   display: grid;
@@ -771,6 +781,56 @@ h3 {
   background: var(--chart-activity);
   border-radius: 7px 7px 0 0;
 }
+.overview-track {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  padding: 3px;
+}
+.overview-track .overview-segment {
+  position: static;
+  display: block;
+  flex: 0 0 calc((100% - 8px) / 5);
+  border-radius: 4px;
+}
+.overview-track .overview-habits,
+.overview-legend .overview-habits {
+  background: var(--chart-habit);
+}
+.overview-track .overview-meals,
+.overview-legend .overview-meals {
+  background: var(--chart-food);
+}
+.overview-track .overview-medications,
+.overview-legend .overview-medications {
+  background: var(--chart-medication);
+}
+.overview-track .overview-activities,
+.overview-legend .overview-activities {
+  background: var(--chart-activity);
+}
+.overview-track .overview-hydration,
+.overview-legend .overview-hydration {
+  background: var(--chart-hydration);
+}
+.overview-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 15px;
+  margin: 0 0 12px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+.overview-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.overview-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
 .panel {
   min-width: 0;
   background: var(--color-surface);
@@ -883,6 +943,15 @@ h3 {
   border-radius: var(--radius-md);
   background: var(--color-action-soft);
 }
+.meal-photo-box.collapsed {
+  padding: 14px 12px;
+}
+.meal-photo-box.collapsed .meal-photo-heading {
+  flex-wrap: nowrap;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
 .meal-photo-heading,
 .meal-photo-actions,
 .meal-photo-preview,
@@ -891,6 +960,20 @@ h3 {
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
+}
+.meal-photo-heading {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.meal-photo-heading:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 4px;
 }
 .meal-photo-heading p {
   margin: 3px 0 0;
@@ -1713,7 +1796,7 @@ h3 {
     padding-right: 24px;
   }
   .dashboard-shortcuts {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
   .form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1836,9 +1919,6 @@ h3 {
   }
   .metric-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .hydration-metric {
-    grid-column: auto;
   }
   .dashboard-lower {
     grid-template-columns: 1.4fr 1fr;

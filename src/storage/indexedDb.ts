@@ -65,7 +65,7 @@ export async function loadData(
   const saved = await db.get("app", key);
   if (!saved) return emptyData();
   const data = parseBackup(saved);
-  if (saved.schemaVersion !== 4) await db.put("app", data, key);
+  if (saved.schemaVersion !== 6) await db.put("app", data, key);
   return data;
 }
 

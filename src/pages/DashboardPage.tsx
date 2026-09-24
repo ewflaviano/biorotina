@@ -7,6 +7,7 @@ import {
   Pill,
   Scale,
   ShieldCheck,
+  Sprout,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -18,7 +19,7 @@ import {
 } from "../domain/data";
 import { useAppData } from "../state/AppDataContext";
 import { PageHeader } from "../components/Layout";
-import { ActivityWeekChart } from "../components/ProgressCharts";
+import { WeeklyOverviewChart } from "../components/ProgressCharts";
 
 export function DashboardPage() {
   const { data } = useAppData();
@@ -28,6 +29,7 @@ export function DashboardPage() {
     { to: "/atividades", label: "Atividade", icon: Activity },
     { to: "/alimentacao", label: "Refeição", icon: Apple },
     { to: "/medicamentos", label: "Medicação", icon: Pill },
+    { to: "/habitos", label: "Hábito", icon: Sprout },
   ];
   const latestWeight = [...data.weights].sort((a, b) =>
     b.measuredAt.localeCompare(a.measuredAt),
@@ -37,6 +39,9 @@ export function DashboardPage() {
   );
   const todayMeals = data.meals.filter((item) => isToday(item.eatenAt));
   const todayLogs = data.medicationLogs.filter((item) => isToday(item.takenAt));
+  const todayHabitLogs = data.habitLogs.filter((item) =>
+    isToday(item.completedAt),
+  );
   const waterToday = data.hydrationEntries
     .filter((item) => isToday(item.drankAt))
     .reduce((sum, item) => sum + item.amountMl, 0);
@@ -90,6 +95,13 @@ export function DashboardPage() {
       icon: Pill,
       to: "/medicamentos",
     })),
+    ...data.habitLogs.map((item) => ({
+      id: item.id,
+      name: `${data.habits.find((habit) => habit.id === item.habitId)?.name ?? "Hábito"} · realizado`,
+      at: item.completedAt,
+      icon: Sprout,
+      to: "/habitos",
+    })),
   ]
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 4);
@@ -109,6 +121,16 @@ export function DashboardPage() {
           </Link>
         ))}
       </nav>
+      <section
+        className="panel dashboard-progress"
+        aria-labelledby="progresso-title"
+      >
+        <div className="section-heading">
+          <h2 id="progresso-title">Sua rotina nos últimos 7 dias</h2>
+          <span>áreas registradas por dia</span>
+        </div>
+        <WeeklyOverviewChart data={data} />
+      </section>
       <section aria-labelledby="resumo-title" className="section-block">
         <div className="section-heading">
           <h2 id="resumo-title">Resumo de hoje</h2>
@@ -173,7 +195,7 @@ export function DashboardPage() {
             </div>
             <strong>
               {todayLogs.length}{" "}
-              <small>registro{todayLogs.length === 1 ? "" : "s"} de uso</small>
+              <small>uso{todayLogs.length === 1 ? "" : "s"}</small>
             </strong>
             <p>
               {data.medications.length} medicamento
@@ -181,7 +203,7 @@ export function DashboardPage() {
               {data.medications.length === 1 ? "" : "s"}
             </p>
           </Link>
-          <Link to="/hidratacao" className="metric-card hydration-metric">
+          <Link to="/hidratacao" className="metric-card">
             <div className="metric-top">
               <span>Água hoje</span>
               <Droplets size={19} />
@@ -195,17 +217,21 @@ export function DashboardPage() {
                 : "Registre água no seu ritmo"}
             </p>
           </Link>
+          <Link to="/habitos" className="metric-card">
+            <div className="metric-top">
+              <span>Hábitos hoje</span>
+              <Sprout size={19} />
+            </div>
+            <strong>
+              {new Set(todayHabitLogs.map((log) => log.habitId)).size}{" "}
+              <small>praticados</small>
+            </strong>
+            <p>
+              {data.habits.length} hábito{data.habits.length === 1 ? "" : "s"}{" "}
+              cadastrado{data.habits.length === 1 ? "" : "s"}
+            </p>
+          </Link>
         </div>
-      </section>
-      <section
-        className="panel dashboard-progress"
-        aria-labelledby="progresso-title"
-      >
-        <div className="section-heading">
-          <h2 id="progresso-title">Movimento nos últimos 7 dias</h2>
-          <span>minutos registrados</span>
-        </div>
-        <ActivityWeekChart entries={data.activities} />
       </section>
       <div className="dashboard-lower">
         <section className="panel" aria-labelledby="recentes-title">
