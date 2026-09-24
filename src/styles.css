@@ -14,6 +14,15 @@ select {
 }
 button {
   cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+button:active:not(:disabled),
+.button:active:not(:disabled),
+.dashboard-shortcut:active,
+.metric-card:active,
+.bottom-link:active,
+.nav-link:active {
+  transform: scale(0.98);
 }
 a {
   color: inherit;
@@ -259,7 +268,14 @@ h3 {
   white-space: nowrap;
   transition:
     background var(--duration-fast) var(--ease-standard),
-    border-color var(--duration-fast) var(--ease-standard);
+    border-color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+.button svg:not(.motion-spinner) {
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+.button:active:not(:disabled) svg:not(.motion-spinner) {
+  transform: scale(0.9) rotate(-5deg);
 }
 .button.primary {
   color: var(--color-text-on-brand);
@@ -304,6 +320,9 @@ h3 {
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
 }
 .dashboard-shortcut:hover {
   background: var(--color-action-soft);
@@ -343,6 +362,9 @@ h3 {
   background: var(--color-surface);
   text-decoration: none;
   box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
 }
 .metric-card:hover {
   border-color: var(--green-300);
@@ -990,6 +1012,10 @@ h3 {
 }
 .meal-photo-preview {
   margin: 12px 0;
+  animation: motion-photo-enter var(--duration-normal) var(--ease-standard) both;
+}
+.meal-photo-preview .button.primary {
+  min-width: 190px;
 }
 .meal-photo-preview img {
   display: block;
@@ -997,6 +1023,61 @@ h3 {
   height: 86px;
   object-fit: cover;
   border-radius: var(--radius-sm);
+}
+.meal-photo-preview.analyzing img {
+  animation: motion-photo-working 1.6s ease-in-out infinite;
+}
+.meal-photo-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 12px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.motion-spinner {
+  flex: none;
+  animation: motion-spin 0.9s linear infinite;
+}
+.meal-foods.from-photo {
+  animation: motion-photo-enter var(--duration-slow) var(--ease-standard) both;
+}
+@keyframes motion-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes motion-photo-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes motion-photo-working {
+  50% {
+    opacity: 0.7;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled),
+  .button:active:not(:disabled),
+  .dashboard-shortcut:active,
+  .metric-card:active,
+  .bottom-link:active,
+  .nav-link:active,
+  .button:active:not(:disabled) svg:not(.motion-spinner) {
+    transform: none;
+  }
+  .motion-spinner,
+  .meal-photo-preview,
+  .meal-photo-preview.analyzing img,
+  .meal-foods.from-photo {
+    animation: none;
+  }
 }
 .meal-foods {
   display: grid;

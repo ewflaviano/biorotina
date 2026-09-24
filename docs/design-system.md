@@ -239,7 +239,7 @@ Google Drive é **opcional**. Exibir estados: “Não conectado”, “Conectand
 
 ## 11. Movimento e responsividade
 
-Transições: 120 ms em hover/pressed, 200 ms em abertura leve, 320 ms em modal; curva `cubic-bezier(.2, 0, 0, 1)`. Movimento comunica relação entre origem e destino, nunca recompensa registro de peso ou dose. Respeitar `prefers-reduced-motion` e oferecer interface estática equivalente. Carregamento de sincronização usa texto de estado e indicador discreto; evitar animações infinitas sem explicação.
+Transições: 120 ms em hover/pressed, 200 ms em abertura leve, 320 ms em modal; curva `cubic-bezier(.2, 0, 0, 1)`. Movimento comunica relação entre origem e destino, nunca recompensa registro de peso ou dose. Para fortalecer uma rotina voluntária, o ciclo é toque → espera honesta → confirmação → progresso visível; água, hábitos e atividade podem ter uma resposta mais calorosa, sem streak obrigatório ou penalidade por pausas. O [mapa de movimento e feedback](ux-motion-map.md) detalha os pontos por página. Respeitar `prefers-reduced-motion` e oferecer interface estática equivalente. Carregamento de sincronização usa texto de estado e indicador discreto; evitar animações infinitas sem explicação.
 
 Ao reduzir a largura: cartões empilham, rótulos continuam visíveis, tabelas viram listas ou têm rolagem identificada, controles não ficam abaixo da navegação fixa. Testar 320, 375, 768 e 1280 px, teclado e ampliação de texto.
 
