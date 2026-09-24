@@ -2,19 +2,21 @@
 
 **Seu cuidado, no seu ritmo.**
 
-Biorotina é um aplicativo web gratuito em desenvolvimento para acompanhar saúde e bem-estar no dia a dia. O esqueleto atual já permite registrar peso, atividades físicas, refeições, água e medicamentos, incluindo dose e horário de referência. O IMC é calculado a partir da altura informada e do último peso, com classificação de referência para adultos de 18 a 59 anos; não é um diagnóstico. A tela de atividades sugere calorias ajustáveis com base no Compêndio de Atividades Físicas de 2024, duração e peso registrado ou referência explícita de 70 kg.
+Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acompanhar saúde e bem-estar no dia a dia. Permite registrar peso, atividades físicas, refeições, água e medicamentos, incluindo dose, usos e horários de lembrete. O IMC é calculado a partir da altura informada e do último peso, com classificação de referência para adultos de 18 a 59 anos; não é um diagnóstico. A tela de atividades sugere calorias ajustáveis com base no Compêndio de Atividades Físicas de 2024, duração e peso registrado ou referência explícita de 70 kg.
 
 ## Dados sob controle da pessoa
 
 - Uso inicial sem conta, com dados guardados localmente no navegador.
 - Exportação e importação de arquivo JSON para cópia e recuperação dos registros.
 - Sincronização opcional com o **Google Drive da própria pessoa** para usar os dados em outro navegador ou dispositivo.
-- Sem banco de dados central de registros pessoais operado pelo projeto na primeira fase.
+- Sem banco de dados central de registros de saúde operado pelo projeto; o serviço de avisos guarda apenas dados técnicos da inscrição e horários.
 - Métricas de acesso opcionais, com escolha explícita na primeira abertura e em Configurações, sem envio de registros de saúde.
 
-O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação permitem usar uma entrada como modelo, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. Água e medicamentos permitem vários horários de lembrete. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; falta validar a entrega em dispositivos reais.
+O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação permitem usar uma entrada como modelo, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. Água e medicamentos permitem vários horários de lembrete. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; a entrega agendada ainda precisa de validação em dispositivos reais.
 
 No celular, há um convite discreto para adicionar a Biorotina à tela inicial e uma página com instruções para Safari e Chrome. A página **Apoiar** apresenta um Pix estático opcional para financiar o projeto. O repositório continua privado enquanto a licença e o histórico são revisados para abertura do código.
+
+Quem quiser colaborar pode começar pelo [guia de contribuição](CONTRIBUTING.md) e pelas [issues](https://github.com/ewflaviano/biorotina/issues). Questões sensíveis devem seguir a [política de segurança](SECURITY.md). O CI valida todo pull request; publicação na AWS ocorre apenas após merge em `master`.
 
 O [catálogo de atividades e a fórmula de estimativa](docs/activity-reference.md) documentam os valores usados no preenchimento automático.
 
@@ -39,14 +41,14 @@ Para manutenção, `make check` executa a checagem do frontend, Clippy e testes 
 - `src/storage`: adaptador IndexedDB.
 - `src/sync`: login Google, adaptador Drive e decisão de sincronização.
 - `src/pages`: áreas iniciais, com interface mobile first e menu “Mais” para manter cinco destinos na barra inferior.
-- `docs/architecture.md`: decisões de sincronização, notificações, backend futuro, hospedagem e segurança.
+- `docs/architecture.md`: decisões de sincronização, notificações, backend, hospedagem e segurança.
 
 ## Design system
 
 - [Guia detalhado](docs/design-system.md): princípios, identidade, cores, tipografia, espaçamento, ícones, componentes, gráficos, conteúdo, acessibilidade e padrões por área do produto.
 - [Catálogo visual](docs/design-system.html): exemplos responsivos de tokens, componentes e uma tela inicial conceitual.
-- [Tokens CSS](docs/tokens.css): base reutilizável para a futura interface.
-- [Arquitetura](docs/architecture.md): dados locais, Google Drive, backend opcional para notificações e cuidados para abrir o código.
+- [Tokens CSS](docs/tokens.css): base de cores, tipografia e espaçamento usada pela interface.
+- [Arquitetura](docs/architecture.md): dados locais, Google Drive, serviço de notificações e cuidados para abrir o código.
 - [Próximas etapas](docs/next-steps.md): critérios de entrega para Google Drive e lembretes.
 - [Revisão de UX/UI](docs/ux-review.md): passo a passo das telas, ajustes feitos e pontos para próximas iterações.
 - [Instalação no celular](docs/installation.md): convite, compatibilidade e transferência de registros.
@@ -54,11 +56,11 @@ Para manutenção, `make check` executa a checagem do frontend, Clippy e testes 
 
 ## Decisões ainda abertas
 
-1. Validar a sincronização em dois dispositivos reais e completar a publicação do OAuth para além dos usuários de teste.
-2. Edição retroativa de peso, atividade, refeição e água, além de recuperação após perda do navegador. Exclusão com desfazer e migração de dados da versão 1 para a 2 já funcionam.
-3. Testes reais de entrega Web Push em Android, desktop e iPhone após a ativação da infraestrutura e do domínio.
+1. Validar restauração e conflitos de sincronização em dois dispositivos reais; confirmar a disponibilidade pública do consentimento OAuth.
+2. Edição retroativa de peso, atividade, refeição e água, além de recuperação após perda do navegador. Exclusão com desfazer e migração de dados antigos para a versão 3 já funcionam.
+3. Confirmar a entrega agendada de Web Push em Android, desktop e iPhone e revisar a operação do serviço.
 4. Viabilidade e limites de análise opcional de refeições por IA com chave fornecida pela pessoa.
-5. Definir licença e revisar o histórico completo antes de abrir o projeto no GitHub.
+5. Definir licença e concluir a revisão do histórico completo antes de abrir o projeto no GitHub. A proteção de `master` já exige PR e checks aprovados.
 
 Integrações com Apple Health e Health Connect estão fora do escopo inicial.
 
@@ -67,8 +69,8 @@ Integrações com Apple Health e Health Connect estão fora do escopo inicial.
 Projeto: **Biorotina** (`82E-YHH`).
 
 - `YTF-11098` — Validar disponibilidade do nome Biorotina (pendente).
-- `YTF-11099` — Implementar acesso opcional com Google e backup no Drive (implementado; falta validação em dois dispositivos e publicação OAuth).
+- `YTF-11099` — Acesso opcional com Google e backup no Drive (implementado; falta validação em dois dispositivos e confirmação do consentimento público).
 - `YTF-11100` — Definir escopo inicial e mapa de páginas (concluída).
 - `YTF-11101` — Definir privacidade e análise opcional por IA (pendente, fora das próximas etapas).
 - `YTF-11102` — Criar direção visual e design das telas (concluída).
-- `YTF-11103` — Validar lembretes opcionais de hidratação e medicação em dispositivos reais (infraestrutura publicada).
+- `YTF-11103` — Lembretes opcionais de hidratação e medicação (infraestrutura publicada; falta confirmar entrega agendada em dispositivos reais).

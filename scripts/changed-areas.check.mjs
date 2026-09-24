@@ -27,10 +27,17 @@ test("shared files start both validations", () => {
 });
 
 test("documentation changes do not deploy the app", () => {
-  assert.deepEqual(classifyPaths(["README.md", "docs/architecture.md"]), {
-    frontend: false,
-    backend: false,
-  });
+  assert.deepEqual(
+    classifyPaths([
+      "README.md",
+      "CONTRIBUTING.md",
+      "SECURITY.md",
+      "docs/architecture.md",
+      ".github/ISSUE_TEMPLATE/bug_report.yml",
+      ".github/PULL_REQUEST_TEMPLATE.md",
+    ]),
+    { frontend: false, backend: false },
+  );
 });
 
 test("unknown project files are validated by both jobs", () => {

@@ -81,7 +81,7 @@ export function SettingsPage() {
     try {
       if (file.size > 10_000_000)
         throw new Error(
-          "O arquivo é grande demais para esta importação inicial (limite de 10 MB).",
+          "O arquivo é grande demais para importar (limite de 10 MB).",
         );
       const parsed = parseBackup(JSON.parse(await file.text()));
       validateAnthropometrics(parsed);
@@ -184,7 +184,7 @@ export function SettingsPage() {
               <FileJson2 size={20} aria-hidden="true" />
             </span>
             <div>
-              <h2>Backup JSON</h2>
+              <h2>Cópia dos dados</h2>
               <p>Guarde uma cópia dos seus dados em um lugar seguro.</p>
             </div>
           </div>
@@ -251,8 +251,8 @@ export function SettingsPage() {
             </div>
           )}
           <Notice kind="warning">
-            O JSON contém seus dados pessoais em texto legível. Armazene a cópia
-            com cuidado.
+            O arquivo contém seus dados pessoais em texto legível. Guarde a
+            cópia com cuidado.
           </Notice>
         </section>
         <section className="panel">

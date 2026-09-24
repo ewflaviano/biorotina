@@ -25,7 +25,15 @@ export function classifyPaths(paths) {
   let frontend = false;
   let backend = false;
   for (const path of paths) {
-    if (path === "README.md" || path.startsWith("docs/")) continue;
+    if (
+      path === "README.md" ||
+      path === "CONTRIBUTING.md" ||
+      path === "SECURITY.md" ||
+      path.startsWith("docs/") ||
+      path.startsWith(".github/ISSUE_TEMPLATE/") ||
+      path === ".github/PULL_REQUEST_TEMPLATE.md"
+    )
+      continue;
     if (SHARED_FILES.has(path)) {
       frontend = true;
       backend = true;

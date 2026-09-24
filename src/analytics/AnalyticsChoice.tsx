@@ -19,7 +19,7 @@ export function AnalyticsChoice() {
       getAnalyticsPreference() === "unset"
         ? "Não foi possível guardar sua escolha neste navegador. As métricas continuam desativadas."
         : value === "accepted"
-          ? "Sua escolha foi salva. A medição funciona somente no site oficial."
+          ? "Sua escolha foi salva. Você permitiu as métricas de acesso."
           : "Sua escolha foi salva. As métricas estão desativadas neste navegador.",
     );
   }

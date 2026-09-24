@@ -20,9 +20,8 @@ export function PrivacyPage() {
             dados próprio.
           </p>
           <p>
-            Você pode consultar e apagar os registros no app, exportar uma cópia
-            JSON e remover os dados locais nas configurações ou nas opções do
-            navegador.
+            Você pode consultar e apagar registros no app, exportar uma cópia e
+            remover os dados locais nas opções do navegador.
           </p>
         </section>
         <section className="panel">
@@ -74,8 +73,8 @@ export function PrivacyPage() {
             Só com sua permissão, o Google Analytics pode medir visitas, origem
             aproximada, região e tipo de dispositivo. Ele usa identificadores do
             navegador; essas métricas não são anônimas. Enviamos uma URL geral
-            do site, sem a tela visitada ou dados dos formulários. O SDK também
-            pode gerar eventos básicos de sessão e primeira visita.
+            do site, sem a tela visitada ou dados dos formulários. O serviço
+            também pode contar sessões e primeiras visitas.
           </p>
           <p>
             Você pode negar ou retirar a permissão a qualquer momento em{" "}

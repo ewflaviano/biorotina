@@ -239,8 +239,7 @@ export function DashboardPage() {
           </span>
           <h2 id="dados-title">Seus dados</h2>
           <p>
-            Seus registros estão neste navegador. Exporte uma cópia JSON quando
-            quiser.
+            Seus registros estão neste navegador. Baixe uma cópia quando quiser.
           </p>
           <p className="mini-stat">
             {totalRecords(data)} registro{totalRecords(data) === 1 ? "" : "s"}{" "}
