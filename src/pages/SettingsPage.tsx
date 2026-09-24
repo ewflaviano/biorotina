@@ -32,6 +32,8 @@ import { AnalyticsChoice } from "../analytics/AnalyticsChoice";
 import { GeminiSettings } from "../ai/GeminiSettings";
 import { Link } from "react-router-dom";
 import { loadLegacyData } from "../storage/indexedDb";
+import { PushControl } from "../components/PushControl";
+import { InfoDisclosure } from "../components/InfoDisclosure";
 
 export function SettingsPage() {
   const { data, mutate, replace } = useAppData();
@@ -155,6 +157,7 @@ export function SettingsPage() {
           </Link>
         </section>
         <GeminiSettings />
+        <PushControl />
         <section className="panel">
           <div className="card-title">
             <span className="list-icon">
@@ -162,10 +165,6 @@ export function SettingsPage() {
             </span>
             <div>
               <h2>Perfil</h2>
-              <p>
-                Essas informações ficam no navegador e ajudam a contextualizar
-                seus registros.
-              </p>
             </div>
           </div>
           <form onSubmit={saveProfile} className="form-grid">
@@ -201,6 +200,12 @@ export function SettingsPage() {
             </div>
             <button className="button primary">Salvar perfil</button>
           </form>
+          <InfoDisclosure label="Sobre estas informações">
+            <p>
+              Esses dados ficam neste navegador e ajudam a contextualizar seus
+              registros.
+            </p>
+          </InfoDisclosure>
         </section>
         <section className="panel">
           <div className="card-title">
@@ -324,10 +329,12 @@ export function SettingsPage() {
               </p>
             </div>
           </div>
-          <p className="muted">
-            Limpar os dados do navegador pode apagar estes registros. Exporte um
-            backup regularmente.
-          </p>
+          <InfoDisclosure label="Cuidados com seus dados">
+            <p>
+              Limpar os dados do navegador pode apagar estes registros. Exporte
+              um backup regularmente.
+            </p>
+          </InfoDisclosure>
         </section>
         <section className="panel">
           <div className="card-title">

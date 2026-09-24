@@ -47,7 +47,7 @@ impl Store {
         let subscription = StoredSubscription {
             id: id.clone(),
             subscription: request.subscription,
-            times: request.times,
+            reminders: request.reminders,
             time_zone: request.time_zone,
             expires_at: Utc::now().timestamp() + 180 * 24 * 60 * 60,
         };

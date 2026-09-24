@@ -1,4 +1,4 @@
-use crate::model::StoredSubscription;
+use crate::model::{ReminderKind, StoredSubscription};
 use aws_sdk_secretsmanager::Client as SecretsClient;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use sha2::{Digest, Sha256};
@@ -60,7 +60,11 @@ impl PushSender {
         })
     }
 
-    pub async fn send(&self, subscription: &StoredSubscription) -> Result<(), WebPushError> {
+    pub async fn send(
+        &self,
+        subscription: &StoredSubscription,
+        kind: ReminderKind,
+    ) -> Result<(), WebPushError> {
         let info = SubscriptionInfo::new(
             &subscription.subscription.endpoint,
             &subscription.subscription.keys.p256dh,
@@ -70,7 +74,11 @@ impl PushSender {
         signature.add_claim("sub", self.subject.clone());
         let signature = signature.build()?;
         let mut builder = WebPushMessageBuilder::new(&info);
-        builder.set_payload(ContentEncoding::Aes128Gcm, b"{}");
+        let payload = match kind {
+            ReminderKind::Hydration => b"{\"kind\":\"hydration\"}".as_slice(),
+            ReminderKind::Medication => b"{\"kind\":\"medication\"}".as_slice(),
+        };
+        builder.set_payload(ContentEncoding::Aes128Gcm, payload);
         builder.set_vapid_signature(signature);
         let push_request = request_builder::build_request::<Vec<u8>>(builder.build()?);
         let mut request = self.client.post(push_request.uri().to_string());

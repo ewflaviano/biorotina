@@ -1,6 +1,7 @@
 import { Bell } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePush } from "../state/PushContext";
+import { InfoDisclosure } from "./InfoDisclosure";
 
 export function PushControl() {
   const { status, message, scheduleCount, subscribed, enable, disable, test } =
@@ -24,26 +25,18 @@ export function PushControl() {
       <h2 id="push-title">Avisos neste dispositivo</h2>
       <p className="muted">
         {active
-          ? "Avisos ativados. Você pode recebê-los mesmo com a página fechada."
-          : "Ative para receber avisos nos horários escolhidos, mesmo com a página fechada."}
+          ? "Avisos ativados neste dispositivo."
+          : "Avisos desativados neste dispositivo."}
       </p>
       <p className="muted">
         {scheduleCount} horário{scheduleCount === 1 ? "" : "s"} de aviso
         configurado
         {scheduleCount === 1 ? "" : "s"} entre água e medicação.
       </p>
-      {scheduleCount === 0 && (
-        <p className="push-setup-hint" id="push-setup-hint">
-          Para ativar os avisos, escolha primeiro um horário de lembrete em{" "}
-          <Link to="/hidratacao">Hidratação</Link> ou em um medicamento. Depois,
-          volte a este botão.
-        </p>
-      )}
       {status === "unavailable" && (
         <p className="muted">
           Este navegador não permite avisos aqui. Veja como instalar a Biorotina
           no celular para receber lembretes.
-          <Link to="/instalar"> Ver passo a passo</Link>
         </p>
       )}
       {status === "install_required" && (
@@ -107,9 +100,6 @@ export function PushControl() {
               status === "connecting" ||
               scheduleCount === 0
             }
-            aria-describedby={
-              scheduleCount === 0 ? "push-setup-hint" : undefined
-            }
             onClick={enable}
           >
             {activationLabel}
@@ -121,10 +111,12 @@ export function PushControl() {
           {message}
         </p>
       )}
-      <small>
-        O aviso é genérico: não mostra nome de medicamento, dose ou seus
-        registros na tela bloqueada. Você pode desligar a qualquer momento.
-      </small>
+      <InfoDisclosure label="Sobre os avisos">
+        <p>
+          Os avisos podem chegar mesmo com a página fechada, nos horários que
+          você escolher. Você pode desligá-los a qualquer momento.
+        </p>
+      </InfoDisclosure>
     </section>
   );
 }

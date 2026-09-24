@@ -1,8 +1,14 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { openDB } from "idb";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Layout } from "../components/Layout";
 import { emptyData, type AppData } from "../domain/data";
 import { AppDataProvider, useAppData } from "../state/AppDataContext";
@@ -88,12 +94,17 @@ function App() {
   );
 }
 
+afterEach(() => {
+  cleanup();
+});
+
 beforeEach(async () => {
   const db = await openDB("biorotina", 3);
   await db.clear("app");
   await db.clear("driveSync");
   db.close();
   snapshots.length = 0;
+  localStorage.clear();
   forgetGoogleAccount();
   vi.mocked(connectGoogle).mockResolvedValue({
     ...account,
@@ -107,7 +118,7 @@ beforeEach(async () => {
       createdTime: new Date(Date.now() + snapshots.length).toISOString(),
     };
     snapshots.unshift(saved);
-    expect(data.schemaVersion).toBe(4);
+    expect(data.schemaVersion).toBe(5);
     return saved;
   });
   vi.mocked(downloadDriveSnapshot).mockReset();

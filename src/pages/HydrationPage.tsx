@@ -14,7 +14,8 @@ import {
 import { useAppData } from "../state/AppDataContext";
 import { DateTimeField } from "../components/DateTimeField";
 import { TimeSelect } from "../components/TimeSelect";
-import { PushControl } from "../components/PushControl";
+import { PushActivationPrompt } from "../components/PushActivationPrompt";
+import { InfoDisclosure } from "../components/InfoDisclosure";
 import { removeEntry, restoreEntry } from "../domain/recordActions";
 import type { HydrationEntry } from "../domain/data";
 
@@ -28,6 +29,7 @@ export function HydrationPage() {
   const [quickError, setQuickError] = useState("");
   const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showPushPrompt, setShowPushPrompt] = useState(false);
   const entries = [...data.hydrationEntries].sort((a, b) =>
     b.drankAt.localeCompare(a.drankAt),
   );
@@ -125,6 +127,7 @@ export function HydrationPage() {
         };
       });
       setReminderTime("");
+      setShowPushPrompt(true);
     } catch (cause) {
       setReminderError(
         cause instanceof Error ? cause.message : "Informe um horário válido.",
@@ -279,9 +282,6 @@ export function HydrationPage() {
                 Adicionar
               </button>
             </form>
-            <small className="muted">
-              Horários em formato de 24 horas, a cada 30 minutos.
-            </small>
             {reminderError && (
               <p className="form-error" role="alert">
                 {reminderError}
@@ -305,14 +305,20 @@ export function HydrationPage() {
             ) : (
               <p className="muted reminder-empty">Nenhum horário escolhido.</p>
             )}
-            <small className="muted">
-              Ao ativar avisos, compartilhamos apenas os horários necessários
-              para enviá-los. A quantidade de água que você bebe não é enviada.
-            </small>
+            <InfoDisclosure label="Como funcionam os avisos?">
+              <p>
+                Ao ativar avisos, compartilhamos apenas os horários necessários
+                para enviá-los. A quantidade de água que você bebe não é
+                enviada.
+              </p>
+            </InfoDisclosure>
           </section>
-          <PushControl />
         </aside>
       </div>
+      <PushActivationPrompt
+        open={showPushPrompt}
+        onClose={() => setShowPushPrompt(false)}
+      />
     </>
   );
 }

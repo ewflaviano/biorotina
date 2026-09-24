@@ -19,8 +19,23 @@ pub struct BrowserSubscription {
 #[serde(rename_all = "camelCase")]
 pub struct ReminderRequest {
     pub subscription: BrowserSubscription,
-    pub times: Vec<String>,
+    #[serde(default)]
+    pub reminders: Vec<Reminder>,
     pub time_zone: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Reminder {
+    pub time: String,
+    pub days: Vec<u8>,
+    pub kind: ReminderKind,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ReminderKind {
+    Hydration,
+    Medication,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -28,7 +43,8 @@ pub struct ReminderRequest {
 pub struct StoredSubscription {
     pub id: String,
     pub subscription: BrowserSubscription,
-    pub times: Vec<String>,
+    #[serde(default)]
+    pub reminders: Vec<Reminder>,
     pub time_zone: String,
     pub expires_at: i64,
 }
@@ -46,12 +62,25 @@ pub fn valid_time(time: &str) -> bool {
 }
 
 pub fn validate(request: &ReminderRequest) -> Result<(), &'static str> {
-    if request.times.len() > 48 || request.times.iter().any(|time| !valid_time(time)) || {
-        let mut unique = request.times.clone();
-        unique.sort();
-        unique.dedup();
-        unique.len() != request.times.len()
-    } {
+    if request.reminders.len() > 96
+        || request.reminders.iter().any(|reminder| {
+            !valid_time(&reminder.time)
+                || reminder.days.is_empty()
+                || reminder.days.iter().any(|day| *day > 6)
+        })
+        || {
+            let mut unique = request
+                .reminders
+                .iter()
+                .map(|reminder| {
+                    format!("{:?}:{}:{:?}", reminder.kind, reminder.time, reminder.days)
+                })
+                .collect::<Vec<_>>();
+            unique.sort();
+            unique.dedup();
+            unique.len() != request.reminders.len()
+        }
+    {
         return Err("Horários inválidos.");
     }
     if Tz::from_str(&request.time_zone).is_err() {
@@ -98,7 +127,11 @@ mod tests {
                     auth: "example".into(),
                 },
             },
-            times: vec!["08:00".into(), "20:30".into()],
+            reminders: vec![Reminder {
+                time: "08:00".into(),
+                days: vec![0, 1, 2, 3, 4, 5, 6],
+                kind: ReminderKind::Hydration,
+            }],
             time_zone: "America/Sao_Paulo".into(),
         }
     }
@@ -124,9 +157,9 @@ mod tests {
     #[test]
     fn rejects_duplicate_times_and_unknown_timezones() {
         let mut value = request();
-        value.times.push("08:00".into());
+        value.reminders.push(value.reminders[0].clone());
         assert!(validate(&value).is_err());
-        value.times.pop();
+        value.reminders.pop();
         value.time_zone = "Mars/Olympus".into();
         assert!(validate(&value).is_err());
     }

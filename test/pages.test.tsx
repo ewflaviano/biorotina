@@ -146,10 +146,13 @@ describe("hidratação", () => {
       }),
     );
     const data = emptyData();
-    data.hydrationReminderTimes = ["09:00"];
+    data.hydrationReminderTimes = [];
     const user = await renderPage(<HydrationPage />, data);
-    await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
-    await screen.findByText("Avisos ativados neste dispositivo.");
+    await user.selectOptions(screen.getByLabelText("Novo horário"), "09:00");
+    await user.click(screen.getByRole("button", { name: "Adicionar" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Ativar avisos" }),
+    );
     expect(
       calls.some(
         (call) =>
@@ -174,7 +177,7 @@ describe("hidratação", () => {
     );
     const data = emptyData();
     data.hydrationReminderTimes = ["09:00"];
-    await renderPage(<HydrationPage />, data);
+    await renderPage(<SettingsPage />, data);
     expect(
       screen.getByText(/No iPhone, os avisos só podem ser ativados/),
     ).toBeInTheDocument();
@@ -191,14 +194,6 @@ describe("hidratação", () => {
 
   it("registra água, soma o dia e guarda vários horários sem ativar notificações", async () => {
     const user = await renderPage(<HydrationPage />);
-    expect(
-      screen.getByText(/Para ativar os avisos, escolha primeiro um horário/),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", {
-        name: "Avisos indisponíveis neste navegador",
-      }),
-    ).toBeDisabled();
     await user.click(screen.getByRole("button", { name: /250 ml/ }));
     await waitFor(async () =>
       expect((await loadData()).hydrationEntries).toHaveLength(1),
@@ -215,6 +210,13 @@ describe("hidratação", () => {
     await user.click(screen.getByRole("button", { name: "Adicionar" }));
     await waitFor(async () =>
       expect((await loadData()).hydrationReminderTimes).toEqual(["09:00"]),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Quer receber este lembrete?" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Agora não" }));
+    await user.click(
+      screen.getByRole("button", { name: "Como funcionam os avisos?" }),
     );
     expect(
       screen.getByText(/A quantidade de água que você bebe não é enviada/),
@@ -598,9 +600,6 @@ describe("medicação", () => {
     await waitFor(async () =>
       expect((await loadData()).medicationLogs).toHaveLength(0),
     );
-    expect(
-      screen.getByText(/Você pode escolher vários horários/),
-    ).toBeInTheDocument();
   });
 
   it("edita sem perder histórico e confirma exclusão em cascata", async () => {
@@ -612,6 +611,7 @@ describe("medicação", () => {
       dose: 0.125,
       unit: "mg",
       reminderTimes: ["08:00"],
+      reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
       createdAt: now,
     };
     initial.medications = [med];

@@ -5,6 +5,7 @@ import {
   removeGeminiKey,
   saveGeminiKey,
 } from "../storage/indexedDb";
+import { InfoDisclosure } from "../components/InfoDisclosure";
 
 export function GeminiSettings() {
   const [hasKey, setHasKey] = useState(false);
@@ -140,13 +141,16 @@ export function GeminiSettings() {
           </li>
         </ol>
       </details>
-      <p className="muted small">
-        A chave fica somente neste navegador: não entra no backup JSON nem no
-        Google Drive. Ao analisar uma foto, a imagem e sua chave são enviadas
-        diretamente ao Gemini. Quem tiver acesso a este aparelho ou ao navegador
-        pode alcançar a chave; revogue-a no Google AI Studio se necessário. O
-        uso pode consumir sua cota ou gerar cobranças conforme sua conta Google.
-      </p>
+      <InfoDisclosure label="Como a chave é usada">
+        <p>
+          A chave fica somente neste navegador: não entra no backup JSON nem no
+          Google Drive. Ao analisar uma foto, a imagem e sua chave são enviadas
+          diretamente ao Gemini. Quem tiver acesso a este aparelho ou ao
+          navegador pode alcançar a chave; revogue-a no Google AI Studio se
+          necessário. O uso pode consumir sua cota ou gerar cobranças conforme
+          sua conta Google.
+        </p>
+      </InfoDisclosure>
     </section>
   );
 }

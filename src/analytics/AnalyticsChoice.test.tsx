@@ -15,6 +15,9 @@ describe("escolha de métricas", () => {
       </MemoryRouter>,
     );
 
+    await user.click(
+      screen.getByRole("button", { name: "Como usamos as métricas" }),
+    );
     expect(
       screen.getByText(/Medimos visitas, origem aproximada/),
     ).toBeInTheDocument();

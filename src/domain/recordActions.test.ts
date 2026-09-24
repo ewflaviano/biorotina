@@ -43,6 +43,7 @@ describe("remoção e restauração de registros", () => {
       dose: 1,
       unit: "mg",
       reminderTimes: [],
+      reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
     };
     const second = {
       id: crypto.randomUUID(),
@@ -51,6 +52,7 @@ describe("remoção e restauração de registros", () => {
       dose: 2,
       unit: "mg",
       reminderTimes: [],
+      reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
     };
     const firstLog = {
       id: crypto.randomUUID(),
