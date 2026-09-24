@@ -5,7 +5,7 @@ se a imagem tem estrutura JPEG, início/fim válidos e dimensões entre 1 e 4096
 pixels por lado. Isso rejeita texto ou arquivos arbitrários enviados como
 `image/jpeg`; não substitui a análise de conteúdo da foto pelo modelo.
 
-Cada conta Google pode iniciar até 40 chamadas ao Gemini por dia, incluindo
+Cada conta Google pode iniciar até 40 pedidos de análise por dia, incluindo
 falhas temporárias do provedor. Esse teto técnico é separado das 5 análises
 grátis no total, das 10 análises diárias do plano e do limite de 5 resultados
 inutilizáveis por dia. Uma falha 503 continua sem consumir uma análise bem-
