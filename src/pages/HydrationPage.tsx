@@ -306,8 +306,8 @@ export function HydrationPage() {
               <p className="muted reminder-empty">Nenhum horário escolhido.</p>
             )}
             <small className="muted">
-              Os horários ficam no seu navegador. O serviço recebe somente os
-              horários, o fuso e a inscrição deste dispositivo.
+              Ao ativar avisos, compartilhamos apenas os horários necessários
+              para enviá-los. A quantidade de água que você bebe não é enviada.
             </small>
           </section>
           <PushControl />

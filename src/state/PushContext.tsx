@@ -131,7 +131,7 @@ function publicKeyBytes(key: string): Uint8Array<ArrayBuffer> {
 function subscriptionPayload(subscription: PushSubscription) {
   const keys = subscription.toJSON().keys;
   if (!keys?.p256dh || !keys.auth)
-    throw new Error("O navegador não forneceu a inscrição completa.");
+    throw new Error("Não foi possível preparar os avisos neste navegador.");
   return {
     endpoint: subscription.endpoint,
     keys: { p256dh: keys.p256dh, auth: keys.auth },
