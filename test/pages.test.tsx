@@ -349,7 +349,7 @@ describe("registro de peso", () => {
       },
     ];
     const user = await renderPage(<WeightPage />, initial);
-    await user.click(screen.getByRole("button", { name: /Usar peso de/ }));
+    await user.click(screen.getByRole("button", { name: /Repetir peso de/ }));
     expect(screen.getByLabelText("Peso em kg")).toHaveValue("72,125");
     expect(screen.getByLabelText("Data")).not.toHaveValue("2026-01-01");
     expect(screen.getByLabelText(/Observação/)).toHaveValue("");
@@ -463,7 +463,7 @@ describe("atividade e alimentação", () => {
       },
     ];
     const user = await renderPage(<ActivityPage />, initial);
-    await user.click(screen.getByRole("button", { name: /Usar Caminhada/ }));
+    await user.click(screen.getByRole("button", { name: /Repetir Caminhada/ }));
     expect(screen.getByLabelText("Atividade")).toHaveValue("Caminhada");
     expect(screen.getByLabelText("Duração em minutos")).toHaveValue("35,5");
     expect(screen.getByLabelText(/Calorias gastas/)).toHaveValue("180");
@@ -515,7 +515,7 @@ describe("atividade e alimentação", () => {
       },
     ];
     const user = await renderPage(<FoodPage />, initial);
-    await user.click(screen.getByRole("button", { name: /Usar Lanche/ }));
+    await user.click(screen.getByRole("button", { name: /Repetir Lanche/ }));
     expect(screen.getByLabelText("Descrição")).toHaveValue("Lanche");
     expect(screen.getByLabelText(/Calorias consumidas/)).toHaveValue("230,125");
     await user.click(screen.getByRole("button", { name: "Salvar refeição" }));

@@ -330,7 +330,7 @@ export function ActivityPage() {
                       <button
                         type="button"
                         className="entry-action"
-                        aria-label={`Usar ${item.name} de ${dateTimePt(item.occurredAt)} como modelo`}
+                        aria-label={`Repetir ${item.name} de ${dateTimePt(item.occurredAt)}`}
                         onClick={() => repeatActivity(item)}
                       >
                         Repetir
