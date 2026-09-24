@@ -31,6 +31,8 @@ pub struct DueSubscription {
     pub slot: String,
 }
 
+pub const PUBLIC_CREATE_LIMIT_PER_DAY: u32 = 30;
+
 fn due_shard(id: &str) -> String {
     let digest = Sha256::digest(id.as_bytes());
     format!("DUE#{:02}", digest[0] % 16)
@@ -39,6 +41,42 @@ fn due_shard(id: &str) -> String {
 impl Store {
     pub fn new(client: Client, table: String) -> Self {
         Self { client, table }
+    }
+
+    pub async fn reserve_public_create(&self, anonymous_key: &str) -> Result<bool, StoreError> {
+        let result = self
+            .client
+            .update_item()
+            .table_name(&self.table)
+            .key("pk", AttributeValue::S("RATE#PUSH_CREATE".into()))
+            .key("sk", AttributeValue::S(anonymous_key.into()))
+            .update_expression("SET #count = if_not_exists(#count, :zero) + :one, #ttl = :ttl")
+            .condition_expression("attribute_not_exists(#count) OR #count < :limit")
+            .expression_attribute_names("#count", "count")
+            .expression_attribute_names("#ttl", "ttl")
+            .expression_attribute_values(":zero", AttributeValue::N("0".into()))
+            .expression_attribute_values(":one", AttributeValue::N("1".into()))
+            .expression_attribute_values(
+                ":limit",
+                AttributeValue::N(PUBLIC_CREATE_LIMIT_PER_DAY.to_string()),
+            )
+            .expression_attribute_values(
+                ":ttl",
+                AttributeValue::N((Utc::now().timestamp() + 3 * 86400).to_string()),
+            )
+            .send()
+            .await;
+        match result {
+            Ok(_) => Ok(true),
+            Err(error)
+                if error
+                    .as_service_error()
+                    .is_some_and(|service| service.is_conditional_check_failed_exception()) =>
+            {
+                Ok(false)
+            }
+            Err(_) => Err(StoreError),
+        }
     }
 
     pub async fn create(&self, request: ReminderRequest) -> Result<(String, String), StoreError> {

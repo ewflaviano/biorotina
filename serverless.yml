@@ -61,6 +61,9 @@ functions:
       artifact: push/target/lambda/biorotina-api.zip
     events:
       - httpApi:
+          path: /api/push/subscriptions
+          method: POST
+      - httpApi:
           path: /api/push/{proxy+}
           method: ANY
   telemetry:
@@ -120,6 +123,15 @@ functions:
 
 resources:
   extensions:
+    HttpApiStage:
+      Properties:
+        RouteSettings:
+          'POST /api/push/subscriptions':
+            ThrottlingBurstLimit: 10
+            ThrottlingRateLimit: 5
+          'POST /api/telemetry/error':
+            ThrottlingBurstLimit: 10
+            ThrottlingRateLimit: 2
     HttpApi:
       Properties:
         CorsConfiguration:
