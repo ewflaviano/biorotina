@@ -21,6 +21,7 @@ Resources:
               - dynamodb:UpdateItem
               - dynamodb:DeleteItem
               - dynamodb:Query
+              - dynamodb:TransactWriteItems
             Resource:
               - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/biorotina-dev-*
               - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/biorotina-dev-*/index/*

@@ -35,6 +35,26 @@ O webhook configurado automaticamente usa:
 
 O `authToken` é diferente da chave de API do Asaas. Ele chega em `asaas-access-token`; a Lambda compara com o segredo antes de processar qualquer evento e responde 401 quando estiver ausente ou incorreto. Eventos processados são identificados pelo `id` para tolerar reenvios.
 
+## Falha durante a criação do checkout
+
+Antes de chamar o Asaas, a API grava `CHECKOUT_ATTEMPT#<externalReference>` na
+tabela de cobrança com a chave derivada da conta, estado `requested` e expiração
+em 14 dias. Depois de receber um identificador válido, grava **conta,
+mapeamento do checkout e estado `created` em uma única transação**. O link só é
+devolvido quando essa transação termina. Falha de rede ou de gravação após a
+chamada externa mantém por uma hora o bloqueio contra nova criação e gera o
+código de log `outcome_needs_reconciliation`; a próxima tentativa reutiliza
+um checkout que tenha sido salvo com sucesso. `requested` não prova que o
+checkout existe no Asaas, e nenhuma tentativa concede acesso ao plano.
+
+Para investigar esse código, consultar as tentativas recentes na tabela e
+localizar `externalReference` no Asaas, sem publicar identificadores ou
+respostas de pagamento nos logs. Se não houver checkout confirmado localmente,
+deixar o bloqueio expirar; o checkout externo sem link entregue à pessoa expira
+em uma hora. Caso tenha havido pagamento, conferir no Asaas e reconciliar pelo
+webhook e pela cobrança confirmada, nunca marcar o plano como pago com base
+apenas no retorno do navegador ou na tentativa registrada.
+
 ## Conferência no painel
 
 Após o deploy, abrir **Menu do usuário → Integrações → Webhooks**, localizar **Biorotina assinatura IA** e conferir URL, eventos e estado ativo. Em **Integrações → Logs de Webhooks**, verificar as respostas HTTP. Não criar uma segunda configuração para a mesma URL. As configurações de sandbox e produção são independentes.
