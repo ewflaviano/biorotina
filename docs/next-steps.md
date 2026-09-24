@@ -38,8 +38,10 @@ O app continua utilizável sem conta. Dados de saúde permanecem no navegador e,
 
 **Preparação externa concluída:** a delegação NS de `biorotina.app.br`, os certificados e a infraestrutura AWS estão ativos. Segredos ficam no Secrets Manager, nunca no Git nem no bundle. Falta testar a entrega real e revisar abuso em navegadores suportados antes de anunciar o serviço como estável.
 
-## 3. Análise de refeições por foto
+## 3. Consolidar análise de refeições por foto
 
-**Implementação local em revisão:** chave Gemini informada pela pessoa, tutorial do Google AI Studio, foto reduzida no navegador, JSON de alimentos e calorias, revisão e salvamento normal. Foto e chave ficam fora do backup e do Drive. Falhas da IA preservam o cadastro manual.
+**Implementado e publicado:** análise opcional com chave Gemini guardada só no navegador, teste de até cinco fotos por conta quando habilitado no backend e plano mensal com login Google, checkout externo do Asaas e até dez análises bem-sucedidas por dia. A pessoa revisa o resultado antes de salvar, ou continua com o cadastro manual. Foto e chave pessoal ficam fora do backup e do Drive. A API valida a estrutura da imagem, limita tentativas e distingue foto sem refeição de indisponibilidade temporária do Gemini; uma sugestão inutilizável não consome a cota de análises bem-sucedidas.
 
-**Plano mensal em revisão local:** login Google obrigatório para assinar, checkout do Asaas com dados de cobrança coletados lá, webhook, cancelamento e cota de dez análises por dia. O app não pede CPF nem código de assinatura. A chave do projeto fica no Secrets Manager. Antes de publicar, testar checkout, confirmação, renovação, cota, reembolso e cancelamento no sandbox, além de fotos em iPhone e Android e conexão lenta. O repositório permanece privado.
+**Validação concluída:** no [roteiro do navegador](manual-browser-test-runs/2026-09-24.md), a conta sem plano usou as cinco análises grátis, a conta paga analisou uma refeição e a imagem pública sem comida recebeu mensagem específica sem aumentar o contador do plano. O evento técnico sanitizado apareceu no CloudWatch.
+
+**Ainda falta:** testar em mais aparelhos e conexões, além dos cenários operacionais de renovação, reembolso, cancelamento, indisponibilidade prolongada e recuperação de falhas de cobrança. Não concluir pagamento nem alterar assinatura real só para satisfazer um teste. A [auditoria de dependências](dependency-audit.md) e os [procedimentos de recuperação](data-recovery.md) também precisam ser revisitados antes de tornar o repositório público.
