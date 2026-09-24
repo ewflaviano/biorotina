@@ -9,6 +9,10 @@ name = "biorotina-api"
 path = "src/bin/api.rs"
 
 [[bin]]
+name = "biorotina-billing-api"
+path = "src/bin/billing_api.rs"
+
+[[bin]]
 name = "biorotina-tick"
 path = "src/bin/tick.rs"
 
@@ -24,7 +28,7 @@ http = "0.2"
 lambda_http = { version = "1.3", default-features = false, features = ["apigw_http"] }
 lambda_runtime = "1.4"
 openssl = { version = "0.10", features = ["vendored"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

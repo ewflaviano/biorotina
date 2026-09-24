@@ -42,4 +42,4 @@ O app continua utilizável sem conta. Dados de saúde permanecem no navegador e,
 
 **Implementação local em revisão:** chave Gemini informada pela pessoa, tutorial do Google AI Studio, foto reduzida no navegador, JSON de alimentos e calorias, revisão e salvamento normal. Foto e chave ficam fora do backup e do Drive. Falhas da IA preservam o cadastro manual.
 
-**Ainda falta antes de disponibilizar amplamente:** testar com chave própria em iPhone e Android, fotos de diferentes refeições e conexão lenta; verificar custos, cotas e mensagens de erro reais do Gemini. Um plano mensal usando chave do projeto é trabalho futuro e precisa de cobrança, autenticação e limites no servidor. O repositório permanece privado.
+**Plano mensal em revisão local:** login Google obrigatório para assinar, checkout do Asaas com dados de cobrança coletados lá, webhook, cancelamento e cota de dez análises por dia. O app não pede CPF nem código de assinatura. A chave do projeto fica no Secrets Manager. Antes de publicar, testar checkout, confirmação, renovação, cota, reembolso e cancelamento no sandbox, além de fotos em iPhone e Android e conexão lenta. O repositório permanece privado.

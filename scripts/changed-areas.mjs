@@ -20,6 +20,7 @@ const SHARED_FILES = new Set([
   "scripts/changed-areas.mjs",
   "scripts/changed-areas.check.mjs",
 ]);
+const BACKEND_FILES = new Set(["scripts/configure-billing.mjs"]);
 
 export function classifyPaths(paths) {
   let frontend = false;
@@ -36,6 +37,8 @@ export function classifyPaths(paths) {
       continue;
     if (SHARED_FILES.has(path)) {
       frontend = true;
+      backend = true;
+    } else if (BACKEND_FILES.has(path)) {
       backend = true;
     } else if (
       path.startsWith("src/") ||

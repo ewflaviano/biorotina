@@ -22,6 +22,10 @@ vi.mock("../src/ai/gemini", () => ({
   })),
 }));
 
+vi.mock("../src/sync/DriveSyncContext", () => ({
+  useDriveSync: () => ({ account: null }),
+}));
+
 function Ready() {
   return useAppData().loading ? null : <span data-testid="ready" />;
 }

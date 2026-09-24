@@ -87,6 +87,15 @@ jobs:
         with:
           workspaces: push
       - run: npm ci
+      - name: Check billing configuration before deploy
+        env:
+          ASAAS_API_KEY: ${{ secrets.ASAAS_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+        run: |
+          test -n "$ASAAS_API_KEY" || { echo 'ASAAS_API_KEY ausente' >&2; exit 1; }
+          test -n "$GEMINI_API_KEY" || { echo 'GEMINI_API_KEY ausente' >&2; exit 1; }
+          test -n "$VITE_GOOGLE_CLIENT_ID" || { echo 'VITE_GOOGLE_CLIENT_ID ausente' >&2; exit 1; }
       - name: Assume AWS role
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -108,10 +117,17 @@ jobs:
           PATH="$PWD/node_modules/.bin:$PATH" CARGO_BUILD_JOBS=2 OPENSSL_STATIC=1 cargo lambda build --release --disable-optimizations --output-format zip --bins --manifest-path push/Cargo.toml
           cp push/target/lambda/biorotina-api/bootstrap.zip push/target/lambda/biorotina-api.zip
           cp push/target/lambda/biorotina-tick/bootstrap.zip push/target/lambda/biorotina-tick.zip
+          cp push/target/lambda/biorotina-billing-api/bootstrap.zip push/target/lambda/biorotina-billing-api.zip
       - name: Deploy AWS stack
         run: npx serverless deploy
         env:
           ENABLE_CUSTOM_DOMAIN: ${{ vars.ENABLE_CUSTOM_DOMAIN || 'true' }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+      - name: Configure billing secrets and Asaas webhook
+        env:
+          ASAAS_API_KEY: ${{ secrets.ASAAS_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/configure-billing.mjs
 
   deploy_frontend:
     if: >-

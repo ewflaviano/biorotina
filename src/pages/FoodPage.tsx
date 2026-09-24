@@ -19,6 +19,8 @@ import {
   type PreparedImage,
 } from "../ai/gemini";
 import { loadGeminiKey } from "../storage/indexedDb";
+import { analyzeWithPlan, getPlanStatus } from "../billing/client";
+import { useDriveSync } from "../sync/DriveSyncContext";
 
 type FoodDraft = { id: string; name: string; amount: string; calories: string };
 
@@ -31,6 +33,7 @@ function totalFromFoods(foods: FoodDraft[]): string {
 
 export function FoodPage() {
   const { data, mutate, removeWithUndo } = useAppData();
+  const drive = useDriveSync();
   const [name, setName] = useState("");
   const [calories, setCalories] = useState("");
   const [when, setWhen] = useState(toLocalDateTime(new Date().toISOString()));
@@ -41,6 +44,9 @@ export function FoodPage() {
   const [foods, setFoods] = useState<FoodDraft[]>([]);
   const [photo, setPhoto] = useState<PreparedImage | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [photoMode, setPhotoMode] = useState<"plan" | "key">(
+    drive.account ? "plan" : "key",
+  );
   const [photoAssisted, setPhotoAssisted] = useState(false);
   const [totalEdited, setTotalEdited] = useState(false);
   const meals = [...data.meals].sort((a, b) =>
@@ -152,12 +158,27 @@ export function FoodPage() {
     setError("");
     setAnalyzing(true);
     try {
-      const key = await loadGeminiKey();
-      if (!key)
-        throw new Error(
-          "Adicione sua chave Gemini nas Configurações para analisar fotos.",
-        );
-      const suggestion = await analyzeMealImage(key, photo);
+      let suggestion;
+      if (photoMode === "plan") {
+        const token = drive.account?.token;
+        if (!token)
+          throw new Error(
+            "Entre com Google para usar o plano. Você também pode usar sua própria chave Gemini.",
+          );
+        const plan = await getPlanStatus(token);
+        if (!plan.active)
+          throw new Error(
+            "Seu plano ainda não está ativo. Confira a assinatura.",
+          );
+        suggestion = await analyzeWithPlan(token, photo);
+      } else {
+        const key = await loadGeminiKey();
+        if (!key)
+          throw new Error(
+            "Adicione sua chave Gemini nas Configurações para analisar fotos.",
+          );
+        suggestion = await analyzeMealImage(key, photo);
+      }
       setName(suggestion.description);
       setFoods(
         suggestion.foods.map((food) => ({
@@ -267,6 +288,30 @@ export function FoodPage() {
                   onChange={choosePhoto}
                 />
               </div>
+              <div
+                className="meal-ai-modes"
+                role="group"
+                aria-label="Como analisar a foto"
+              >
+                <button
+                  type="button"
+                  aria-pressed={photoMode === "plan"}
+                  onClick={() => setPhotoMode("plan")}
+                >
+                  Meu plano
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={photoMode === "key"}
+                  onClick={() => setPhotoMode("key")}
+                >
+                  Minha chave Gemini
+                </button>
+              </div>
+              <p className="muted small">
+                <a href="#/assinatura">Conhecer o plano por R$ 8,99/mês</a> ·
+                Até 10 análises por dia.
+              </p>
               {photo && (
                 <div className="meal-photo-preview">
                   <img src={photo.dataUrl} alt="Foto selecionada da refeição" />
@@ -288,9 +333,16 @@ export function FoodPage() {
                 </div>
               )}
               <p className="muted small">
-                A foto é enviada ao Google somente quando você toca em “Analisar
-                foto”. Ela não é guardada no diário ou no backup.{" "}
-                <a href="#/configuracoes">Configurar minha chave Gemini</a>.
+                A foto é enviada{" "}
+                {photoMode === "plan" ? "à Biorotina e ao Google" : "ao Google"}{" "}
+                somente quando você toca em “Analisar foto”. Ela não é guardada
+                no servidor, no diário ou no backup.{" "}
+                {photoMode === "plan" ? (
+                  <a href="#/assinatura">Ver plano de R$ 8,99/mês</a>
+                ) : (
+                  <a href="#/configuracoes">Configurar minha chave Gemini</a>
+                )}
+                .
               </p>
             </div>
             {prefilled && (

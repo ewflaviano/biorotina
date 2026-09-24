@@ -35,7 +35,7 @@ EventBridge Scheduler ── Lambda Rust de envio ── Web Push
 
 A pessoa cria uma chave no Google AI Studio e a guarda somente no IndexedDB deste aparelho, separada de `AppData`; ela não entra no JSON nem no Drive. A foto é convertida para JPEG de até 768 px por lado e aproximadamente 350 KB no navegador, sem metadados EXIF, e enviada diretamente à API Gemini apenas depois de um toque explícito. O app pede JSON estruturado, valida descrição, alimentos, porções e calorias, preenche o formulário e deixa tudo editável. Só os dados confirmados entram no diário; `photoAssisted` identifica que houve sugestão da foto. Erro, falta de chave ou indisponibilidade do Gemini não bloqueiam o registro manual. A chave pode ser removida em Configurações. Por estar no navegador, não é um segredo contra scripts executados na mesma origem, extensões ou outras pessoas com acesso ao dispositivo; recomenda-se uma chave separada e limites na conta Google.
 
-Um plano futuro com chave do projeto exigirá backend autenticado, cobrança, controles de quota e avaliação específica de privacidade. Não há chave Gemini do projeto no código.
+O plano mensal usa a conta Google já conectada para identificar a assinatura. O backend verifica o token Google e guarda o hash do identificador da conta, os IDs de cobrança, as datas e a cota diária. O checkout coleta CPF e cartão no Asaas; esses dados não passam pela Biorotina. Webhooks autenticados confirmam pagamentos e renovação, e o cancelamento é enviado ao Asaas. A foto do plano passa pelo backend para usar a chave do projeto, sem persistência. A implementação está em revisão local e requer teste financeiro completo no sandbox antes de publicar; nenhuma chave do projeto entra no código.
 
 ## Sincronização Google Drive
 
@@ -72,7 +72,7 @@ Isso dispensa identificar a pessoa por nome ou e-mail **para o envio por disposi
 - Métricas operacionais agregadas do serviço, com desenho de privacidade próprio. Nunca enviar eventos que incluam peso, refeições, medicamentos, dose ou outros registros pessoais por padrão.
 - Recursos de IA que exijam chave mantida pelo projeto; nesse caso, os dados enviados e o consentimento precisarão ser explícitos. Uma chave fornecida pela pessoa exige um desenho separado de armazenamento e risco.
 
-Evitar ampliar o backend para dados pessoais só por antecipação. O serviço atual existe para notificações; novos dados só devem entrar quando um recurso concreto precisar deles.
+Evitar ampliar o backend para dados pessoais só por antecipação. Os serviços atuais existem para notificações e o plano de IA; novos dados só devem entrar quando um recurso concreto precisar deles.
 
 ## Segurança e futuro código aberto
 

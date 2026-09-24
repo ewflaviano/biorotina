@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := run
 
-.PHONY: run dev install test test-watch coverage check build preview lint typecheck format format-check secrets deploy help
+.PHONY: run dev install test test-watch coverage check build preview lint typecheck format format-check secrets deploy configure-billing help
 
 run:
 	npm run dev
@@ -30,7 +30,11 @@ deploy:
 	PATH="$(CURDIR)/node_modules/.bin:$$PATH" CARGO_BUILD_JOBS=2 OPENSSL_STATIC=1 cargo lambda build --release --disable-optimizations --output-format zip --bins --manifest-path push/Cargo.toml
 	cp push/target/lambda/biorotina-api/bootstrap.zip push/target/lambda/biorotina-api.zip
 	cp push/target/lambda/biorotina-tick/bootstrap.zip push/target/lambda/biorotina-tick.zip
+	cp push/target/lambda/biorotina-billing-api/bootstrap.zip push/target/lambda/biorotina-billing-api.zip
 	npx serverless deploy --aws-profile biorotina
+
+configure-billing:
+	AWS_PROFILE=biorotina AWS_REGION=sa-east-1 node scripts/configure-billing.mjs
 
 build:
 	npm run build
@@ -67,5 +71,6 @@ help:
 	  'make typecheck    Verifica os tipos TypeScript' \
 	  'make format       Formata o código' \
 	  'make format-check Verifica a formatação' \
-	  'make secrets      Busca padrões conhecidos de credenciais'
-	  'make deploy       Publica a infraestrutura e API na AWS com o perfil biorotina'
+	  'make secrets      Busca padrões conhecidos de credenciais' \
+	  'make deploy       Publica a infraestrutura e API na AWS com o perfil biorotina' \
+	  'make configure-billing Configura segredos e webhook após um deploy local'

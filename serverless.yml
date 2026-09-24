@@ -18,6 +18,13 @@ provider:
       Ref: PushTable
     PUSH_SECRET_ARN:
       Ref: PushVapidSeed
+    BILLING_TABLE_NAME:
+      Ref: BillingTable
+    BILLING_KEYS_ARN:
+      Ref: BillingKeys
+    BILLING_WEBHOOK_TOKEN_ARN:
+      Ref: BillingWebhookToken
+    GOOGLE_CLIENT_ID: ${env:VITE_GOOGLE_CLIENT_ID, ''}
     PUBLIC_APP_URL:
       Fn::If:
         - UseCustomDomain
@@ -62,6 +69,18 @@ provider:
           Action: secretsmanager:GetSecretValue
           Resource:
             Ref: PushVapidSeed
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+          Resource:
+            Fn::GetAtt: [BillingTable, Arn]
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource:
+            - Ref: BillingKeys
+            - Ref: BillingWebhookToken
 
 functions:
   api:
@@ -84,6 +103,18 @@ functions:
           rate: cron(0/5 * * * ? *)
           input:
             kind: tick
+  billingApi:
+    handler: bootstrap
+    timeout: 28
+    package:
+      artifact: push/target/lambda/biorotina-billing-api.zip
+    events:
+      - httpApi:
+          path: /api/billing/{proxy+}
+          method: ANY
+      - httpApi:
+          path: /api/ai/meal
+          method: ANY
 
 resources:
   extensions:
@@ -139,6 +170,34 @@ resources:
         SSESpecification:
           SSEEnabled: true
     PushVapidSeed:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        GenerateSecretString:
+          PasswordLength: 64
+          ExcludePunctuation: true
+    BillingTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+        SSESpecification:
+          SSEEnabled: true
+    BillingKeys:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        GenerateSecretString:
+          SecretStringTemplate: '{"asaas":"","gemini":""}'
+          GenerateStringKey: bootstrap
+          PasswordLength: 32
+    BillingWebhookToken:
       Type: AWS::SecretsManager::Secret
       Properties:
         GenerateSecretString:
@@ -310,3 +369,9 @@ resources:
           - UseCustomDomain
           - https://api.biorotina.app.br
           - Fn::GetAtt: [HttpApi, ApiEndpoint]
+    BillingKeysArn:
+      Value:
+        Ref: BillingKeys
+    BillingWebhookTokenArn:
+      Value:
+        Ref: BillingWebhookToken
