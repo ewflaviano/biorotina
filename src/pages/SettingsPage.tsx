@@ -24,6 +24,7 @@ import { downloadJson } from "../sync/download";
 import { DriveBackup } from "../sync/DriveBackup";
 import { AnalyticsChoice } from "../analytics/AnalyticsChoice";
 import { GeminiSettings } from "../ai/GeminiSettings";
+import { Link } from "react-router-dom";
 
 export function SettingsPage() {
   const { data, mutate, replace } = useAppData();
@@ -132,6 +133,13 @@ export function SettingsPage() {
         description="Ajuste seu perfil e mantenha uma cópia dos seus dados."
       />
       <div className="settings-grid">
+        <section className="panel">
+          <h2>Plano para fotos com IA</h2>
+          <p>Até 10 análises de refeições por foto ao dia. R$ 8,99 por mês.</p>
+          <Link className="text-link" to="/assinatura">
+            Ver minha assinatura
+          </Link>
+        </section>
         <GeminiSettings />
         <section className="panel">
           <div className="card-title">

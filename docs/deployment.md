@@ -2,9 +2,9 @@
 
 ## Infraestrutura
 
-O `serverless.yml` cria a API HTTP em Axum, duas Lambdas Rust (API e envio periódico), o agendamento a cada cinco minutos, uma tabela DynamoDB para inscrições técnicas de Web Push, um segredo VAPID gerado pelo Secrets Manager, um bucket S3 privado e uma distribuição CloudFront. A pilha fica em `sa-east-1`. CloudFront e Route 53 são serviços globais; o certificado do site precisa estar em `us-east-1` por exigência do CloudFront. O certificado de `api.biorotina.app.br` fica em `sa-east-1`.
+O `serverless.yml` cria APIs HTTP em Axum, três Lambdas Rust (avisos, envio periódico e assinatura/IA), o agendamento a cada cinco minutos, tabelas DynamoDB separadas para Web Push e assinatura, segredos no Secrets Manager, um bucket S3 privado e uma distribuição CloudFront. A pilha fica em `sa-east-1`. CloudFront e Route 53 são serviços globais; o certificado do site precisa estar em `us-east-1` por exigência do CloudFront. O certificado de `api.biorotina.app.br` fica em `sa-east-1`.
 
-O backend recebe somente inscrição técnica do navegador, horários e fuso. Não recebe nome, dose, peso, alimentação ou histórico. O token de administração fica no navegador e só seu hash fica no DynamoDB. A inscrição expira após 180 dias sem atualização. O segredo VAPID é criado pela AWS e nunca entra no código ou no build do site.
+O serviço de avisos recebe inscrição técnica do navegador, horários e fuso; não recebe nome, dose, peso, alimentação ou histórico. O token de administração fica no navegador e só seu hash fica no DynamoDB. A inscrição expira após 180 dias sem atualização. O serviço de assinatura recebe o token Google para identificar a conta, guarda apenas seu identificador derivado, estado da assinatura e contagem diária e processa fotos reduzidas sem persistir a imagem. CPF e cartão são informados no checkout externo. Segredos VAPID, Asaas e Gemini ficam na AWS e nunca entram no código ou no build do site.
 
 ## DNS e certificados
 
@@ -31,6 +31,8 @@ make deploy
 
 `make deploy` usa o profile `biorotina` e a região `sa-east-1`. O domínio personalizado está habilitado por padrão.
 
+Para habilitar o plano de IA após um deploy local, execute `make configure-billing` com `ASAAS_API_KEY` e `GEMINI_API_KEY` definidos apenas no ambiente do processo. Esse passo não faz parte de `make deploy` para que a implantação local não altere a configuração de cobrança sem intenção. No CI, a configuração é automática após a implantação do backend.
+
 Para compilar o frontend para a infraestrutura existente, obtenha a saída `PushApiUrl` da pilha `biorotina-dev`, use-a como `VITE_PUSH_API_URL` em `npm run build` e publique `dist/` no bucket indicado por `FrontendBucketName`. O fluxo do GitHub Actions faz essas etapas e invalida o cache do CloudFront automaticamente.
 
 ## GitHub Actions
@@ -40,6 +42,8 @@ O workflow `.github/workflows/ci.yml` identifica as áreas alteradas. Em todo pu
 A branch `master` está protegida: mudanças exigem pull request, os checks `changes`, `validate_frontend` e `validate_backend` precisam terminar com sucesso e conversas de revisão precisam ser resolvidas. Os jobs de validação de áreas não alteradas são pulados pelo workflow; o GitHub considera esse estado suficiente para um check exigido. Não há exigência de segunda aprovação enquanto o projeto tiver um único mantenedor.
 
 O projeto usa Serverless Framework v3, que implanta pela role AWS sem uma chave adicional do Serverless Dashboard. A variável pública `AWS_DEPLOY_ROLE_ARN` aponta para a role criada; `ENABLE_CUSTOM_DOMAIN` ativa os domínios depois da emissão dos certificados. A versão 3 ainda traz alertas de segurança em ferramentas usadas apenas durante o build. O CI verifica separadamente as dependências enviadas ao usuário com `npm audit --omit=dev`; antes de abrir o código, será preciso atualizar ou substituir o Framework v3 para eliminar também esses alertas de desenvolvimento.
+
+O plano de IA usa os secrets `ASAAS_API_KEY` e `GEMINI_API_KEY` do GitHub somente no job de implantação do backend. Após o deploy, `scripts/configure-billing.mjs` grava as chaves no Secrets Manager e configura o webhook autenticado no Asaas. A variável pública `VITE_GOOGLE_CLIENT_ID` também é passada à Lambda para conferir que o token Google pertence ao aplicativo. Veja o [fluxo de assinatura e webhook](billing.md). A cobrança deve ser homologada no sandbox antes de ser disponibilizada a usuários.
 
 Antes de abrir o repositório, revisar o histórico Git inteiro, escolher licença e rotacionar qualquer segredo que tenha sido exposto acidentalmente. O script `npm run check:secrets` examina padrões comuns dos arquivos atuais e dos objetos acessíveis no histórico, sem imprimir valores encontrados. Ele não substitui uma revisão humana de arquivos, integrações e permissões.
 

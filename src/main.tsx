@@ -16,6 +16,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { SupportPage } from "./pages/SupportPage";
 import { InstallPage } from "./pages/InstallPage";
+import { PlanPage } from "./pages/PlanPage";
 import { AppDataProvider, useAppData } from "./state/AppDataContext";
 import { PushProvider } from "./state/PushContext";
 import { DriveSyncProvider } from "./sync/DriveSyncContext";
@@ -45,6 +46,7 @@ function AppRoutes() {
         <Route path="privacidade" element={<PrivacyPage />} />
         <Route path="apoiar" element={<SupportPage />} />
         <Route path="instalar" element={<InstallPage />} />
+        <Route path="assinatura" element={<PlanPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

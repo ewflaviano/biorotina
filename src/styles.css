@@ -64,14 +64,14 @@ h3 {
   font-weight: 700;
 }
 .topbar {
-  height: 66px;
+  height: calc(66px + env(safe-area-inset-top));
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 0 16px;
+  padding: env(safe-area-inset-top) 16px 0;
 }
 .mobile-brand,
 .brand {
@@ -181,7 +181,7 @@ h3 {
 .main-content {
   max-width: 1240px;
   margin: 0 auto;
-  padding: 28px 16px calc(112px + env(safe-area-inset-bottom));
+  padding: 28px 16px calc(124px + env(safe-area-inset-bottom));
 }
 .bottom-nav {
   position: fixed;
@@ -193,7 +193,7 @@ h3 {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
-  padding: 5px 4px calc(5px + env(safe-area-inset-bottom));
+  padding: 6px 4px calc(17px + env(safe-area-inset-bottom));
   box-shadow: 0 -4px 18px rgb(20 54 39 / 5%);
 }
 .bottom-link {
@@ -1258,7 +1258,7 @@ h3 {
   z-index: 40;
   left: 16px;
   right: 16px;
-  bottom: calc(82px + env(safe-area-inset-bottom));
+  bottom: calc(94px + env(safe-area-inset-bottom));
   padding: 13px 16px;
   border-radius: var(--radius-sm);
   background: var(--neutral-900);
@@ -1271,7 +1271,7 @@ h3 {
   z-index: 45;
   left: 12px;
   right: 12px;
-  bottom: calc(77px + env(safe-area-inset-bottom));
+  bottom: calc(89px + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1315,7 +1315,7 @@ h3 {
   z-index: 38;
   left: 12px;
   right: 12px;
-  bottom: calc(78px + env(safe-area-inset-bottom));
+  bottom: calc(90px + env(safe-area-inset-bottom));
   display: flex;
   align-items: flex-start;
   gap: 11px;
@@ -1561,7 +1561,7 @@ h3 {
 @media (max-width: 420px) {
   .topbar {
     gap: 5px;
-    padding: 0 10px;
+    padding: env(safe-area-inset-top) 10px 0;
   }
   .mobile-brand {
     gap: 5px;
@@ -1672,8 +1672,8 @@ h3 {
     font-size: 11px;
   }
   .topbar {
-    height: 74px;
-    padding: 0 32px;
+    height: calc(74px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 32px 0;
   }
   .mobile-brand {
     display: none;
@@ -1735,4 +1735,106 @@ h3 {
     bottom: 24px;
     width: min(480px, calc(100vw - 48px));
   }
+}
+.plan-layout {
+  display: grid;
+  gap: 16px;
+  max-width: 1060px;
+}
+.plan-offer {
+  background: var(--green-50);
+}
+.plan-offer > p {
+  color: var(--color-text-secondary);
+}
+.plan-price {
+  display: block;
+  margin: 20px 0;
+  font-size: clamp(30px, 8vw, 42px);
+  letter-spacing: -0.04em;
+}
+.plan-price small {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.plan-benefits {
+  display: grid;
+  gap: 11px;
+  padding: 0;
+  margin: 0 0 22px;
+  list-style: none;
+}
+.plan-benefits li {
+  display: flex;
+  gap: 9px;
+  align-items: start;
+  font-size: 14px;
+}
+.plan-benefits svg {
+  flex: none;
+  color: var(--color-action);
+}
+.plan-checkout {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.plan-checkout .button {
+  justify-self: start;
+}
+.plan-facts {
+  display: grid;
+  gap: 0;
+  margin: 20px 0;
+}
+.plan-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+.plan-facts dt {
+  color: var(--color-text-secondary);
+}
+.plan-facts dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+.plan-alternative svg {
+  color: var(--color-action);
+}
+@media (min-width: 900px) {
+  .plan-layout {
+    grid-template-columns: 1.1fr 0.9fr;
+    align-items: start;
+  }
+  .plan-alternative {
+    grid-column: 1 / -1;
+  }
+}
+.meal-ai-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.meal-ai-modes button {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+.meal-ai-modes button[aria-pressed="true"] {
+  border-color: var(--color-action);
+  background: var(--color-action-soft);
+  color: var(--color-action);
 }

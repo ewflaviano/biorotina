@@ -38,6 +38,14 @@ export function PrivacyPage() {
             passam a fazer parte do seu diário e do backup, se estiver
             conectado.
           </p>
+          <p>
+            Com o plano mensal, a foto reduzida passa pelo serviço da Biorotina
+            para análise no Gemini. Não guardamos a foto ou o resultado no
+            servidor. Guardamos um identificador derivado da conta Google, o
+            identificador da assinatura, datas de cobrança e a contagem diária
+            de análises. O Asaas coleta os dados de pagamento no checkout; a
+            Biorotina não recebe os dados do cartão.
+          </p>
         </section>
         <section className="panel">
           <h2>Conta Google e backup</h2>
@@ -48,8 +56,10 @@ export function PrivacyPage() {
             recuperar o backup. O app não acessa os outros arquivos do Drive. O
             token de acesso temporário fica no armazenamento deste navegador
             para manter a conexão ao atualizar a página. O app tenta renová-lo
-            quando expira, e você pode se desconectar a qualquer momento. O
-            token não é enviado ao servidor da Biorotina.
+            quando expira, e você pode se desconectar a qualquer momento. Para o
+            plano de IA, o token temporário é enviado ao serviço da Biorotina
+            apenas para confirmar a conta Google; ele não é armazenado no
+            servidor nem usado para acessar seu Drive.
           </p>
           <p>
             Você pode desconectar a conta no app, revogar o acesso nas

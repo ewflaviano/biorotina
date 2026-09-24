@@ -13,10 +13,17 @@ test("frontend changes do not start backend validation", () => {
 });
 
 test("backend changes do not start frontend validation", () => {
-  assert.deepEqual(classifyPaths(["push/src/bin/tick.rs", "serverless.yml"]), {
-    frontend: false,
-    backend: true,
-  });
+  assert.deepEqual(
+    classifyPaths([
+      "push/src/bin/tick.rs",
+      "serverless.yml",
+      "scripts/configure-billing.mjs",
+    ]),
+    {
+      frontend: false,
+      backend: true,
+    },
+  );
 });
 
 test("shared files start both validations", () => {

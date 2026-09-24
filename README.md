@@ -9,7 +9,7 @@ Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acomp
 - Uso inicial sem conta, com dados guardados localmente no navegador.
 - Exportação e importação de arquivo JSON para cópia e recuperação dos registros.
 - Sincronização opcional com o **Google Drive da própria pessoa** para usar os dados em outro navegador ou dispositivo.
-- Sem banco de dados central de registros de saúde operado pelo projeto; o serviço de avisos guarda apenas dados técnicos da inscrição e horários.
+- Sem banco de dados central de registros de saúde operado pelo projeto; o serviço de avisos guarda dados técnicos da inscrição e horários. O plano de IA guarda somente estado da assinatura e uso diário.
 - Métricas de acesso para contagem agregada, sem publicidade, com opção de desativar em Configurações e sem envio de registros de saúde.
 
 O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação permitem usar uma entrada como modelo, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. Água e medicamentos permitem vários horários de lembrete. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; a entrega agendada foi confirmada em iPhone e Android.
@@ -18,7 +18,7 @@ No celular, há um convite discreto para adicionar a Biorotina à tela inicial e
 
 Quem quiser colaborar pode começar pelo [guia de contribuição](CONTRIBUTING.md) e pelas [issues](https://github.com/ewflaviano/biorotina/issues). Questões sensíveis devem seguir a [política de segurança](SECURITY.md). O CI valida todo pull request; publicação na AWS ocorre apenas após merge em `master`.
 
-A análise opcional de uma refeição por foto usa uma chave Gemini da própria pessoa. A imagem é reduzida a no máximo 768 px por lado e cerca de 350 KB no aparelho e só é enviada ao Google após tocar em **Analisar foto**. A sugestão pode ser corrigida antes de salvar; foto e chave não entram no backup ou no Drive. A chave fica em IndexedDB neste navegador. Uma assinatura que usaria chave administrada pelo projeto é apenas uma ideia futura e exigirá um fluxo próprio de cobrança, limites e proteção de dados.
+A análise opcional de uma refeição por foto pode usar uma chave Gemini da própria pessoa ou o plano mensal da Biorotina. A imagem é reduzida a no máximo 768 px por lado e cerca de 350 KB no aparelho e só é enviada após tocar em **Analisar foto**. A sugestão pode ser corrigida antes de salvar; foto e chave pessoal não entram no backup ou no Drive. A chave pessoal fica em IndexedDB. O plano exige login Google, usa checkout externo do Asaas e limita a dez análises por dia. A implementação de cobrança está em revisão local e ainda precisa de testes de ponta a ponta no sandbox antes da publicação.
 
 O [catálogo de atividades e a fórmula de estimativa](docs/activity-reference.md) documentam os valores usados no preenchimento automático.
 
@@ -55,13 +55,14 @@ Para manutenção, `make check` executa a checagem do frontend, Clippy e testes 
 - [Revisão de UX/UI](docs/ux-review.md): passo a passo das telas, ajustes feitos e pontos para próximas iterações.
 - [Instalação no celular](docs/installation.md): convite, compatibilidade e transferência de registros.
 - [Apoio ao projeto](docs/support.md): origem e manutenção do Pix estático.
+- [Assinatura e webhook](docs/billing.md): fluxo, configuração do Asaas e homologação.
 
 ## Decisões ainda abertas
 
 1. Validar restauração e conflitos de sincronização em dois dispositivos reais; confirmar a disponibilidade pública do consentimento OAuth.
 2. Edição retroativa de peso, atividade, refeição e água, além de recuperação após perda do navegador. Exclusão com desfazer e migração de dados antigos para a versão 4 já funcionam.
 3. Continuar testes de Web Push em desktop e revisar a operação do serviço; iPhone e Android receberam avisos agendados.
-4. Validar a análise de refeições por foto com Gemini em dispositivos reais e considerar, em fase futura, assinatura com chave administrada pelo projeto.
+4. Validar a análise de refeições por foto em dispositivos reais e testar checkout, webhook, renovação, cota e cancelamento da assinatura no sandbox antes de disponibilizar o plano.
 5. Definir licença e concluir a revisão do histórico completo antes de abrir o projeto no GitHub. A proteção de `master` já exige PR e checks aprovados.
 
 Integrações com Apple Health e Health Connect estão fora do escopo inicial.
