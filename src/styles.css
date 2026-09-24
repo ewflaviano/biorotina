@@ -779,6 +779,115 @@ h3 {
   display: grid;
   gap: 16px;
 }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.meal-photo-box {
+  margin: 18px 0 22px;
+  padding: 18px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-action-soft);
+}
+.meal-photo-heading,
+.meal-photo-actions,
+.meal-photo-preview,
+.gemini-key-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.meal-photo-heading p {
+  margin: 3px 0 0;
+}
+.meal-photo-actions {
+  margin: 16px 0;
+}
+.meal-photo-actions .button {
+  cursor: pointer;
+}
+.meal-photo-actions .button:has(+ input:focus-visible) {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+.meal-photo-preview {
+  margin: 12px 0;
+}
+.meal-photo-preview img {
+  display: block;
+  width: 86px;
+  height: 86px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+.meal-foods {
+  display: grid;
+  gap: 12px;
+}
+.meal-foods-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.meal-foods-title span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.meal-food-row {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 0.65fr auto;
+  gap: 8px;
+  align-items: end;
+}
+.meal-food-row .entry-action {
+  margin-bottom: 2px;
+}
+.gemini-key-actions {
+  grid-column: 1 / -1;
+}
+.gemini-tutorial {
+  margin: 18px 0;
+}
+.gemini-tutorial summary {
+  cursor: pointer;
+  color: var(--color-action);
+  font-weight: 700;
+}
+.gemini-tutorial li {
+  margin: 8px 0;
+}
+.gemini-tutorial a,
+.meal-photo-box a {
+  color: var(--color-action);
+  font-weight: 700;
+}
+@media (max-width: 650px) {
+  .meal-photo-actions .button {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+  .meal-food-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+  .meal-food-row .field:first-child {
+    grid-column: 1 / -1;
+  }
+  .meal-food-row .field:nth-child(2) {
+    grid-column: 1;
+  }
+  .meal-food-row .field:nth-child(3) {
+    grid-column: 2;
+  }
+}
 .field {
   display: grid;
   align-content: start;
@@ -1191,22 +1300,6 @@ h3 {
   place-items: center;
   width: 44px;
 }
-.analytics-dialog {
-  width: min(480px, calc(100vw - 28px));
-  max-height: calc(100dvh - 28px);
-  margin: auto;
-  padding: 28px;
-  overflow-y: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: var(--shadow-lg);
-}
-.analytics-dialog::backdrop {
-  background: var(--color-overlay);
-}
-.consent-icon,
 .support-heart {
   display: grid;
   place-items: center;
@@ -1216,41 +1309,6 @@ h3 {
   border-radius: 15px;
   background: var(--green-100);
   color: var(--color-action);
-}
-.analytics-dialog h2 {
-  margin: 7px 0 12px;
-  font-size: 25px;
-}
-.analytics-dialog p {
-  color: var(--color-text-secondary);
-  font-size: 14px;
-}
-.consent-actions {
-  display: grid;
-  gap: 9px;
-  margin: 21px 0 14px;
-}
-.consent-actions .button {
-  width: 100%;
-}
-.consent-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  font-size: 12px;
-}
-.consent-footer a,
-.consent-footer button {
-  color: var(--color-action);
-  font-weight: 700;
-}
-.consent-footer button {
-  min-height: 44px;
-  padding: 0 3px;
-  border: 0;
-  background: transparent;
 }
 .install-prompt {
   position: fixed;

@@ -31,7 +31,7 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 
 ## 4. Alimentação
 
-1. Descreva a refeição; calorias continuam opcionais.
+1. Descreva a refeição; calorias continuam opcionais. Alternativamente, escolha ou tire uma foto, confirme a análise com Gemini e revise alimentos, quantidades e calorias antes de salvar.
 2. Uma refeição frequente pode ser usada como modelo: descrição e calorias são copiadas, mas a data/hora é atualizada e a pessoa revisa antes de salvar.
 3. Uma refeição equivocada pode ser excluída e restaurada com **Desfazer**.
 

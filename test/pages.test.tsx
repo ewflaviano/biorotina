@@ -39,7 +39,7 @@ function ReadyMarker() {
 }
 
 beforeEach(async () => {
-  const db = await openDB("biorotina", 2);
+  const db = await openDB("biorotina", 3);
   await db.clear("app");
   db.close();
 });
@@ -67,6 +67,8 @@ describe("painel", () => {
       id: crypto.randomUUID(),
       name: "Almoço",
       caloriesKcal: 400,
+      foods: [],
+      photoAssisted: false,
       eatenAt: now,
       createdAt: now,
     });
@@ -503,6 +505,8 @@ describe("atividade e alimentação", () => {
         id: crypto.randomUUID(),
         name: "Lanche",
         caloriesKcal: 230.125,
+        foods: [],
+        photoAssisted: false,
         eatenAt: past,
         createdAt: past,
       },

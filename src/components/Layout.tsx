@@ -19,8 +19,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
-import { AnalyticsConsentDialog } from "../analytics/AnalyticsConsentDialog";
-import { getAnalyticsPreference } from "../analytics/visits";
 import { InstallPrompt } from "./InstallApp";
 import { useAppData } from "../state/AppDataContext";
 import { useDriveSync } from "../sync/DriveSyncContext";
@@ -66,12 +64,6 @@ export function Layout() {
   const { data, undoLabel, undoCount, undoLast, dismissUndo } = useAppData();
   const drive = useDriveSync();
   const location = useLocation();
-  const [showAnalyticsConsent, setShowAnalyticsConsent] = useState(
-    () => getAnalyticsPreference() === "unset",
-  );
-  const [hadAnalyticsChoiceAtOpen] = useState(
-    () => getAnalyticsPreference() !== "unset",
-  );
   const [undoFailure, setUndoFailure] = useState<{
     label: string;
     count: number;
@@ -222,6 +214,10 @@ export function Layout() {
         <footer className="app-footer">
           <Link to="/privacidade">Privacidade</Link>
           <span>Seus registros de saúde ficam sob seu controle.</span>
+          <span>
+            Métricas de acesso sem anúncios ·{" "}
+            <Link to="/configuracoes">Ajustar</Link>
+          </span>
         </footer>
         {undoLabel && (
           <div className="undo-banner" role="status">
@@ -264,17 +260,7 @@ export function Layout() {
           ))}
         </nav>
       </div>
-      {showAnalyticsConsent && (
-        <AnalyticsConsentDialog
-          onClose={() => setShowAnalyticsConsent(false)}
-        />
-      )}
-      {location.pathname === "/" && (
-        <InstallPrompt
-          enabled={!showAnalyticsConsent}
-          delayMs={hadAnalyticsChoiceAtOpen ? 1800 : 8000}
-        />
-      )}
+      {location.pathname === "/" && <InstallPrompt enabled delayMs={1800} />}
     </div>
   );
 }

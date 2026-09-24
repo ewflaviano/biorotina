@@ -25,12 +25,27 @@ export const activitySchema = z
   })
   .strict();
 
-export const mealSchema = z
+const mealV3Schema = z
   .object({
     ...datedEntry,
     eatenAt: z.string().datetime(),
     name: z.string().trim().min(1).max(120),
     caloriesKcal: z.number().nonnegative().finite().nullable(),
+  })
+  .strict();
+
+export const mealFoodSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    amount: z.string().trim().min(1).max(80),
+    caloriesKcal: z.number().nonnegative().finite(),
+  })
+  .strict();
+
+export const mealSchema = mealV3Schema
+  .extend({
+    foods: z.array(mealFoodSchema).max(30),
+    photoAssisted: z.boolean(),
   })
   .strict();
 
@@ -74,7 +89,7 @@ export const hydrationSchema = z
 
 export const appDataSchema = z
   .object({
-    schemaVersion: z.literal(3),
+    schemaVersion: z.literal(4),
     revision: z.number().int().nonnegative(),
     updatedAt: z.string().datetime(),
     profile: z
@@ -96,7 +111,14 @@ export const appDataSchema = z
   })
   .strict();
 
-const appDataV2Schema = appDataSchema
+const appDataV3Schema = appDataSchema
+  .extend({
+    schemaVersion: z.literal(3),
+    meals: z.array(mealV3Schema),
+  })
+  .strict();
+
+const appDataV2Schema = appDataV3Schema
   .extend({
     schemaVersion: z.literal(2),
     medications: z.array(medicationV2Schema),
@@ -112,13 +134,14 @@ export type AppData = z.infer<typeof appDataSchema>;
 export type WeightEntry = z.infer<typeof weightSchema>;
 export type ActivityEntry = z.infer<typeof activitySchema>;
 export type MealEntry = z.infer<typeof mealSchema>;
+export type MealFood = z.infer<typeof mealFoodSchema>;
 export type Medication = z.infer<typeof medicationSchema>;
 export type MedicationLog = z.infer<typeof medicationLogSchema>;
 export type HydrationEntry = z.infer<typeof hydrationSchema>;
 
 export function emptyData(): AppData {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     revision: 0,
     updatedAt: new Date().toISOString(),
     profile: { displayName: "", heightCm: null },
@@ -139,12 +162,14 @@ export function parseBackup(input: unknown): AppData {
     "schemaVersion" in input &&
     input.schemaVersion === 1
   ) {
-    return migrateV2({
-      ...appDataV1Schema.parse(input),
-      schemaVersion: 2,
-      hydrationEntries: [],
-      hydrationReminderTimes: [],
-    });
+    return migrateV3(
+      migrateV2({
+        ...appDataV1Schema.parse(input),
+        schemaVersion: 2,
+        hydrationEntries: [],
+        hydrationReminderTimes: [],
+      }),
+    );
   }
   if (
     input !== null &&
@@ -152,18 +177,40 @@ export function parseBackup(input: unknown): AppData {
     "schemaVersion" in input &&
     input.schemaVersion === 2
   ) {
-    return migrateV2(appDataV2Schema.parse(input));
+    return migrateV3(migrateV2(appDataV2Schema.parse(input)));
+  }
+  if (
+    input !== null &&
+    typeof input === "object" &&
+    "schemaVersion" in input &&
+    input.schemaVersion === 3
+  ) {
+    return migrateV3(appDataV3Schema.parse(input));
   }
   return appDataSchema.parse(input);
 }
 
-function migrateV2(input: z.infer<typeof appDataV2Schema>): AppData {
+function migrateV2(
+  input: z.infer<typeof appDataV2Schema>,
+): z.infer<typeof appDataV3Schema> {
   return {
     ...input,
     schemaVersion: 3,
     medications: input.medications.map(({ scheduleTime, ...item }) => ({
       ...item,
       reminderTimes: scheduleTime ? [scheduleTime] : [],
+    })),
+  };
+}
+
+function migrateV3(input: z.infer<typeof appDataV3Schema>): AppData {
+  return {
+    ...input,
+    schemaVersion: 4,
+    meals: input.meals.map((meal) => ({
+      ...meal,
+      foods: [],
+      photoAssisted: false,
     })),
   };
 }

@@ -55,16 +55,14 @@ beforeEach(() => {
 });
 
 describe("visit analytics", () => {
-  it("does not initialize or send anything before explicit consent", async () => {
+  it("measures production visits by default with advertising signals disabled", async () => {
     vi.stubGlobal("window", productionWindow);
     const analytics = await import("./visits");
 
-    expect(analytics.getAnalyticsPreference()).toBe("unset");
-    expect(await analytics.startVisitAnalytics()).toBe(false);
-    expect(firebase.appLoads).toBe(0);
-    expect(firebase.analyticsLoads).toBe(0);
-    expect(firebase.initializeApp).not.toHaveBeenCalled();
-    expect(firebase.logEvent).not.toHaveBeenCalled();
+    expect(analytics.getAnalyticsPreference()).toBe("accepted");
+    expect(await analytics.startVisitAnalytics()).toBe(true);
+    expect(firebase.initializeApp).toHaveBeenCalledOnce();
+    expect(firebase.logEvent).toHaveBeenCalledOnce();
   });
 
   it("does not initialize on a local domain or with missing config", async () => {

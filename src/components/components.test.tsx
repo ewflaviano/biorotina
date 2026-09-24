@@ -15,7 +15,7 @@ import { DateTimeField } from "./DateTimeField";
 import { DriveSyncProvider } from "../sync/DriveSyncContext";
 
 beforeEach(async () => {
-  const db = await openDB("biorotina", 2);
+  const db = await openDB("biorotina", 3);
   await db.clear("app");
   db.close();
 });

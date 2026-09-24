@@ -14,7 +14,7 @@ O app continua utilizável sem conta. Dados de saúde permanecem no navegador e,
 2. Primeira sincronização cobre documento local vazio, documento remoto vazio e dados existentes em ambos.
 3. Alterações offline são mantidas e reenviadas quando a conexão volta ou a pessoa sincroniza novamente.
 4. Conflito entre revisões em dispositivos diferentes é detectado; a pessoa pode baixar cópias e escolher conscientemente qual versão usar. Nada é substituído silenciosamente.
-5. Backups das versões 1 e 2 são migrados para a versão 3; versão futura incompatível gera erro sem substituir registros.
+5. Backups das versões 1, 2 e 3 são migrados para a versão 4; versão futura incompatível gera erro sem substituir registros.
 6. Testes unitários do adaptador e dos estados de sincronização; teste manual em dois navegadores/dispositivos com conta de teste. Falhas de rede e autorização expirada têm caminho de recuperação.
 
 **Validação concluída:** conexão OAuth no navegador, listagem e criação de backup real no Drive da conta de teste; sincronização repetida confirmou que não duplica uma cópia idêntica. Testes unitários cobrem o adaptador, erros e decisões de conflito.
@@ -37,3 +37,9 @@ O app continua utilizável sem conta. Dados de saúde permanecem no navegador e,
 6. Sem infraestrutura configurada, a interface mantém horários como preferências locais e informa que avisos não estão ativos.
 
 **Preparação externa concluída:** a delegação NS de `biorotina.app.br`, os certificados e a infraestrutura AWS estão ativos. Segredos ficam no Secrets Manager, nunca no Git nem no bundle. Falta testar a entrega real e revisar abuso em navegadores suportados antes de anunciar o serviço como estável.
+
+## 3. Análise de refeições por foto
+
+**Implementação local em revisão:** chave Gemini informada pela pessoa, tutorial do Google AI Studio, foto reduzida no navegador, JSON de alimentos e calorias, revisão e salvamento normal. Foto e chave ficam fora do backup e do Drive. Falhas da IA preservam o cadastro manual.
+
+**Ainda falta antes de disponibilizar amplamente:** testar com chave própria em iPhone e Android, fotos de diferentes refeições e conexão lenta; verificar custos, cotas e mensagens de erro reais do Gemini. Um plano mensal usando chave do projeto é trabalho futuro e precisa de cobrança, autenticação e limites no servidor. O repositório permanece privado.

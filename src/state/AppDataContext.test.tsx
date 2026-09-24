@@ -52,7 +52,7 @@ function Probe() {
 }
 
 beforeEach(async () => {
-  const db = await openDB("biorotina", 2);
+  const db = await openDB("biorotina", 3);
   await db.clear("app");
   db.close();
 });
@@ -95,7 +95,7 @@ describe("estado do aplicativo", () => {
   });
 
   it("mostra falha de abertura sem substituir dados inválidos", async () => {
-    const db = await openDB("biorotina", 2);
+    const db = await openDB("biorotina", 3);
     await db.put("app", { schemaVersion: 500 }, "main");
     db.close();
     render(

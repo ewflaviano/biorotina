@@ -10,13 +10,15 @@ Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acomp
 - Exportação e importação de arquivo JSON para cópia e recuperação dos registros.
 - Sincronização opcional com o **Google Drive da própria pessoa** para usar os dados em outro navegador ou dispositivo.
 - Sem banco de dados central de registros de saúde operado pelo projeto; o serviço de avisos guarda apenas dados técnicos da inscrição e horários.
-- Métricas de acesso opcionais, com escolha explícita na primeira abertura e em Configurações, sem envio de registros de saúde.
+- Métricas de acesso para contagem agregada, sem publicidade, com opção de desativar em Configurações e sem envio de registros de saúde.
 
-O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação permitem usar uma entrada como modelo, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. Água e medicamentos permitem vários horários de lembrete. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; a entrega agendada ainda precisa de validação em dispositivos reais.
+O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação permitem usar uma entrada como modelo, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. Água e medicamentos permitem vários horários de lembrete. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; a entrega agendada foi confirmada em iPhone e Android.
 
-No celular, há um convite discreto para adicionar a Biorotina à tela inicial e uma página com instruções para Safari e Chrome. A página **Apoiar** apresenta um Pix estático opcional para financiar o projeto. O repositório continua privado enquanto a licença e o histórico são revisados para abertura do código.
+No celular, há um convite discreto para adicionar a Biorotina à tela inicial e uma página com instruções para Safari e Chrome. A página **Apoiar** apresenta um Pix estático opcional para financiar o projeto. O repositório continua privado enquanto fazemos testes gerais e concluímos a funcionalidade de IA.
 
 Quem quiser colaborar pode começar pelo [guia de contribuição](CONTRIBUTING.md) e pelas [issues](https://github.com/ewflaviano/biorotina/issues). Questões sensíveis devem seguir a [política de segurança](SECURITY.md). O CI valida todo pull request; publicação na AWS ocorre apenas após merge em `master`.
+
+A análise opcional de uma refeição por foto usa uma chave Gemini da própria pessoa. A imagem é reduzida a no máximo 768 px por lado e cerca de 350 KB no aparelho e só é enviada ao Google após tocar em **Analisar foto**. A sugestão pode ser corrigida antes de salvar; foto e chave não entram no backup ou no Drive. A chave fica em IndexedDB neste navegador. Uma assinatura que usaria chave administrada pelo projeto é apenas uma ideia futura e exigirá um fluxo próprio de cobrança, limites e proteção de dados.
 
 O [catálogo de atividades e a fórmula de estimativa](docs/activity-reference.md) documentam os valores usados no preenchimento automático.
 
@@ -57,9 +59,9 @@ Para manutenção, `make check` executa a checagem do frontend, Clippy e testes 
 ## Decisões ainda abertas
 
 1. Validar restauração e conflitos de sincronização em dois dispositivos reais; confirmar a disponibilidade pública do consentimento OAuth.
-2. Edição retroativa de peso, atividade, refeição e água, além de recuperação após perda do navegador. Exclusão com desfazer e migração de dados antigos para a versão 3 já funcionam.
-3. Confirmar a entrega agendada de Web Push em Android, desktop e iPhone e revisar a operação do serviço.
-4. Viabilidade e limites de análise opcional de refeições por IA com chave fornecida pela pessoa.
+2. Edição retroativa de peso, atividade, refeição e água, além de recuperação após perda do navegador. Exclusão com desfazer e migração de dados antigos para a versão 4 já funcionam.
+3. Continuar testes de Web Push em desktop e revisar a operação do serviço; iPhone e Android receberam avisos agendados.
+4. Validar a análise de refeições por foto com Gemini em dispositivos reais e considerar, em fase futura, assinatura com chave administrada pelo projeto.
 5. Definir licença e concluir a revisão do histórico completo antes de abrir o projeto no GitHub. A proteção de `master` já exige PR e checks aprovados.
 
 Integrações com Apple Health e Health Connect estão fora do escopo inicial.
@@ -73,4 +75,4 @@ Projeto: **Biorotina** (`82E-YHH`).
 - `YTF-11100` — Definir escopo inicial e mapa de páginas (concluída).
 - `YTF-11101` — Definir privacidade e análise opcional por IA (pendente, fora das próximas etapas).
 - `YTF-11102` — Criar direção visual e design das telas (concluída).
-- `YTF-11103` — Lembretes opcionais de hidratação e medicação (infraestrutura publicada; falta confirmar entrega agendada em dispositivos reais).
+- `YTF-11103` — Lembretes opcionais de hidratação e medicação (infraestrutura publicada; entrega agendada confirmada em iPhone e Android).

@@ -19,7 +19,7 @@ import {
 describe("modelo e backup", () => {
   it("cria um documento vazio com versão explícita e sem dados pessoais", () => {
     const data = emptyData();
-    expect(data.schemaVersion).toBe(3);
+    expect(data.schemaVersion).toBe(4);
     expect(data.profile).toEqual({ displayName: "", heightCm: null });
     expect(totalRecords(data)).toBe(0);
     expect(appDataSchema.parse(data)).toEqual(data);
@@ -46,6 +46,8 @@ describe("modelo e backup", () => {
       id: crypto.randomUUID(),
       name: "Almoço",
       caloriesKcal: 400,
+      foods: [],
+      photoAssisted: false,
       eatenAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
     });
@@ -80,7 +82,7 @@ describe("modelo e backup", () => {
       Object.entries(data).filter(([key]) => !key.startsWith("hydration")),
     );
     const migrated = parseBackup({ ...oldData, schemaVersion: 1 });
-    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.schemaVersion).toBe(4);
     expect(migrated.profile.displayName).toBe("Ana");
     expect(migrated.hydrationEntries).toEqual([]);
     expect(migrated.hydrationReminderTimes).toEqual([]);
@@ -105,8 +107,31 @@ describe("modelo e backup", () => {
     expect(parseBackup(old).medications[0].reminderTimes).toEqual(["08:15"]);
   });
 
+  it("migra refeições da versão 3 sem inventar alimentos ou análise por foto", () => {
+    const current = emptyData();
+    const date = new Date().toISOString();
+    const old = {
+      ...current,
+      schemaVersion: 3,
+      meals: [
+        {
+          id: crypto.randomUUID(),
+          name: "Jantar",
+          caloriesKcal: 330,
+          eatenAt: date,
+          createdAt: date,
+        },
+      ],
+    };
+    expect(parseBackup(old).meals[0]).toMatchObject({
+      name: "Jantar",
+      foods: [],
+      photoAssisted: false,
+    });
+  });
+
   it("rejeita versões futuras para evitar interpretar um formato desconhecido", () => {
-    expect(() => parseBackup({ ...emptyData(), schemaVersion: 4 })).toThrow();
+    expect(() => parseBackup({ ...emptyData(), schemaVersion: 5 })).toThrow();
   });
 
   it("rejeita valores de saúde impossíveis ou malformados na importação", () => {

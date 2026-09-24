@@ -7,7 +7,7 @@ export function PrivacyPage() {
       <PageHeader
         eyebrow="Transparência"
         title="Como seus dados são usados"
-        description="Você escolhe onde guardar seus registros e se quer permitir métricas de acesso."
+        description="Você escolhe onde guardar seus registros e pode controlar as métricas de acesso."
       />
       <div className="settings-grid">
         <section className="panel">
@@ -22,6 +22,21 @@ export function PrivacyPage() {
           <p>
             Você pode consultar e apagar registros no app, exportar uma cópia e
             remover os dados locais nas opções do navegador.
+          </p>
+        </section>
+        <section className="panel">
+          <h2>Análise de fotos com Gemini</h2>
+          <p>
+            Se você configurar sua própria chave Gemini e pedir a análise de uma
+            refeição, a foto preparada no aparelho será enviada diretamente ao
+            Google para sugerir alimentos, porções e calorias. A foto não é
+            salva pela Biorotina. Você pode editar ou descartar a sugestão.
+          </p>
+          <p>
+            A chave fica apenas neste navegador, fora do backup JSON e da
+            sincronização com Drive. A descrição e os alimentos que você salvar
+            passam a fazer parte do seu diário e do backup, se estiver
+            conectado.
           </p>
         </section>
         <section className="panel">
@@ -70,16 +85,17 @@ export function PrivacyPage() {
         <section className="panel">
           <h2>Métricas de acesso</h2>
           <p>
-            Só com sua permissão, o Google Analytics pode medir visitas, origem
-            aproximada, região e tipo de dispositivo. Ele usa identificadores do
-            navegador; essas métricas não são anônimas. Enviamos uma URL geral
-            do site, sem a tela visitada ou dados dos formulários. O serviço
-            também pode contar sessões e primeiras visitas.
+            Usamos Google Analytics para medir visitas, origem aproximada,
+            região e tipo de dispositivo. Ele usa identificadores do navegador;
+            essas métricas não são anônimas. A medição está ativa por padrão,
+            sem uso para publicidade ou remarketing. Enviamos uma URL geral do
+            site, sem a tela visitada ou dados dos formulários. O serviço também
+            pode contar sessões e primeiras visitas.
           </p>
           <p>
-            Você pode negar ou retirar a permissão a qualquer momento em{" "}
-            <Link to="/configuracoes">Configurações</Link>. Sem permissão, a
-            coleta de métricas fica desativada.
+            Você pode desativar ou reativar a medição a qualquer momento em{" "}
+            <Link to="/configuracoes">Configurações</Link>. A coleta fica
+            desativada neste navegador após sua escolha.
           </p>
         </section>
       </div>

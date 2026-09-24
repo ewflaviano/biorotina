@@ -16,21 +16,20 @@ export function AnalyticsChoice() {
     void setAnalyticsPreference(value).catch(() => undefined);
     setPreference(getAnalyticsPreference());
     setMessage(
-      getAnalyticsPreference() === "unset"
-        ? "Não foi possível guardar sua escolha neste navegador. As métricas continuam desativadas."
-        : value === "accepted"
-          ? "Sua escolha foi salva. Você permitiu as métricas de acesso."
-          : "Sua escolha foi salva. As métricas estão desativadas neste navegador.",
+      value === "accepted"
+        ? "Métricas de acesso ativadas neste navegador."
+        : "Métricas de acesso desativadas neste navegador.",
     );
   }
 
   return (
     <div className="analytics-choice">
       <p className="muted">
-        Se você permitir, medimos visitas, origem aproximada, região e tipo de
-        dispositivo para entender o uso do app. O Google Analytics usa
-        identificadores do navegador. Nunca enviamos peso, alimentação,
-        medicamentos, perfil ou registros de saúde para essas métricas.
+        Medimos visitas, origem aproximada, região e tipo de dispositivo para
+        entender o uso do app. O Google Analytics usa identificadores do
+        navegador. Não usamos essas métricas para anúncios e nunca enviamos
+        peso, alimentação, medicamentos, perfil ou registros de saúde. Você pode
+        desativar a coleta aqui a qualquer momento.
       </p>
       <div className="backup-actions">
         <button
@@ -39,7 +38,7 @@ export function AnalyticsChoice() {
           aria-pressed={preference === "accepted"}
           onClick={() => choose("accepted")}
         >
-          Permitir métricas
+          Ativar métricas
         </button>
         <button
           className={`button ${preference === "declined" ? "primary" : "secondary"}`}
@@ -47,14 +46,9 @@ export function AnalyticsChoice() {
           aria-pressed={preference === "declined"}
           onClick={() => choose("declined")}
         >
-          Não permitir
+          Desativar métricas
         </button>
       </div>
-      {preference === "unset" && (
-        <p className="muted small">
-          Não enviamos métricas ao Google Analytics sem sua escolha.
-        </p>
-      )}
       <p className="muted small">
         <Link to="/privacidade">Entenda como usamos seus dados</Link>
       </p>
