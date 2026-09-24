@@ -70,6 +70,37 @@ describe("assinatura sem conta conectada", () => {
       screen.getByRole("button", { name: "Assinar por R$ 8,99/mês" }),
     ).toBeInTheDocument();
   });
+  it("não oferece chave pessoal a quem já tem plano ativo", async () => {
+    account = { token: "google-token", email: "pessoa@example.com" };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          active: true,
+          cancelled: false,
+          renewalActive: true,
+          paidThrough: "2026-10-24",
+          nextCharge: "2026-10-24",
+          usedToday: 2,
+          dailyLimit: 10,
+          checkoutUrl: null,
+        }),
+        { status: 200 },
+      ),
+    );
+    render(
+      <MemoryRouter>
+        <PlanPage />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByText(
+        "Plano ativo. Você pode analisar fotos de refeições.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Configurar chave Gemini" }),
+    ).toBeNull();
+  });
   it("explica quando o serviço ainda não foi publicado sem mostrar erro técnico", async () => {
     account = { token: "google-token", email: "pessoa@example.com" };
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
