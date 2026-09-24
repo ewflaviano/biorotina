@@ -1,3 +1,8 @@
+use aws_config::BehaviorVersion;
+use aws_sdk_sesv2::{
+    types::{Body, Content, Destination, EmailContent, Message},
+    Client as SesClient,
+};
 use axum::{
     extract::{DefaultBodyLimit, Extension, Path, State},
     http::{header::AUTHORIZATION, header::CACHE_CONTROL, HeaderMap, HeaderName, StatusCode},
@@ -8,14 +13,17 @@ use biorotina_push::{
     delivery::is_expired_endpoint,
     model::{validate, ReminderRequest, StoredSubscription},
     observability,
-    store::PUBLIC_CREATE_LIMIT_PER_DAY,
+    store::{PUBLIC_CREATE_LIMIT_PER_DAY, PUBLIC_FEEDBACK_LIMIT_PER_DAY},
     App,
 };
 use chrono::Utc;
 use chrono_tz::America::Sao_Paulo;
 use lambda_http::request::RequestContext;
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::net::IpAddr;
+use std::time::Duration;
+use tokio::time::timeout;
 use uuid::Uuid;
 
 type ApiResponse = (StatusCode, [(HeaderName, &'static str); 1], Json<Value>);
@@ -31,6 +39,7 @@ async fn main() -> Result<(), lambda_http::Error> {
 
 fn router(app: App) -> Router {
     Router::new()
+        .route("/api/feedback", post(feedback).options(preflight))
         .route("/api/push/config", get(config).options(preflight))
         .route("/api/push/subscriptions", post(create).options(preflight))
         .route(
@@ -56,6 +65,111 @@ fn failure(operation: &'static str, code: &'static str, text: &'static str) -> A
 
 async fn preflight() -> StatusCode {
     StatusCode::NO_CONTENT
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FeedbackRequest {
+    message: String,
+}
+
+fn valid_feedback_message(message: &str) -> Option<&str> {
+    let message = message.trim();
+    (!message.is_empty()
+        && message.chars().count() <= 800
+        && !message
+            .chars()
+            .any(|character| character.is_control() && character != '\n' && character != '\t'))
+    .then_some(message)
+}
+
+async fn send_feedback_email(message: &str) -> Result<(), &'static str> {
+    let from = std::env::var("FEEDBACK_FROM_EMAIL").map_err(|_| "email_config_missing")?;
+    let to = std::env::var("FEEDBACK_TO_EMAIL").map_err(|_| "email_config_missing")?;
+    let subject = Content::builder()
+        .data("Novo feedback da Biorotina")
+        .charset("UTF-8")
+        .build()
+        .map_err(|_| "email_build_failed")?;
+    let body = Content::builder()
+        .data(message)
+        .charset("UTF-8")
+        .build()
+        .map_err(|_| "email_build_failed")?;
+    let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let client = SesClient::new(&config);
+    timeout(
+        Duration::from_secs(10),
+        client
+            .send_email()
+            .from_email_address(from)
+            .destination(Destination::builder().to_addresses(to).build())
+            .content(
+                EmailContent::builder()
+                    .simple(
+                        Message::builder()
+                            .subject(subject)
+                            .body(Body::builder().text(body).build())
+                            .build(),
+                    )
+                    .build(),
+            )
+            .send(),
+    )
+    .await
+    .map_err(|_| "email_timeout")?
+    .map_err(|_| "email_send_failed")?;
+    Ok(())
+}
+
+async fn feedback(
+    State(app): State<App>,
+    Extension(context): Extension<RequestContext>,
+    Json(request): Json<FeedbackRequest>,
+) -> ApiResponse {
+    let Some(message) = valid_feedback_message(&request.message) else {
+        return response(
+            StatusCode::BAD_REQUEST,
+            json!({"error":"Escreva uma mensagem com até 800 caracteres."}),
+        );
+    };
+    let Some(ip) = trusted_source_ip(&context) else {
+        return failure(
+            "feedback",
+            "source_unavailable",
+            "Não foi possível enviar sua mensagem agora.",
+        );
+    };
+    let day = Utc::now().with_timezone(&Sao_Paulo).date_naive();
+    let key = app.sender.create_limit_key(ip, day);
+    match app
+        .store
+        .reserve_public_feedback(&key, &day.to_string())
+        .await
+    {
+        Ok(true) => {}
+        Ok(false) => {
+            return response(
+                StatusCode::TOO_MANY_REQUESTS,
+                json!({"error":format!("Muitas mensagens desta conexão hoje (limite de {PUBLIC_FEEDBACK_LIMIT_PER_DAY}). Tente novamente amanhã.")}),
+            )
+        }
+        Err(_) => {
+            return failure(
+                "feedback",
+                "rate_limit_failed",
+                "Não foi possível enviar sua mensagem agora.",
+            )
+        }
+    }
+    match send_feedback_email(message).await {
+        Ok(()) => response(StatusCode::OK, json!({"sent":true})),
+        Err(code) => failure(
+            "feedback",
+            code,
+            "Não foi possível enviar sua mensagem agora.",
+        ),
+    }
 }
 
 async fn config(State(app): State<App>) -> ApiResponse {
@@ -289,5 +403,24 @@ mod tests {
         let result = response(StatusCode::CREATED, json!({"ok":true}));
         assert_eq!(result.0, StatusCode::CREATED);
         assert_eq!(result.1[0], (CACHE_CONTROL, "no-store"));
+    }
+
+    #[test]
+    fn feedback_accepts_only_short_text_without_control_characters() {
+        assert_eq!(
+            valid_feedback_message("  Gostei do app!  "),
+            Some("Gostei do app!")
+        );
+        assert_eq!(valid_feedback_message("\n  \t"), None);
+        assert_eq!(valid_feedback_message("teste\0oculto"), None);
+        assert_eq!(valid_feedback_message(&"a".repeat(801)), None);
+        assert_eq!(
+            valid_feedback_message("Primeira linha\nSegunda linha"),
+            Some("Primeira linha\nSegunda linha")
+        );
+        assert!(serde_json::from_value::<FeedbackRequest>(
+            json!({"message":"ok","email":"secret"})
+        )
+        .is_err());
     }
 }

@@ -27,8 +27,45 @@ export function SupportPage() {
   const [feedbackCopyStatus, setFeedbackCopyStatus] = useState<
     "idle" | "copied" | "failed"
   >("idle");
+  const [feedbackSendStatus, setFeedbackSendStatus] = useState<
+    "idle" | "sending" | "sent" | "failed" | "limited"
+  >("idle");
   const message = feedback.trim();
-  const feedbackEmail = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent("Opinião sobre a Biorotina")}&body=${encodeURIComponent(message)}`;
+
+  async function sendFeedback() {
+    if (!message || feedbackSendStatus === "sending") return;
+    setFeedbackSendStatus("sending");
+    const apiBase = (import.meta.env.VITE_PUSH_API_URL || "").replace(
+      /\/$/,
+      "",
+    );
+    if (!apiBase) {
+      setFeedbackSendStatus("failed");
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 12_000);
+    try {
+      const response = await fetch(`${apiBase}/api/feedback`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message }),
+        signal: controller.signal,
+      });
+      if (response.status === 429) {
+        setFeedbackSendStatus("limited");
+      } else if (!response.ok) {
+        setFeedbackSendStatus("failed");
+      } else {
+        setFeedback("");
+        setFeedbackSendStatus("sent");
+      }
+    } catch {
+      setFeedbackSendStatus("failed");
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
 
   async function copyCode() {
     try {
@@ -168,6 +205,7 @@ export function SupportPage() {
             onChange={(event) => {
               setFeedback(event.target.value);
               setFeedbackCopyStatus("idle");
+              setFeedbackSendStatus("idle");
             }}
           />
           <p className="muted small support-feedback-note">
@@ -175,17 +213,17 @@ export function SupportPage() {
             informações pessoais.
           </p>
           <div className="support-feedback-actions">
-            {message ? (
-              <a className="button primary" href={feedbackEmail}>
-                <Mail size={18} aria-hidden="true" />
-                Abrir e-mail para enviar
-              </a>
-            ) : (
-              <button className="button primary" type="button" disabled>
-                <Mail size={18} aria-hidden="true" />
-                Abrir e-mail para enviar
-              </button>
-            )}
+            <button
+              className="button primary"
+              type="button"
+              disabled={!message || feedbackSendStatus === "sending"}
+              onClick={() => void sendFeedback()}
+            >
+              <Mail size={18} aria-hidden="true" />
+              {feedbackSendStatus === "sending"
+                ? "Enviando…"
+                : "Enviar feedback"}
+            </button>
             <button
               className="button secondary"
               type="button"
@@ -203,9 +241,19 @@ export function SupportPage() {
                 : "Não foi possível copiar automaticamente. A mensagem foi selecionada para você copiar."}
             </p>
           )}
+          {feedbackSendStatus !== "idle" &&
+            feedbackSendStatus !== "sending" && (
+              <p role="status" className="support-feedback-status">
+                {feedbackSendStatus === "sent"
+                  ? "Mensagem enviada. Obrigado pela ajuda!"
+                  : feedbackSendStatus === "limited"
+                    ? "Muitas mensagens desta conexão hoje. Tente novamente amanhã."
+                    : "Não foi possível enviar agora. Tente novamente ou copie sua mensagem."}
+              </p>
+            )}
           <p className="muted small support-feedback-note">
-            O e-mail abre com a mensagem pronta. Revise e toque em Enviar no seu
-            aplicativo de e-mail.
+            Sua mensagem é enviada por e-mail à Biorotina. Nenhum dado dos seus
+            registros é incluído automaticamente.
           </p>
         </section>
       </div>

@@ -55,11 +55,17 @@ functions:
   api:
     handler: bootstrap
     timeout: 28
+    environment:
+      FEEDBACK_FROM_EMAIL: inovaprog@gmail.com
+      FEEDBACK_TO_EMAIL: ewanderson.flaviano@gmail.com
     role:
       Fn::GetAtt: [PushApiExecutionRole, Arn]
     package:
       artifact: push/target/lambda/biorotina-api.zip
     events:
+      - httpApi:
+          path: /api/feedback
+          method: POST
       - httpApi:
           path: /api/push/subscriptions
           method: POST
@@ -125,10 +131,14 @@ resources:
   extensions:
     HttpApiStage:
       DependsOn:
+        - HttpApiRoutePostApiFeedback
         - HttpApiRoutePostApiPushSubscriptions
         - HttpApiRoutePostApiTelemetryError
       Properties:
         RouteSettings:
+          'POST /api/feedback':
+            ThrottlingBurstLimit: 2
+            ThrottlingRateLimit: 1
           'POST /api/push/subscriptions':
             ThrottlingBurstLimit: 10
             ThrottlingRateLimit: 5
@@ -187,6 +197,15 @@ resources:
                   Action: secretsmanager:GetSecretValue
                   Resource:
                     Ref: PushVapidSeed
+                - Effect: Allow
+                  Action: ses:SendEmail
+                  Resource:
+                    Fn::Sub: arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/inovaprog@gmail.com
+                  Condition:
+                    ForAllValues:StringEquals:
+                      ses:Recipients: ewanderson.flaviano@gmail.com
+                    'Null':
+                      ses:Recipients: 'false'
     TelemetryExecutionRole:
       Type: AWS::IAM::Role
       Properties:

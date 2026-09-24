@@ -5,7 +5,10 @@ import { MemoryRouter } from "react-router-dom";
 import { SupportPage } from "./SupportPage";
 import { PIX_COPY_PASTE, PIX_KEY } from "../support/pix";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 describe("support page", () => {
   it("shows the provided Pix recipient, QR and copy-paste code", () => {
@@ -57,15 +60,18 @@ describe("support page", () => {
     );
   });
 
-  it("prepares an email with only the message the person typed", async () => {
+  it("sends only the message the person typed and confirms delivery", async () => {
     const user = userEvent.setup();
+    vi.stubEnv("VITE_PUSH_API_URL", "https://api.example.test");
+    const send = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal("fetch", send);
     render(
       <MemoryRouter>
         <SupportPage />
       </MemoryRouter>,
     );
     expect(
-      screen.getByRole("button", { name: "Abrir e-mail para enviar" }),
+      screen.getByRole("button", { name: "Enviar feedback" }),
     ).toBeDisabled();
 
     const feedback = "A tela de água ficou ótima & simples.";
@@ -74,14 +80,44 @@ describe("support page", () => {
       feedback,
     );
 
-    const emailLink = screen.getByRole("link", {
-      name: "Abrir e-mail para enviar",
+    await user.click(screen.getByRole("button", { name: "Enviar feedback" }));
+    expect(send).toHaveBeenCalledWith("https://api.example.test/api/feedback", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message: feedback }),
+      signal: expect.any(AbortSignal),
     });
-    const url = new URL(emailLink.getAttribute("href")!);
-    expect(url.protocol).toBe("mailto:");
-    expect(url.pathname).toBe("ewanderson.flaviano@gmail.com");
-    expect(url.searchParams.get("subject")).toBe("Opinião sobre a Biorotina");
-    expect(url.searchParams.get("body")).toBe(feedback);
+    expect(
+      await screen.findByText("Mensagem enviada. Obrigado pela ajuda!"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Sua mensagem" })).toHaveValue(
+      "",
+    );
+  });
+
+  it("keeps the message when sending fails", async () => {
+    const user = userEvent.setup();
+    vi.stubEnv("VITE_PUSH_API_URL", "https://api.example.test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 503 }),
+    );
+    render(
+      <MemoryRouter>
+        <SupportPage />
+      </MemoryRouter>,
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "Sua mensagem" }),
+      "Minha ideia",
+    );
+    await user.click(screen.getByRole("button", { name: "Enviar feedback" }));
+    expect(
+      await screen.findByText(/Não foi possível enviar agora/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Sua mensagem" })).toHaveValue(
+      "Minha ideia",
+    );
   });
 
   it("offers a copy fallback for the feedback", async () => {
