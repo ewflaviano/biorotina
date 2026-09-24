@@ -151,7 +151,10 @@ async fn webhook(
     }
     match billing.webhook(&event).await {
         Ok(()) => reply(StatusCode::OK, json!({"received":true})),
-        Err(_) => error(StatusCode::SERVICE_UNAVAILABLE, "Evento não processado."),
+        Err(reason) => {
+            eprintln!("billing webhook processing failed: {reason}");
+            error(StatusCode::SERVICE_UNAVAILABLE, "Evento não processado.")
+        }
     }
 }
 
