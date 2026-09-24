@@ -493,7 +493,7 @@ describe("login e sincronização automática", () => {
       screen.getByRole("link", { name: "Google Drive: sincronizado" }),
     );
     await user.click(
-      screen.getByRole("button", { name: "Sair e apagar dados" }),
+      screen.getByRole("button", { name: "Sair e apagar dados desta conta" }),
     );
     await screen.findByRole("button", { name: "Conectar Google Drive" });
     expect((await loadData(account.id)).hydrationEntries).toHaveLength(0);
@@ -515,11 +515,11 @@ describe("login e sincronização automática", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Sair e apagar dados" }),
+        screen.getByRole("button", { name: "Sair e apagar dados desta conta" }),
       ).toBeEnabled(),
     );
     await user.click(
-      screen.getByRole("button", { name: "Sair e apagar dados" }),
+      screen.getByRole("button", { name: "Sair e apagar dados desta conta" }),
     );
     await user.click(
       await screen.findByRole("button", { name: "Conectar Google Drive" }),
@@ -532,6 +532,9 @@ describe("login e sincronização automática", () => {
   });
 
   it("oferece esperar, baixar JSON ou apagar registros sem sincronização", async () => {
+    const anotherAccount = emptyData();
+    anotherAccount.profile.displayName = "Outra conta";
+    await saveData(anotherAccount, "account-2");
     const user = userEvent.setup();
     render(<App />);
     await user.click(
@@ -555,11 +558,14 @@ describe("login e sincronização automática", () => {
         }),
       );
       await user.click(
-        screen.getByRole("button", { name: "Sair e apagar dados" }),
+        screen.getByRole("button", { name: "Sair e apagar dados desta conta" }),
       );
       expect(
         await screen.findByRole("group", { name: "Escolha como sair" }),
       ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/Dados de outra conta/),
+      ).not.toBeInTheDocument();
       await user.click(
         screen.getByRole("button", {
           name: "Esperar conexão e continuar aqui",
@@ -571,7 +577,7 @@ describe("login e sincronização automática", () => {
       expect((await loadData(account.id)).hydrationEntries).toHaveLength(1);
 
       await user.click(
-        screen.getByRole("button", { name: "Sair e apagar dados" }),
+        screen.getByRole("button", { name: "Sair e apagar dados desta conta" }),
       );
       const confirmed = await screen.findByRole("button", {
         name: "Conferi os downloads: apagar e sair",
@@ -617,7 +623,7 @@ describe("login e sincronização automática", () => {
         }),
       );
       await user.click(
-        screen.getByRole("button", { name: "Sair e apagar dados" }),
+        screen.getByRole("button", { name: "Sair e apagar dados desta conta" }),
       );
       await screen.findByRole("group", { name: "Escolha como sair" });
       await user.click(

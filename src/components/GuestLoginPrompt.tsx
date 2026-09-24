@@ -44,7 +44,10 @@ export function GuestLoginPrompt() {
     if (!added || !drive.available || drive.busy) return;
     const saved = preference();
     if (saved !== "never" && saved !== todayIsoDate()) {
-      const timer = window.setTimeout(() => setOpen(true), 0);
+      const timer = window.setTimeout(() => {
+        const latest = preference();
+        if (latest !== "never" && latest !== todayIsoDate()) setOpen(true);
+      }, 0);
       return () => window.clearTimeout(timer);
     }
   }, [recordCount, scope, loading, drive.account, drive.available, drive.busy]);
@@ -64,7 +67,15 @@ export function GuestLoginPrompt() {
     void drive.connect();
   }
 
-  if (!open || loading || scope !== null || drive.account) return null;
+  if (
+    !open ||
+    loading ||
+    scope !== null ||
+    drive.account ||
+    preference() === "never" ||
+    preference() === todayIsoDate()
+  )
+    return null;
   return (
     <div className="push-prompt-backdrop" role="presentation">
       <section

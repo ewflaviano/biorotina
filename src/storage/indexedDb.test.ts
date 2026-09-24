@@ -3,15 +3,19 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { emptyData } from "../domain/data";
 import {
   clearLocalData,
+  clearAccountData,
   loadData,
+  loadDataState,
   loadGeminiKey,
   loadLegacyData,
-  loadOtherAccountData,
   prepareAccountScopes,
   removeGeminiKey,
   saveData,
+  saveDataIfRevision,
   saveDriveSync,
   saveGeminiKey,
+  SessionInvalidatedError,
+  StaleRevisionError,
 } from "./indexedDb";
 
 describe("persistência local", () => {
@@ -51,9 +55,34 @@ describe("persistência local", () => {
     expect((await loadData()).profile.displayName).toBe("Sem conta");
     expect((await loadData("google-1")).profile.displayName).toBe("Ana");
     expect((await loadData("google-2")).profile.displayName).toBe("");
-    expect(await loadOtherAccountData("google-1")).toMatchObject([
-      { profile: { displayName: "Ana" } },
-    ]);
+  });
+
+  it("preserva outras contas e dados sem conta ao sair", async () => {
+    const one = emptyData();
+    one.profile.displayName = "Ana";
+    const two = emptyData();
+    two.profile.displayName = "Bia";
+    await saveData(one, "google-1");
+    await saveData(two, "google-2");
+    await saveData(two);
+    await clearAccountData("google-1");
+    expect((await loadData("google-1")).profile.displayName).toBe("");
+    expect((await loadData("google-2")).profile.displayName).toBe("Bia");
+    expect((await loadData()).profile.displayName).toBe("Bia");
+  });
+
+  it("não sobrescreve edições de outra aba nem ressuscita uma conta apagada", async () => {
+    const initial = await loadDataState("google-1");
+    const first = { ...initial.data, revision: 1 };
+    await saveDataIfRevision(first, 0, initial.epoch, "google-1");
+    await expect(
+      saveDataIfRevision(first, 0, initial.epoch, "google-1"),
+    ).rejects.toBeInstanceOf(StaleRevisionError);
+    await clearAccountData("google-1");
+    await expect(
+      saveDataIfRevision(first, 0, initial.epoch, "google-1"),
+    ).rejects.toBeInstanceOf(SessionInvalidatedError);
+    expect((await loadData("google-1")).revision).toBe(0);
   });
 
   it("preserva registros antigos sem atribuí-los automaticamente a outra conta", async () => {

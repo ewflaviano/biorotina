@@ -36,7 +36,7 @@ import { PushControl } from "../components/PushControl";
 import { InfoDisclosure } from "../components/InfoDisclosure";
 
 export function SettingsPage() {
-  const { data, mutate, replace } = useAppData();
+  const { data, scope, mutate, replace } = useAppData();
   const profileKey = JSON.stringify(data.profile);
   const [draft, setDraft] = useState({
     profileKey,
@@ -56,10 +56,11 @@ export function SettingsPage() {
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (scope !== null) return;
     void loadLegacyData()
       .then(setLegacy)
       .catch(() => undefined);
-  }, []);
+  }, [scope]);
 
   async function saveProfile(event: FormEvent) {
     event.preventDefault();
@@ -283,7 +284,7 @@ export function SettingsPage() {
             O arquivo contém seus dados pessoais em texto legível. Guarde a
             cópia com cuidado.
           </Notice>
-          {legacy && (
+          {scope === null && legacy && (
             <div className="drive-guest-copy">
               <strong>Registros anteriores neste navegador</strong>
               <p>
