@@ -93,7 +93,7 @@ const config = {
   url: webhookUrl,
   email: "ewanderson.flaviano@gmail.com",
   enabled: true,
-  interrupted: false,
+  interrupted: hook?.interrupted ?? false,
   apiVersion: 3,
   authToken: token,
   sendType: "SEQUENTIALLY",

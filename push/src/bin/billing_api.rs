@@ -210,9 +210,9 @@ async fn webhook(
     if !billing.valid_webhook(token) {
         return error(StatusCode::UNAUTHORIZED, "Não autorizado.");
     }
-    match billing.webhook(&event).await {
+    match billing.enqueue_webhook(&event).await {
         Ok(()) => reply(StatusCode::OK, json!({"received":true})),
-        Err(_) => failure("webhook", "processing_failed", "Evento não processado."),
+        Err(_) => failure("webhook", "enqueue_failed", "Evento não recebido."),
     }
 }
 

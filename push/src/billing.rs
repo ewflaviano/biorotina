@@ -2,6 +2,7 @@ use crate::observability;
 use aws_config::BehaviorVersion;
 use aws_sdk_dynamodb::{types::AttributeValue as A, Client as Db};
 use aws_sdk_secretsmanager::Client as Secrets;
+use aws_sdk_sqs::Client as Sqs;
 use chrono::{Datelike, Duration, NaiveDate, Utc};
 use chrono_tz::America::Sao_Paulo;
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,8 @@ const PROMPT: &str = "Analise apenas os alimentos e bebidas visíveis nesta foto
 #[derive(Clone)]
 pub struct Billing {
     pub db: Db,
+    pub queue: Sqs,
+    pub queue_url: String,
     pub table: String,
     pub client: reqwest::Client,
     pub asaas_key: Arc<String>,
@@ -368,12 +371,91 @@ fn add_month(date: NaiveDate) -> NaiveDate {
     NaiveDate::from_ymd_opt(year, month, date.day().min(last)).unwrap()
 }
 
+fn apply_paid_checkout(
+    account: &mut Account,
+    sub_id: &str,
+    customer: &str,
+    next_charge: &str,
+    payment_id: &str,
+    due_date: NaiveDate,
+) {
+    let estimated_through = add_month(due_date).format("%Y-%m-%d").to_string();
+    let through = if next_charge > estimated_through.as_str() {
+        next_charge.to_owned()
+    } else {
+        estimated_through
+    };
+    if account
+        .paid_through
+        .as_deref()
+        .is_none_or(|old| old < through.as_str())
+    {
+        account.paid_through = Some(through.clone());
+        account.revoked = false;
+    }
+    account.next_charge = (!account.cancelled).then_some(through);
+    account.customer_id = Some(customer.to_owned());
+    account.subscription_id = Some(sub_id.to_owned());
+    account.last_payment_id = Some(payment_id.to_owned());
+}
+
 fn str_field(value: &Value, name: &str) -> Option<String> {
     value
         .get(name)?
         .as_str()
         .filter(|s| !s.is_empty())
         .map(str::to_owned)
+}
+
+fn bounded_field(value: &Value, name: &str) -> Option<String> {
+    str_field(value, name).filter(|field| field.len() <= 200)
+}
+
+fn compact_webhook_event(event: &Value) -> Value {
+    let id = str_field(event, "id")
+        .filter(|id| id.len() <= 150)
+        .unwrap_or_else(|| format!("invalid-{:x}", Sha256::digest(event.to_string().as_bytes())));
+    let kind = str_field(event, "event")
+        .filter(|kind| kind.len() <= 100)
+        .unwrap_or_else(|| "UNKNOWN".into());
+    if kind.starts_with("CHECKOUT_") {
+        let checkout = event.get("checkout").unwrap_or(&Value::Null);
+        json!({"id":id,"event":kind,"checkout":{
+            "id":bounded_field(checkout,"id"),"customer":bounded_field(checkout,"customer")
+        }})
+    } else if kind.starts_with("SUBSCRIPTION_") {
+        let sub = event.get("subscription").unwrap_or(&Value::Null);
+        json!({"id":id,"event":kind,"subscription":{
+            "id":bounded_field(sub,"id"),
+            "customer":bounded_field(sub,"customer"),
+            "nextDueDate":bounded_field(sub,"nextDueDate"),
+            "status":bounded_field(sub,"status")
+        }})
+    } else if kind.starts_with("PAYMENT_") {
+        let payment = event.get("payment").unwrap_or(&Value::Null);
+        json!({"id":id,"event":kind,"payment":{
+            "id":bounded_field(payment,"id"),
+            "subscription":bounded_field(payment,"subscription"),
+            "customer":bounded_field(payment,"customer"),
+            "dueDate":bounded_field(payment,"dueDate")
+        }})
+    } else {
+        json!({"id":id,"event":kind})
+    }
+}
+
+fn webhook_group(event: &Value) -> String {
+    let group = ["checkout", "subscription", "payment"]
+        .iter()
+        .find_map(|name| event.get(name).and_then(|item| str_field(item, "customer")))
+        .or_else(|| {
+            ["checkout", "subscription", "payment"]
+                .iter()
+                .find_map(|name| event.get(name).and_then(|item| str_field(item, "id")))
+        })
+        .or_else(|| str_field(event, "id"))
+        .unwrap_or_default();
+    format!("{:x}", Sha256::digest(group.as_bytes()))
 }
 
 fn paid_checkout_payment<'a>(items: &'a [Value], checkout_id: &str) -> Option<&'a Value> {
@@ -425,6 +507,8 @@ impl Billing {
             .to_owned();
         Ok(Self {
             db: Db::new(&config),
+            queue: Sqs::new(&config),
+            queue_url: std::env::var("BILLING_EVENTS_QUEUE_URL")?,
             table: std::env::var("BILLING_TABLE_NAME")?,
             client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(24))
@@ -833,13 +917,15 @@ impl Billing {
         let sub = self
             .asaas_get(&format!("/v3/subscriptions/{sub_id}"))
             .await?;
+        // A assinatura pode já estar inativa quando o evento de pagamento
+        // atrasado chega depois de um cancelamento. O pagamento confirmado e
+        // o vínculo exato com o checkout continuam sendo obrigatórios.
         if str_field(&sub, "checkoutSession").as_deref() != Some(checkout_id)
             || str_field(&sub, "customer") != Some(customer.clone())
-            || str_field(&sub, "status").as_deref() != Some("ACTIVE")
         {
             return Err("Assinatura não corresponde ao checkout pago".into());
         }
-        let next_charge = str_field(&sub, "nextDueDate").ok_or("Próxima cobrança ausente")?;
+        let next_charge = str_field(&sub, "nextDueDate").unwrap_or_default();
         let payment_id = str_field(payment, "id").ok_or("Cobrança sem identificador")?;
         let due_date = str_field(payment, "dueDate")
             .and_then(|s| NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok())
@@ -851,14 +937,35 @@ impl Billing {
         if account.cancelled {
             return Ok(account.clone());
         }
-        let sub_id = match &account.subscription_id {
-            Some(id) => id.clone(),
-            None => {
+        let payment = if account.subscription_id.is_none() {
+            Some(
                 self.reconcile_checkout(&account.checkout_id, account.checkout_expires_at)
-                    .await?
-                    .0
-            }
+                    .await?,
+            )
+        } else {
+            None
         };
+        let sub_id = account
+            .subscription_id
+            .clone()
+            .or_else(|| payment.as_ref().map(|(sub_id, _, _, _, _)| sub_id.clone()))
+            .ok_or("Assinatura ausente")?;
+        let mut updated = account.clone();
+        if let Some((_, customer, next_charge, payment_id, due_date)) = payment {
+            apply_paid_checkout(
+                &mut updated,
+                &sub_id,
+                &customer,
+                &next_charge,
+                &payment_id,
+                due_date,
+            );
+            self.put(&format!("CUSTOMER#{customer}"), &json!({"key":account.key}))
+                .await?;
+            self.put(&format!("SUB#{sub_id}"), &json!({"key":account.key}))
+                .await?;
+            self.save_account(&updated).await?;
+        }
         let response = self
             .client
             .delete(format!("{}/v3/subscriptions/{sub_id}", self.asaas_url))
@@ -872,7 +979,6 @@ impl Billing {
                 response.status()
             ));
         }
-        let mut updated = account.clone();
         updated.subscription_id = Some(sub_id);
         updated.cancelled = true;
         updated.next_charge = None;
@@ -1008,6 +1114,23 @@ impl Billing {
         valid_webhook_token(&self.webhook_token, provided)
     }
 
+    pub async fn enqueue_webhook(&self, event: &Value) -> Result<(), String> {
+        let compact = compact_webhook_event(event);
+        let event_id = str_field(&compact, "id").ok_or("evento sem id")?;
+        let deduplication_id = format!("{:x}", Sha256::digest(event_id.as_bytes()));
+        let group_id = webhook_group(&compact);
+        self.queue
+            .send_message()
+            .queue_url(&self.queue_url)
+            .message_body(compact.to_string())
+            .message_group_id(group_id)
+            .message_deduplication_id(deduplication_id)
+            .send()
+            .await
+            .map_err(|error| error.to_string())?;
+        Ok(())
+    }
+
     pub async fn webhook(&self, event: &Value) -> Result<(), String> {
         let event_id = str_field(event, "id").ok_or("evento sem id")?;
         if event_id.len() > 150 {
@@ -1029,40 +1152,24 @@ impl Billing {
                 return Ok(());
             }
             if kind == "CHECKOUT_PAID" {
-                if account.subscription_id.is_some() {
-                    return Ok(());
+                if account.subscription_id.is_none() || account.paid_through.is_none() {
+                    let (sub_id, customer, next_charge, payment_id, due_date) = self
+                        .reconcile_checkout(&id, account.checkout_expires_at)
+                        .await?;
+                    apply_paid_checkout(
+                        &mut account,
+                        &sub_id,
+                        &customer,
+                        &next_charge,
+                        &payment_id,
+                        due_date,
+                    );
+                    self.put(&format!("CUSTOMER#{customer}"), &json!({"key":key}))
+                        .await?;
+                    self.put(&format!("SUB#{sub_id}"), &json!({"key":key}))
+                        .await?;
+                    self.save_account(&account).await?;
                 }
-                let (sub_id, customer, next_charge, payment_id, due_date) = self
-                    .reconcile_checkout(&id, account.checkout_expires_at)
-                    .await?;
-                let estimated_through = add_month(due_date).format("%Y-%m-%d").to_string();
-                let through = if next_charge > estimated_through {
-                    next_charge.clone()
-                } else {
-                    estimated_through
-                };
-                let is_new_period = account
-                    .paid_through
-                    .as_deref()
-                    .is_none_or(|old| old < through.as_str());
-                if is_new_period {
-                    account.paid_through = Some(through.clone());
-                    account.revoked = false;
-                }
-                account.next_charge = Some(if next_charge < through {
-                    through.clone()
-                } else {
-                    next_charge
-                });
-                account.customer_id = Some(customer.clone());
-                account.subscription_id = Some(sub_id.clone());
-                account.last_payment_id = Some(payment_id);
-                account.cancelled = false;
-                self.put(&format!("CUSTOMER#{customer}"), &json!({"key":key}))
-                    .await?;
-                self.put(&format!("SUB#{sub_id}"), &json!({"key":key}))
-                    .await?;
-                self.save_account(&account).await?;
             } else if kind == "CHECKOUT_CANCELED" || kind == "CHECKOUT_EXPIRED" {
                 account.checkout_url.clear();
                 account.checkout_expires_at = 0;
@@ -1081,18 +1188,16 @@ impl Billing {
                 return Ok(());
             }
             account.subscription_id = Some(id.clone());
-            account.next_charge =
-                str_field(sub, "nextDueDate").map(|date| match &account.paid_through {
-                    Some(through) if through > &date => through.clone(),
-                    _ => date,
-                });
+            if !account.cancelled {
+                account.next_charge =
+                    str_field(sub, "nextDueDate").map(|date| match &account.paid_through {
+                        Some(through) if through > &date => through.clone(),
+                        _ => date,
+                    });
+            }
             if kind == "SUBSCRIPTION_INACTIVATED" || kind == "SUBSCRIPTION_DELETED" {
                 account.cancelled = true;
                 account.next_charge = None;
-            } else if (kind == "SUBSCRIPTION_CREATED" || kind == "SUBSCRIPTION_UPDATED")
-                && str_field(sub, "status").as_deref() == Some("ACTIVE")
-            {
-                account.cancelled = false;
             }
             self.put(&format!("SUB#{id}"), &json!({"key":key})).await?;
             self.save_account(&account).await?;
@@ -1432,6 +1537,72 @@ mod tests {
             ..account
         };
         assert!(paid.active());
+    }
+
+    #[test]
+    fn paid_checkout_keeps_the_paid_period_even_when_renewal_was_cancelled() {
+        let mut account = Account {
+            key: "GOOGLE#test".into(),
+            checkout_id: "checkout".into(),
+            checkout_url: String::new(),
+            checkout_expires_at: 0,
+            customer_id: None,
+            subscription_id: None,
+            paid_through: None,
+            next_charge: None,
+            revoked: false,
+            cancelled: true,
+            last_payment_id: None,
+        };
+        apply_paid_checkout(
+            &mut account,
+            "sub-1",
+            "customer-1",
+            "2026-10-24",
+            "payment-1",
+            NaiveDate::from_ymd_opt(2026, 9, 24).unwrap(),
+        );
+        assert_eq!(account.paid_through.as_deref(), Some("2026-10-24"));
+        assert!(account.cancelled);
+        assert_eq!(account.next_charge, None);
+        assert_eq!(account.subscription_id.as_deref(), Some("sub-1"));
+    }
+
+    #[test]
+    fn billing_queue_event_excludes_customer_details() {
+        let event = json!({
+            "id":"evt-1","event":"CHECKOUT_PAID",
+            "checkout":{"id":"checkout-1","customerData":{"email":"private@example.com"}}
+        });
+        let compact = compact_webhook_event(&event);
+        assert_eq!(
+            compact,
+            json!({
+                "id":"evt-1","event":"CHECKOUT_PAID",
+                "checkout":{"id":"checkout-1","customer":null}
+            })
+        );
+        assert!(!compact.to_string().contains("private@example.com"));
+    }
+
+    #[test]
+    fn billing_events_for_a_customer_keep_the_same_fifo_group() {
+        let checkout = json!({"checkout":{"id":"checkout","customer":"cus-1"}});
+        let payment = json!({"payment":{"id":"payment","customer":"cus-1"}});
+        assert_eq!(webhook_group(&checkout), webhook_group(&payment));
+        assert_ne!(
+            webhook_group(&checkout),
+            webhook_group(&json!({"payment":{"id":"other","customer":"cus-2"}}))
+        );
+    }
+
+    #[test]
+    fn malformed_authenticated_webhook_can_still_be_queued_for_investigation() {
+        let event = json!({"event":"CHECKOUT_PAID","checkout":{"customerData":{"email":"private@example.com"}}});
+        let compact = compact_webhook_event(&event);
+        assert!(compact["id"].as_str().unwrap().starts_with("invalid-"));
+        assert!(compact["checkout"]["id"].is_null());
+        assert!(!compact.to_string().contains("private@example.com"));
     }
 
     #[test]
