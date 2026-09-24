@@ -27,6 +27,7 @@ import { DrivePermissionPrompt } from "./DrivePermissionPrompt";
 import { SyncConflictPrompt } from "./SyncConflictPrompt";
 import { useAppData } from "../state/AppDataContext";
 import { useDriveSync } from "../sync/DriveSyncContext";
+import { AnalyticsConsentBanner } from "../analytics/AnalyticsConsentBanner";
 
 const desktopNav = [
   { to: "/", label: "Hoje", mobileLabel: "Hoje", icon: House },
@@ -211,6 +212,7 @@ export function Layout() {
             </NavLink>
           </div>
         </header>
+        <AnalyticsConsentBanner />
         {location.pathname !== "/configuracoes" &&
           (drive.error || drive.status === "conflict") && (
             <div

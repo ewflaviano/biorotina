@@ -49,7 +49,7 @@ O **OAuth client ID** de aplicativo web é um identificador público e entra em 
 
 ## Métricas de acesso opcionais
 
-O Firebase Analytics está vinculado ao mesmo projeto Google Cloud `biorotina`. Na primeira abertura, a pessoa pode permitir ou recusar as métricas em uma janela; a escolha também pode ser alterada em Configurações. O app só carrega o SDK no domínio de produção e após a permissão; ela não depende do login Google. O evento próprio `app_visit` usa URL canônica e referência reduzida ao domínio. O SDK pode registrar eventos básicos de sessão. Nenhum registro de saúde ou perfil é fornecido ao módulo. Uma falha do Firebase não bloqueia armazenamento local, sincronização, navegação ou notificações. Configuração do console e limitações de cobertura estão em [Métricas de acesso](analytics.md).
+O Firebase Analytics está vinculado ao mesmo projeto Google Cloud `biorotina`. A pessoa pode ativar ou desativar as métricas em Configurações; sem escolha, não há coleta. O app só carrega o SDK no domínio de produção e após a permissão; ela não depende do login Google. O evento próprio `app_visit` usa URL canônica e referência reduzida ao domínio. O SDK pode registrar eventos básicos de sessão. Nenhum registro de saúde ou perfil é fornecido ao módulo. Uma falha do Firebase não bloqueia armazenamento local, sincronização, navegação ou notificações. Configuração do console e limitações de cobertura estão em [Métricas de acesso](analytics.md).
 
 ## Lembretes e backend mínimo
 
@@ -74,11 +74,11 @@ Isso dispensa identificar a pessoa por nome ou e-mail **para o envio por disposi
 
 Evitar ampliar o backend para dados pessoais só por antecipação. Os serviços atuais existem para notificações e o plano de IA; novos dados só devem entrar quando um recurso concreto precisar deles.
 
-## Segurança e futuro código aberto
+## Segurança no projeto de código aberto
 
 - Não registrar chaves, tokens, payloads de saúde, URLs de push ou arquivos JSON em logs.
 - Não colocar dados pessoais em URL, query string ou título da página; URLs podem aparecer em histórico e logs do CloudFront.
 - Credenciais de deploy pertencem ao ambiente de CI/IAM; segredos de Lambda a um gerenciador de segredos, nunca ao repositório ou ao build do navegador.
-- Manter `.env`, certificados e arquivos de credenciais fora do Git. Antes de publicar o repositório, fazer varredura **do histórico inteiro**, não apenas dos arquivos atuais, e definir uma licença de código aberto.
+- Manter `.env`, certificados e arquivos de credenciais fora do Git. Revisar **o histórico inteiro**, não apenas os arquivos atuais, antes de divulgar novas versões ou logs; o código e a documentação original usam a [licença MIT](../LICENSE).
 - Backup JSON é texto legível. Uma opção de criptografia de backup pode ser estudada antes de sincronizar dados sensíveis no Drive; não afirmar que os dados estão criptografados de ponta a ponta sem implementar e auditar isso.
 - O aplicativo em produção deve ter HTTPS, Content Security Policy e dependências revisadas. Evitar serviços de analytics ou fontes externas que recebam dados de navegação sem decisão explícita.

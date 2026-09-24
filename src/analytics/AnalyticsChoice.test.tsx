@@ -7,13 +7,23 @@ import { AnalyticsChoice } from "./AnalyticsChoice";
 beforeEach(() => localStorage.clear());
 
 describe("escolha de métricas", () => {
-  it("começa ativa, permite desativar e reativar a medição", async () => {
+  it("começa desligada e exige uma escolha explícita", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
         <AnalyticsChoice />
       </MemoryRouter>,
     );
+
+    expect(
+      screen.getByText(/desligados até você escolher ativá-los/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Ativar métricas" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByRole("button", { name: "Desativar métricas" }),
+    ).toHaveAttribute("aria-pressed", "false");
 
     await user.click(
       screen.getByRole("button", { name: "Como usamos as métricas" }),

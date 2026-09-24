@@ -71,7 +71,7 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 
 1. **Instalar no celular** oferece passos para Safari no iPhone e Chrome no Android. No iPhone, a tela distingue um atalho que abre no navegador de um app instalado que abre sem barra de endereço; isso ajuda a entender por que a permissão de avisos pode não aparecer.
 2. **Apoiar** explica que a contribuição por Pix é opcional e mostra um QR code e uma chave para copiar.
-3. **Como seus dados são usados** explica armazenamento local, cópia no Drive, avisos e métricas, com um contato para dúvidas. A escolha de métricas aparece também na primeira abertura e em Configurações.
+3. **Como seus dados são usados** explica armazenamento local, cópia no Drive, avisos e métricas, com um contato para dúvidas. Um banner discreto oferece aceitar ou recusar métricas e diagnósticos, com detalhes sob um ícone de informação; a escolha também pode ser alterada em Configurações. Sem aceite, não há coleta dessas métricas nem envio de diagnósticos pelo app.
 
 ## Regras de experiência aplicadas
 

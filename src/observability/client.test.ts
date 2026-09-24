@@ -9,6 +9,7 @@ beforeEach(() => {
 
 describe("private error reporting", () => {
   it("sends only approved fields and a known screen", async () => {
+    localStorage.setItem("biorotina.analytics.consent.v1", "accepted");
     const fetcher = vi
       .fn()
       .mockResolvedValue(new Response(null, { status: 204 }));
@@ -29,6 +30,7 @@ describe("private error reporting", () => {
   });
 
   it("does not send error details and does not retry a failed report", async () => {
+    localStorage.setItem("biorotina.analytics.consent.v1", "accepted");
     const fetcher = vi.fn().mockRejectedValue(new Error("secret token"));
     vi.stubGlobal("fetch", fetcher);
     const { installGlobalErrorHandlers } = await import("./client");
@@ -41,12 +43,15 @@ describe("private error reporting", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it("honors the existing metrics opt-out", async () => {
+  it("honors the metrics choice and stays silent before consent", async () => {
     const fetcher = vi
       .fn()
       .mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetcher);
     const { reportClientError } = await import("./client");
+    reportClientError("storage", "local_storage_failed");
+    expect(fetcher).not.toHaveBeenCalled();
+    localStorage.setItem("biorotina.analytics.consent.v1", "accepted");
     reportClientError("storage", "local_storage_failed");
     expect(fetcher).toHaveBeenCalledTimes(1);
     localStorage.setItem("biorotina.analytics.consent.v1", "declined");

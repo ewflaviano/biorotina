@@ -55,14 +55,14 @@ beforeEach(() => {
 });
 
 describe("visit analytics", () => {
-  it("measures production visits by default with advertising signals disabled", async () => {
+  it("does not load analytics before an explicit choice", async () => {
     vi.stubGlobal("window", productionWindow);
     const analytics = await import("./visits");
 
-    expect(analytics.getAnalyticsPreference()).toBe("accepted");
-    expect(await analytics.startVisitAnalytics()).toBe(true);
-    expect(firebase.initializeApp).toHaveBeenCalledOnce();
-    expect(firebase.logEvent).toHaveBeenCalledOnce();
+    expect(analytics.getAnalyticsPreference()).toBe("unselected");
+    expect(await analytics.startVisitAnalytics()).toBe(false);
+    expect(firebase.initializeApp).not.toHaveBeenCalled();
+    expect(firebase.logEvent).not.toHaveBeenCalled();
   });
 
   it("does not initialize on a local domain or with missing config", async () => {
