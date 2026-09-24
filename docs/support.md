@@ -5,3 +5,7 @@ A página `/apoiar` usa o QR Code Pix estático fornecido pelo proprietário em 
 O QR original foi decodificado e seu CRC validado. O QR gerado para o site foi decodificado novamente com o mesmo payload. O nome do recebedor no QR está abreviado a 25 caracteres (`INOVAPROG DESENVOLVIMENTO`); o CNPJ mostrado na página vem do PDF. Se a chave Pix for excluída ou portada, substitua **ambos** o payload em `pix.ts` e o SVG antes de republicar. Confira o novo recebedor e teste a leitura com um app bancário.
 
 O app não sabe se houve uma contribuição e não mostra metas, progresso ou confirmação de pagamento. Não adicionar essas informações sem um fluxo próprio e autorização da pessoa.
+
+## Opiniões dos usuários
+
+A mesma página oferece um campo de mensagem para ideias, elogios e problemas. O botão abre o aplicativo de e-mail da pessoa com o destinatário, assunto e mensagem preenchidos; ela precisa revisar e confirmar o envio. Se o dispositivo não abrir e-mail, a pessoa pode copiar a mensagem. A Biorotina não envia nem armazena o feedback em seu servidor. Nenhum dado da conta ou dos registros é incluído automaticamente; a página orienta a não escrever dados de saúde ou informações pessoais.

@@ -47,4 +47,57 @@ describe("support page", () => {
       "Cole o código",
     );
   });
+
+  it("prepares an email with only the message the person typed", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <SupportPage />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.getByRole("button", { name: "Abrir e-mail para enviar" }),
+    ).toBeDisabled();
+
+    const feedback = "A tela de água ficou ótima & simples.";
+    await user.type(
+      screen.getByRole("textbox", { name: "Sua mensagem" }),
+      feedback,
+    );
+
+    const emailLink = screen.getByRole("link", {
+      name: "Abrir e-mail para enviar",
+    });
+    const url = new URL(emailLink.getAttribute("href")!);
+    expect(url.protocol).toBe("mailto:");
+    expect(url.pathname).toBe("ewanderson.flaviano@gmail.com");
+    expect(url.searchParams.get("subject")).toBe("Opinião sobre a Biorotina");
+    expect(url.searchParams.get("body")).toBe(feedback);
+  });
+
+  it("offers a copy fallback for the feedback", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    render(
+      <MemoryRouter>
+        <SupportPage />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.getByRole("button", { name: "Copiar mensagem" }),
+    ).toBeDisabled();
+    await user.type(
+      screen.getByRole("textbox", { name: "Sua mensagem" }),
+      "Minha sugestão",
+    );
+    await user.click(screen.getByRole("button", { name: "Copiar mensagem" }));
+    expect(writeText).toHaveBeenCalledWith("Minha sugestão");
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Mensagem copiada",
+    );
+  });
 });

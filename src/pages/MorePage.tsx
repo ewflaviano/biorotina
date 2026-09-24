@@ -37,7 +37,7 @@ const links = [
   {
     to: "/apoiar",
     label: "Apoiar o projeto",
-    detail: "Ajude a manter a Biorotina gratuita",
+    detail: "Envie sua opinião ou apoie o projeto",
     icon: HeartHandshake,
   },
 ];

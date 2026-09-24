@@ -1844,6 +1844,41 @@ h3 {
   margin: 5px 0 0;
   font-size: 13px;
 }
+.support-feedback .card-title {
+  margin-bottom: 20px;
+}
+.support-feedback-message {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  line-height: 1.5;
+}
+.support-feedback-message:focus {
+  border-color: var(--color-action);
+  outline: 2px solid var(--green-100);
+}
+.support-feedback-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+.support-feedback-actions .button {
+  width: 100%;
+}
+.support-feedback-note,
+.support-feedback-status {
+  margin: 10px 0 0;
+  font-size: 12px;
+}
+.support-feedback-status {
+  color: var(--color-action);
+}
 .pix-card .card-title {
   margin-bottom: 20px;
 }
@@ -1966,6 +2001,18 @@ h3 {
   .support-layout {
     grid-template-columns: minmax(0, 1fr) minmax(340px, 0.85fr);
     gap: 22px;
+  }
+  .pix-card {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  .support-feedback {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .support-intro {
+    grid-column: 1;
+    grid-row: 2;
   }
   .app-shell {
     display: grid;

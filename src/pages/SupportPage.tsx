@@ -1,4 +1,11 @@
-import { Check, Copy, HeartHandshake, QrCode } from "lucide-react";
+import {
+  Check,
+  Copy,
+  HeartHandshake,
+  Mail,
+  MessageSquareText,
+  QrCode,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { PageHeader } from "../components/Layout";
 import {
@@ -8,11 +15,20 @@ import {
   PIX_RECIPIENT,
 } from "../support/pix";
 
+const FEEDBACK_EMAIL = "ewanderson.flaviano@gmail.com";
+
 export function SupportPage() {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">(
     "idle",
   );
   const codeRef = useRef<HTMLTextAreaElement>(null);
+  const feedbackRef = useRef<HTMLTextAreaElement>(null);
+  const [feedback, setFeedback] = useState("");
+  const [feedbackCopyStatus, setFeedbackCopyStatus] = useState<
+    "idle" | "copied" | "failed"
+  >("idle");
+  const message = feedback.trim();
+  const feedbackEmail = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent("Opinião sobre a Biorotina")}&body=${encodeURIComponent(message)}`;
 
   async function copyCode() {
     try {
@@ -25,6 +41,18 @@ export function SupportPage() {
     }
   }
 
+  async function copyFeedback() {
+    if (!message) return;
+    try {
+      await navigator.clipboard.writeText(message);
+      setFeedbackCopyStatus("copied");
+    } catch {
+      feedbackRef.current?.focus();
+      feedbackRef.current?.select();
+      setFeedbackCopyStatus("failed");
+    }
+  }
+
   return (
     <>
       <PageHeader
@@ -33,22 +61,89 @@ export function SupportPage() {
         description="Um app gratuito para cuidar da sua rotina no seu ritmo."
       />
       <div className="support-layout">
+        <section
+          className="panel support-feedback"
+          aria-labelledby="feedback-heading"
+        >
+          <div className="card-title">
+            <span className="list-icon">
+              <MessageSquareText size={21} aria-hidden="true" />
+            </span>
+            <div>
+              <h2 id="feedback-heading">Sua opinião também ajuda</h2>
+              <p>Uma ideia, elogio ou problema que encontrou no app.</p>
+            </div>
+          </div>
+          <label className="pix-code-label" htmlFor="support-feedback-message">
+            Sua mensagem
+          </label>
+          <textarea
+            ref={feedbackRef}
+            id="support-feedback-message"
+            className="support-feedback-message"
+            rows={5}
+            maxLength={800}
+            placeholder="O que você gostou? O que podemos melhorar?"
+            value={feedback}
+            onChange={(event) => {
+              setFeedback(event.target.value);
+              setFeedbackCopyStatus("idle");
+            }}
+          />
+          <p className="muted small support-feedback-note">
+            Escreva só o que quiser compartilhar. Evite dados de saúde ou
+            informações pessoais.
+          </p>
+          <div className="support-feedback-actions">
+            {message ? (
+              <a className="button primary" href={feedbackEmail}>
+                <Mail size={18} aria-hidden="true" />
+                Abrir e-mail para enviar
+              </a>
+            ) : (
+              <button className="button primary" type="button" disabled>
+                <Mail size={18} aria-hidden="true" />
+                Abrir e-mail para enviar
+              </button>
+            )}
+            <button
+              className="button secondary"
+              type="button"
+              disabled={!message}
+              onClick={() => void copyFeedback()}
+            >
+              <Copy size={18} aria-hidden="true" />
+              Copiar mensagem
+            </button>
+          </div>
+          {feedbackCopyStatus !== "idle" && (
+            <p role="status" className="support-feedback-status">
+              {feedbackCopyStatus === "copied"
+                ? `Mensagem copiada. Envie para ${FEEDBACK_EMAIL}.`
+                : "Não foi possível copiar automaticamente. A mensagem foi selecionada para você copiar."}
+            </p>
+          )}
+          <p className="muted small support-feedback-note">
+            O e-mail abre com a mensagem pronta. Revise e toque em Enviar no seu
+            aplicativo de e-mail.
+          </p>
+        </section>
         <section className="panel support-intro">
           <span className="support-heart">
             <HeartHandshake size={28} aria-hidden="true" />
           </span>
-          <h2>Se o app ajuda você, considere apoiar o projeto.</h2>
+          <h2>Ajude a Biorotina a ficar melhor.</h2>
           <p>
-            Sua contribuição, de qualquer valor, ajuda a manter a Biorotina
-            disponível e a desenvolver novas melhorias. O projeto está sendo
-            preparado para ter o código aberto. Apoiar é opcional; você pode
-            continuar usando tudo gratuitamente.
+            Conte o que está funcionando e o que podemos melhorar. Se quiser,
+            você também pode apoiar com qualquer valor para manter o projeto
+            disponível. Apoiar é opcional; você pode continuar usando tudo
+            gratuitamente.
           </p>
           <div className="support-note">
             <span className="eyebrow">Como contribuir</span>
             <p>
-              Use o Pix copia e cola no celular ou leia o QR Code com o app do
-              seu banco.
+              Envie sua opinião por e-mail ou use o Pix abaixo para apoiar o
+              projeto.
             </p>
           </div>
         </section>
