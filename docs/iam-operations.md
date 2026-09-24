@@ -7,7 +7,7 @@ agendamento. Cada função ainda precisa de sua própria política mais restrita
 
 | Função | Recursos necessários |
 | --- | --- |
-| `api` | Tabela de avisos e segredo VAPID |
+| `api` | Tabela de avisos, segredo VAPID e envio SES restrito ao remetente e destinatário do feedback |
 | `tick` | Tabela de avisos, segredo VAPID e invocação pelo Scheduler |
 | `telemetry` | Apenas o próprio grupo de logs |
 | `billingApi` | Tabela e segredos de faturamento; envio à fila |
@@ -19,6 +19,12 @@ separado, sem alterar inicialmente a política da role do GitHub. Após implanta
 as funções novas, conferir que cada uma usa a role dedicada, que a role antiga
 compartilhada foi removida e que os cinco fluxos continuam operando. Só então
 restringir a role de implantação a essas roles protegidas.
+
+Ao implantar o formulário de feedback, atualizar **primeiro** o stack separado
+`biorotina-github-deploy` com este template para adicionar `ses:SendEmail` à
+política de limite. A role `PushApiExecutionRole` recebe a mesma permissão
+restrita no `serverless.yml`. Sem as duas alterações, o endpoint não consegue
+encaminhar as mensagens. O envio não requer permissões SES das demais funções.
 
 Para verificar, consultar `lambda get-function-configuration` para cada função,
 `iam get-role` para o limite de permissões e o estado do Scheduler e da fila.

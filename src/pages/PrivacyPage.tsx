@@ -115,6 +115,12 @@ export function PrivacyPage() {
             </a>
             .
           </p>
+          <p>
+            Se você enviar uma opinião pela página de apoio, recebemos somente o
+            texto que você escreveu e o encaminhamos por e-mail. Não anexamos
+            seus registros, conta ou fotos, nem guardamos o texto no servidor. O
+            envio é uma escolha sua, mesmo com as métricas desligadas.
+          </p>
         </section>
         <section className="panel">
           <h2>Métricas e diagnóstico de erros</h2>

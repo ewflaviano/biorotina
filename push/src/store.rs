@@ -32,6 +32,8 @@ pub struct DueSubscription {
 }
 
 pub const PUBLIC_CREATE_LIMIT_PER_DAY: u32 = 30;
+pub const PUBLIC_FEEDBACK_LIMIT_PER_DAY: u32 = 5;
+const GLOBAL_FEEDBACK_LIMIT_PER_DAY: u32 = 100;
 
 fn due_shard(id: &str) -> String {
     let digest = Sha256::digest(id.as_bytes());
@@ -44,22 +46,52 @@ impl Store {
     }
 
     pub async fn reserve_public_create(&self, anonymous_key: &str) -> Result<bool, StoreError> {
+        self.reserve_counter(
+            "RATE#PUSH_CREATE",
+            anonymous_key,
+            PUBLIC_CREATE_LIMIT_PER_DAY,
+        )
+        .await
+    }
+
+    pub async fn reserve_public_feedback(
+        &self,
+        anonymous_key: &str,
+        day: &str,
+    ) -> Result<bool, StoreError> {
+        if !self
+            .reserve_counter(
+                "RATE#FEEDBACK",
+                anonymous_key,
+                PUBLIC_FEEDBACK_LIMIT_PER_DAY,
+            )
+            .await?
+        {
+            return Ok(false);
+        }
+        self.reserve_counter("RATE#FEEDBACK_GLOBAL", day, GLOBAL_FEEDBACK_LIMIT_PER_DAY)
+            .await
+    }
+
+    async fn reserve_counter(
+        &self,
+        category: &str,
+        key: &str,
+        limit: u32,
+    ) -> Result<bool, StoreError> {
         let result = self
             .client
             .update_item()
             .table_name(&self.table)
-            .key("pk", AttributeValue::S("RATE#PUSH_CREATE".into()))
-            .key("sk", AttributeValue::S(anonymous_key.into()))
+            .key("pk", AttributeValue::S(category.into()))
+            .key("sk", AttributeValue::S(key.into()))
             .update_expression("SET #count = if_not_exists(#count, :zero) + :one, #ttl = :ttl")
             .condition_expression("attribute_not_exists(#count) OR #count < :limit")
             .expression_attribute_names("#count", "count")
             .expression_attribute_names("#ttl", "ttl")
             .expression_attribute_values(":zero", AttributeValue::N("0".into()))
             .expression_attribute_values(":one", AttributeValue::N("1".into()))
-            .expression_attribute_values(
-                ":limit",
-                AttributeValue::N(PUBLIC_CREATE_LIMIT_PER_DAY.to_string()),
-            )
+            .expression_attribute_values(":limit", AttributeValue::N(limit.to_string()))
             .expression_attribute_values(
                 ":ttl",
                 AttributeValue::N((Utc::now().timestamp() + 3 * 86400).to_string()),

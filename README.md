@@ -15,7 +15,7 @@ Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acomp
 
 O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação têm a ação **Repetir**, que prepara um novo registro sem salvá-lo automaticamente, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; a entrega agendada foi confirmada em iPhone e Android.
 
-No celular, há um convite discreto para adicionar a Biorotina à tela inicial e uma página com instruções para Safari e Chrome. A página **Apoiar** apresenta um Pix estático opcional para financiar o projeto. O código-fonte é disponibilizado sob a [licença MIT](LICENSE).
+No celular, há um convite discreto para adicionar a Biorotina à tela inicial e uma página com instruções para Safari e Chrome. A página **Apoiar** permite enviar opiniões por e-mail e apresenta um Pix estático opcional para financiar o projeto. O código-fonte é disponibilizado sob a [licença MIT](LICENSE).
 
 Quem quiser colaborar pode começar pelo [guia de contribuição](CONTRIBUTING.md) e pelas [issues](https://github.com/ewflaviano/biorotina/issues). Questões sensíveis devem seguir a [política de segurança](SECURITY.md). O CI valida todo pull request; publicação na AWS ocorre apenas após merge em `master`.
 
@@ -55,7 +55,7 @@ Para manutenção, `make check` executa a checagem do frontend, Clippy e testes 
 - [Próximas etapas](docs/next-steps.md): critérios de entrega para Google Drive e lembretes.
 - [Revisão de UX/UI](docs/ux-review.md): passo a passo das telas, ajustes feitos e pontos para próximas iterações.
 - [Instalação no celular](docs/installation.md): convite, compatibilidade e transferência de registros.
-- [Apoio ao projeto](docs/support.md): origem e manutenção do Pix estático.
+- [Apoio ao projeto](docs/support.md): feedback por e-mail e manutenção do Pix estático.
 - [Assinatura e webhook](docs/billing.md): fluxo, configuração do Asaas e homologação.
 - [Roteiro de testes no navegador](docs/manual-browser-test.md): casos reproduzíveis sem login, com teste grátis e com plano ativo.
 - [Recuperação de dados](docs/data-recovery.md) e [auditoria de dependências](docs/dependency-audit.md): verificações operacionais e riscos conhecidos.
