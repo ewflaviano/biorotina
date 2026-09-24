@@ -6,6 +6,7 @@ import {
   currentGoogleAccount,
   downloadDriveSnapshot,
   listDriveSnapshots,
+  forgetGoogleAccount,
   rememberGoogleAccount,
   uploadDriveSnapshot,
 } from "../src/sync/google";
@@ -106,14 +107,17 @@ describe("decisão de sincronização", () => {
 });
 
 describe("Google Drive privado", () => {
-  it("mantém a conexão apenas em memória enquanto o token é válido", () => {
+  it("mantém a conexão no navegador enquanto o token é válido", () => {
     rememberGoogleAccount({
       id: "person",
       email: "person@example.com",
       token: "temporary",
-      expiresAt: Date.now() + 60_000,
+      expiresAt: Date.now() + 120_000,
     });
     expect(currentGoogleAccount()?.id).toBe("person");
+    expect(localStorage.getItem("biorotina:google-account")).toContain(
+      "person@example.com",
+    );
     rememberGoogleAccount({
       id: "person",
       email: "person@example.com",
@@ -121,6 +125,8 @@ describe("Google Drive privado", () => {
       expiresAt: Date.now() - 1,
     });
     expect(currentGoogleAccount()).toBeNull();
+    forgetGoogleAccount();
+    expect(localStorage.getItem("biorotina:google-account")).toBeNull();
   });
 
   it("lista todas as páginas e ordena os backups pelo mais recente", async () => {

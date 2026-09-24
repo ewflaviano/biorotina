@@ -50,6 +50,19 @@ h3 {
 .main-column {
   min-width: 0;
 }
+.app-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 20px;
+  padding: 12px 20px 88px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.app-footer a {
+  color: var(--color-action);
+  font-weight: 700;
+}
 .topbar {
   height: 66px;
   background: var(--color-surface);
@@ -528,6 +541,15 @@ h3 {
   flex-wrap: wrap;
   gap: 8px;
   margin: 16px 0;
+}
+.push-install-guide {
+  border-radius: var(--radius-md);
+  background: var(--color-action-soft);
+  padding: 14px;
+  margin-top: 12px;
+}
+.push-install-guide p {
+  margin: 0 0 12px;
 }
 .push-message {
   color: var(--color-action);
@@ -1527,6 +1549,9 @@ h3 {
   }
   .main-content {
     padding: 36px 32px 70px;
+  }
+  .app-footer {
+    padding: 0 32px 24px;
   }
   .page-header {
     flex-direction: row;

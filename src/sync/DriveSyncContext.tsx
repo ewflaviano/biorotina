@@ -18,9 +18,12 @@ import {
   currentGoogleAccount,
   disconnectGoogle,
   downloadDriveSnapshot,
+  forgetGoogleAccount,
+  hasRememberedGoogleAccount,
   listDriveSnapshots,
   preloadGoogleIdentity,
   rememberGoogleAccount,
+  renewGoogle,
   uploadDriveSnapshot,
   type DriveSnapshot,
   type GoogleAccount,
@@ -85,6 +88,7 @@ export function DriveSyncProvider({
   const running = useRef(false);
   const rerun = useRef(false);
   const previousRevision = useRef(data.revision);
+  const renewal = useRef<ReturnType<typeof renewGoogle> | null>(null);
 
   useEffect(() => {
     if (googleClientId) void preloadGoogleIdentity().catch(() => undefined);
@@ -112,11 +116,20 @@ export function DriveSyncProvider({
             return;
           }
           if (!currentGoogleAccount()) {
-            accountRef.current = null;
-            setAccount(null);
-            throw new Error(
-              "A conexão com o Google expirou. Conecte novamente para sincronizar.",
-            );
+            try {
+              const refreshed = googleClientId
+                ? await renewGoogle(googleClientId)
+                : null;
+              if (!refreshed) throw new Error("Acesso expirado.");
+              rememberGoogleAccount(refreshed);
+              connected = refreshed;
+              accountRef.current = refreshed;
+              setAccount(refreshed);
+            } catch {
+              throw new Error(
+                "A conexão com o Google expirou. Conecte novamente para sincronizar.",
+              );
+            }
           }
           const snapshots = await listDriveSnapshots(connected.token);
           const remote = snapshots[0] ?? null;
@@ -196,6 +209,7 @@ export function DriveSyncProvider({
             ? cause.message
             : "Não foi possível sincronizar com o Google Drive.";
         if (description.includes("Conecte novamente")) {
+          forgetGoogleAccount();
           accountRef.current = null;
           setAccount(null);
         }
@@ -206,8 +220,30 @@ export function DriveSyncProvider({
         setBusy(false);
       }
     },
-    [replaceIfRevision],
+    [googleClientId, replaceIfRevision],
   );
+
+  useEffect(() => {
+    if (!googleClientId || accountRef.current || !hasRememberedGoogleAccount())
+      return;
+    let cancelled = false;
+    renewal.current ??= renewGoogle(googleClientId);
+    void renewal.current
+      .then((restored) => {
+        if (!restored || cancelled || accountRef.current) return;
+        rememberGoogleAccount(restored);
+        accountRef.current = restored;
+        setAccount(restored);
+        void syncAccount(restored);
+      })
+      .catch(() => {
+        if (!cancelled && !accountRef.current)
+          setMessage("Toque em Entrar para reconectar sua conta Google.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [googleClientId, syncAccount]);
 
   const sync = useCallback(async () => {
     if (accountRef.current) await syncAccount(accountRef.current);

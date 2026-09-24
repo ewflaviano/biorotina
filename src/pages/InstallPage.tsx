@@ -24,6 +24,11 @@ export function InstallPage() {
           <>
             <h2>Como adicionar à tela inicial</h2>
             <p>{installInstructions()}</p>
+            <p className="muted small">
+              No iPhone, abra a Biorotina pelo ícone criado na Tela de Início
+              para poder ativar os avisos. A permissão não aparece dentro da aba
+              do Firefox ou do Safari. É necessário iOS 16.4 ou mais recente.
+            </p>
             <InstallButton />
             <p className="muted small">
               O botão de instalação aparece somente quando o navegador oferece

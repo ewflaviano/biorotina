@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { openDB } from "idb";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyData, type AppData } from "../src/domain/data";
 import { ActivityPage } from "../src/pages/ActivityPage";
 import { DashboardPage } from "../src/pages/DashboardPage";
@@ -43,6 +43,8 @@ beforeEach(async () => {
   await db.clear("app");
   db.close();
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("painel", () => {
   it("resume apenas registros de hoje e identifica calorias como informadas", async () => {
@@ -90,6 +92,24 @@ describe("painel", () => {
 });
 
 describe("hidratação", () => {
+  it("orienta o usuário do Firefox no iPhone antes de pedir permissão", async () => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) FxiOS/130.0 Mobile",
+    );
+    const data = emptyData();
+    data.hydrationReminderTimes = ["09:00"];
+    await renderPage(<HydrationPage />, data);
+    expect(
+      screen.getByText(/No iPhone, os avisos só podem ser ativados/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Ativar avisos" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("link", { name: "Ver como adicionar" }),
+    ).toHaveAttribute("href", "/instalar");
+  });
+
   it("registra água, soma o dia e guarda vários horários sem ativar notificações", async () => {
     const user = await renderPage(<HydrationPage />);
     await user.click(screen.getByRole("button", { name: /250 ml/ }));

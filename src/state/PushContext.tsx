@@ -8,9 +8,19 @@ import {
   type ReactNode,
 } from "react";
 import { useAppData } from "./AppDataContext";
+import {
+  currentDeviceNeedsHomeScreen,
+  requestNotificationPermission,
+} from "./pushAvailability";
 
 type PushStatus =
-  "unavailable" | "off" | "connecting" | "active" | "error" | "denied";
+  | "install_required"
+  | "unavailable"
+  | "off"
+  | "connecting"
+  | "active"
+  | "error"
+  | "denied";
 
 interface DeviceSession {
   id: string;
@@ -127,13 +137,15 @@ export function PushProvider({ children }: { children: ReactNode }) {
     readSession(storageKey),
   );
   const [status, setStatus] = useState<PushStatus>(() =>
-    !supported()
-      ? "unavailable"
-      : Notification.permission === "denied"
-        ? "denied"
-        : Notification.permission === "granted" && readSession(storageKey)
-          ? "connecting"
-          : "off",
+    currentDeviceNeedsHomeScreen()
+      ? "install_required"
+      : !supported()
+        ? "unavailable"
+        : Notification.permission === "denied"
+          ? "denied"
+          : Notification.permission === "granted" && readSession(storageKey)
+            ? "connecting"
+            : "off",
   );
   const [message, setMessage] = useState("");
   const busy = useRef(false);
@@ -224,6 +236,10 @@ export function PushProvider({ children }: { children: ReactNode }) {
 
   async function enable() {
     if (busy.current) return;
+    if (currentDeviceNeedsHomeScreen()) {
+      setStatus("install_required");
+      return;
+    }
     if (!supported()) {
       setStatus("unavailable");
       return;
@@ -236,7 +252,9 @@ export function PushProvider({ children }: { children: ReactNode }) {
       const permission =
         Notification.permission === "granted"
           ? "granted"
-          : await Notification.requestPermission();
+          : await requestNotificationPermission(() =>
+              Notification.requestPermission(),
+            );
       if (permission !== "granted") {
         setStatus("denied");
         setMessage(

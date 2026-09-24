@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { AnalyticsConsentDialog } from "../analytics/AnalyticsConsentDialog";
 import { getAnalyticsPreference } from "../analytics/visits";
 import { InstallPrompt } from "./InstallApp";
@@ -219,6 +219,10 @@ export function Layout() {
         <main id="conteudo" className="main-content">
           <Outlet />
         </main>
+        <footer className="app-footer">
+          <Link to="/privacidade">Privacidade</Link>
+          <span>Seus registros de saúde ficam sob seu controle.</span>
+        </footer>
         {undoLabel && (
           <div className="undo-banner" role="status">
             <span>

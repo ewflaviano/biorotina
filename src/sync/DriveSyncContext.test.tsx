@@ -12,8 +12,9 @@ import { DriveSyncProvider } from "./DriveSyncContext";
 import {
   connectGoogle,
   downloadDriveSnapshot,
+  forgetGoogleAccount,
   listDriveSnapshots,
-  rememberGoogleAccount,
+  renewGoogle,
   uploadDriveSnapshot,
   type DriveSnapshot,
 } from "./google";
@@ -26,6 +27,7 @@ vi.mock("./google", async (importOriginal) => {
     downloadDriveSnapshot: vi.fn(),
     listDriveSnapshots: vi.fn(),
     preloadGoogleIdentity: vi.fn().mockResolvedValue(undefined),
+    renewGoogle: vi.fn(),
     uploadDriveSnapshot: vi.fn(),
   };
 });
@@ -87,11 +89,12 @@ beforeEach(async () => {
   await db.clear("driveSync");
   db.close();
   snapshots.length = 0;
-  rememberGoogleAccount({ ...account, expiresAt: 0 });
+  forgetGoogleAccount();
   vi.mocked(connectGoogle).mockResolvedValue({
     ...account,
     expiresAt: Date.now() + 3_600_000,
   });
+  vi.mocked(renewGoogle).mockResolvedValue(null);
   vi.mocked(listDriveSnapshots).mockImplementation(async () => [...snapshots]);
   vi.mocked(uploadDriveSnapshot).mockImplementation(async (_token, data) => {
     const saved = {
@@ -106,6 +109,29 @@ beforeEach(async () => {
 });
 
 describe("login e sincronização automática", () => {
+  it("renova em segundo plano uma conta lembrada depois que o token expira", async () => {
+    localStorage.setItem(
+      "biorotina:google-account",
+      JSON.stringify({ ...account, expiresAt: Date.now() - 1 }),
+    );
+    vi.mocked(renewGoogle).mockResolvedValue({
+      ...account,
+      expiresAt: Date.now() + 3_600_000,
+    });
+    render(<App />);
+    await waitFor(
+      () => expect(renewGoogle).toHaveBeenCalledWith("test-client-id"),
+      { timeout: 3_000 },
+    );
+    expect(
+      await screen.findByRole(
+        "link",
+        { name: "Google Drive: sincronizado" },
+        { timeout: 3_000 },
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("restaura o Drive no primeiro acesso de um navegador vazio", async () => {
     const remote: AppData = {
       ...emptyData(),

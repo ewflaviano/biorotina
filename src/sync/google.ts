@@ -9,6 +9,7 @@ const SCOPES = `openid email ${DRIVE_SCOPE}`;
 const BACKUP_NAME = "biorotina-backup.json";
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
+const ACCOUNT_STORAGE_KEY = "biorotina:google-account";
 
 interface TokenResponse {
   access_token?: string;
@@ -27,6 +28,7 @@ interface GoogleIdentity {
       initTokenClient(options: {
         client_id: string;
         scope: string;
+        login_hint?: string;
         callback: (response: TokenResponse) => void;
         error_callback: () => void;
       }): TokenClient;
@@ -71,37 +73,111 @@ export interface GoogleAccount {
 
 let connectedAccount: GoogleAccount | null = null;
 
+function readStoredAccount(): GoogleAccount | null {
+  try {
+    const parsed: unknown = JSON.parse(
+      localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null",
+    );
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "id" in parsed &&
+      typeof parsed.id === "string" &&
+      "email" in parsed &&
+      typeof parsed.email === "string" &&
+      "token" in parsed &&
+      typeof parsed.token === "string" &&
+      "expiresAt" in parsed &&
+      typeof parsed.expiresAt === "number"
+    )
+      return parsed as GoogleAccount;
+  } catch {
+    // Sessões privadas podem bloquear o armazenamento; a conexão segue em memória.
+  }
+  return null;
+}
+
+export function forgetGoogleAccount(): void {
+  connectedAccount = null;
+  try {
+    localStorage.removeItem(ACCOUNT_STORAGE_KEY);
+  } catch {
+    // Ignora armazenamento indisponível.
+  }
+}
+
 export function currentGoogleAccount(): GoogleAccount | null {
-  if (connectedAccount && connectedAccount.expiresAt <= Date.now())
+  if (!connectedAccount) connectedAccount = readStoredAccount();
+  if (connectedAccount && connectedAccount.expiresAt <= Date.now() + 60_000)
     connectedAccount = null;
   return connectedAccount;
 }
 
-export function rememberGoogleAccount(account: GoogleAccount): void {
-  connectedAccount = account;
+export function hasRememberedGoogleAccount(): boolean {
+  return readStoredAccount() !== null;
 }
 
-export async function connectGoogle(clientId: string): Promise<GoogleAccount> {
+export function rememberGoogleAccount(account: GoogleAccount): void {
+  connectedAccount = account;
+  try {
+    localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(account));
+  } catch {
+    // O login ainda funciona durante esta visita sem armazenamento persistente.
+  }
+}
+
+async function requestGoogleAccount(
+  clientId: string,
+  prompt: "select_account" | "none",
+  loginHint?: string,
+): Promise<GoogleAccount> {
   await preloadGoogleIdentity();
   const oauth2 = window.google?.accounts.oauth2;
   if (!oauth2)
     throw new Error("O login Google não está disponível neste navegador.");
   const token = await new Promise<TokenResponse>((resolve, reject) => {
-    const client = oauth2.initTokenClient({
-      client_id: clientId,
-      scope: SCOPES,
-      callback: (response) =>
-        response.error
-          ? reject(
-              new Error("A conexão com o Google foi cancelada ou recusada."),
-            )
-          : resolve(response),
-      error_callback: () =>
-        reject(
-          new Error("A janela de login foi fechada. Tente conectar novamente."),
-        ),
-    });
-    client.requestAccessToken({ prompt: "select_account" });
+    const timeout =
+      prompt === "none"
+        ? window.setTimeout(
+            () =>
+              reject(
+                new Error("Não foi possível renovar o acesso sem interação."),
+              ),
+            10_000,
+          )
+        : undefined;
+    const finish = (action: () => void) => {
+      window.clearTimeout(timeout);
+      action();
+    };
+    try {
+      const client = oauth2.initTokenClient({
+        client_id: clientId,
+        scope: SCOPES,
+        login_hint: loginHint,
+        callback: (response) =>
+          finish(() =>
+            response.error
+              ? reject(
+                  new Error(
+                    "A conexão com o Google foi cancelada ou recusada.",
+                  ),
+                )
+              : resolve(response),
+          ),
+        error_callback: () =>
+          finish(() =>
+            reject(
+              new Error(
+                "A janela de login foi fechada. Tente conectar novamente.",
+              ),
+            ),
+          ),
+      });
+      client.requestAccessToken({ prompt });
+    } catch (cause) {
+      finish(() => reject(cause));
+    }
   });
   if (!token.access_token || !token.scope?.split(" ").includes(DRIVE_SCOPE)) {
     throw new Error("Autorize o acesso à área privada de backups do Drive.");
@@ -133,8 +209,24 @@ export async function connectGoogle(clientId: string): Promise<GoogleAccount> {
   };
 }
 
+export function connectGoogle(clientId: string): Promise<GoogleAccount> {
+  return requestGoogleAccount(clientId, "select_account");
+}
+
+export async function renewGoogle(
+  clientId: string,
+): Promise<GoogleAccount | null> {
+  const previous = readStoredAccount();
+  if (!previous) return null;
+  if (previous.expiresAt > Date.now() + 60_000) return previous;
+  const renewed = await requestGoogleAccount(clientId, "none", previous.email);
+  if (renewed.id !== previous.id)
+    throw new Error("Confirme sua conta Google para continuar sincronizando.");
+  return renewed;
+}
+
 export function disconnectGoogle(account: GoogleAccount): void {
-  connectedAccount = null;
+  forgetGoogleAccount();
   window.google?.accounts.oauth2.revoke(account.token, () => undefined);
 }
 

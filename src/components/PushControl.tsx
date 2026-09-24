@@ -1,4 +1,5 @@
 import { Bell } from "lucide-react";
+import { Link } from "react-router-dom";
 import { usePush } from "../state/PushContext";
 
 export function PushControl() {
@@ -21,9 +22,22 @@ export function PushControl() {
       </p>
       {status === "unavailable" && (
         <p className="muted">
-          Este navegador não oferece Web Push aqui. Use HTTPS; no iPhone,
-          adicione a Biorotina à Tela de Início antes de ativar.
+          Este navegador não oferece avisos neste modo. Confira se você está
+          usando HTTPS e uma versão recente do sistema.
         </p>
+      )}
+      {status === "install_required" && (
+        <div className="push-install-guide">
+          <p>
+            No iPhone, os avisos só podem ser ativados ao abrir a Biorotina pelo
+            ícone da Tela de Início. Adicione o site pelo menu Compartilhar do
+            Firefox ou do Safari e abra o ícone criado. Depois, volte aqui para
+            ativar os avisos.
+          </p>
+          <Link className="button secondary" to="/instalar">
+            Ver como adicionar
+          </Link>
+        </div>
       )}
       {status === "denied" && (
         <p className="form-error" role="alert">
@@ -42,7 +56,11 @@ export function PushControl() {
                 className="button primary"
                 type="button"
                 onClick={enable}
-                disabled={status === "connecting" || status === "unavailable"}
+                disabled={
+                  status === "connecting" ||
+                  status === "unavailable" ||
+                  status === "install_required"
+                }
               >
                 Tentar novamente
               </button>
@@ -61,6 +79,7 @@ export function PushControl() {
             type="button"
             disabled={
               status === "unavailable" ||
+              status === "install_required" ||
               status === "connecting" ||
               scheduleCount === 0
             }

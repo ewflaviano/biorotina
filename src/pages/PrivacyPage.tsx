@@ -19,6 +19,30 @@ export function PrivacyPage() {
             seu Drive. A Biorotina não recebe esses registros em um banco de
             dados próprio.
           </p>
+          <p>
+            Você pode consultar e apagar os registros no app, exportar uma cópia
+            JSON e remover os dados locais nas configurações ou nas opções do
+            navegador.
+          </p>
+        </section>
+        <section className="panel">
+          <h2>Conta Google e backup</h2>
+          <p>
+            A conexão com o Google é opcional. Pedimos seu identificador e
+            e-mail para mostrar qual conta está conectada, além de acesso à área
+            privada da Biorotina no seu Google Drive para criar, encontrar e
+            recuperar o backup. O app não acessa os outros arquivos do Drive. O
+            token de acesso temporário fica no armazenamento deste navegador
+            para manter a conexão ao atualizar a página. O app tenta renová-lo
+            quando expira, e você pode se desconectar a qualquer momento. O
+            token não é enviado ao servidor da Biorotina.
+          </p>
+          <p>
+            Você pode desconectar a conta no app, revogar o acesso nas
+            configurações da sua Conta Google e excluir o backup na área de
+            dados de apps do Drive. Os dados do Google não são vendidos nem
+            usados para anúncios.
+          </p>
         </section>
         <section className="panel">
           <h2>Lembretes</h2>
@@ -28,6 +52,20 @@ export function PrivacyPage() {
             do navegador, fuso horário e próximos horários. O texto do aviso é
             genérico. O serviço não recebe nomes de medicamentos, doses ou seu
             histórico de saúde.
+          </p>
+          <p>
+            Desativar os avisos remove a inscrição deste dispositivo do serviço.
+            Inscrições sem atualização expiram automaticamente.
+          </p>
+        </section>
+        <section className="panel">
+          <h2>Contato</h2>
+          <p>
+            Para dúvidas sobre privacidade ou uso da Biorotina, escreva para{" "}
+            <a href="mailto:ewanderson.flaviano@gmail.com">
+              ewanderson.flaviano@gmail.com
+            </a>
+            .
           </p>
         </section>
         <section className="panel">
