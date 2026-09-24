@@ -1,5 +1,6 @@
 import {
   cleanup,
+  configure,
   render,
   screen,
   waitFor,
@@ -49,6 +50,10 @@ const account = {
   expiresAt: Date.now() + 3_600_000,
 };
 const snapshots: DriveSnapshot[] = [];
+
+// IndexedDB and React effects can take longer on shared CI runners.
+configure({ asyncUtilTimeout: 5_000 });
+vi.setConfig({ testTimeout: 15_000 });
 
 function RecordButton() {
   const { data, loading, mutate } = useAppData();
@@ -367,6 +372,7 @@ describe("login e sincronização automática", () => {
         name: "Entrar com Google para sincronizar",
       }),
     );
+    await screen.findByRole("link", { name: "Google Drive: sincronizado" });
     await waitFor(async () =>
       expect((await loadData(account.id)).profile.displayName).toBe(""),
     );
