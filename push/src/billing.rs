@@ -136,6 +136,22 @@ fn str_field(value: &Value, name: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
+fn paid_checkout_payment<'a>(items: &'a [Value], checkout_id: &str) -> Option<&'a Value> {
+    items.iter().find(|payment| {
+        str_field(payment, "checkoutSession").as_deref() == Some(checkout_id)
+            && matches!(
+                str_field(payment, "status").as_deref(),
+                Some("CONFIRMED" | "RECEIVED")
+            )
+            && payment
+                .get("value")
+                .and_then(Value::as_f64)
+                .is_some_and(|value| (value - 8.99).abs() < 0.001)
+            && str_field(payment, "subscription").is_some()
+            && str_field(payment, "customer").is_some()
+    })
+}
+
 fn valid_webhook_token(expected: &str, provided: Option<&str>) -> bool {
     provided.is_some_and(|token| {
         token.len() == expected.len() && token.as_bytes().ct_eq(expected.as_bytes()).into()
@@ -405,26 +421,64 @@ impl Billing {
     async fn reconcile_checkout(
         &self,
         checkout_id: &str,
+        checkout_expires_at: i64,
     ) -> Result<(String, String, String, String, NaiveDate), String> {
         let payments = self
             .asaas_get(&format!(
                 "/v3/payments?checkoutSession={checkout_id}&limit=10"
             ))
             .await?;
-        let payment = payments
+        let filtered = payments
             .get("data")
             .and_then(Value::as_array)
-            .and_then(|items| {
-                items
-                    .iter()
-                    .find(|p| str_field(p, "subscription").is_some())
-            })
-            .ok_or("Cobrança ainda não disponível")?;
+            .and_then(|items| paid_checkout_payment(items, checkout_id));
+        // O filtro checkoutSession do Asaas pode retornar zero mesmo quando a
+        // cobrança contém esse identificador. Consulte o dia do checkout e
+        // confira o vínculo exato antes de conceder acesso.
+        let fallback = if filtered.is_none() {
+            let since = chrono::DateTime::from_timestamp(checkout_expires_at - 3600 - 86400, 0)
+                .filter(|_| checkout_expires_at > 0)
+                .unwrap_or_else(Utc::now)
+                .format("%Y-%m-%d")
+                .to_string();
+            let mut found = None;
+            for page in 0..20 {
+                let result = self
+                    .asaas_get(&format!(
+                        "/v3/payments?dateCreated%5Bge%5D={since}&limit=100&offset={}",
+                        page * 100
+                    ))
+                    .await?;
+                let items = result
+                    .get("data")
+                    .and_then(Value::as_array)
+                    .ok_or("Lista de cobranças inválida")?;
+                if let Some(payment) = paid_checkout_payment(items, checkout_id) {
+                    found = Some(payment.clone());
+                    break;
+                }
+                if items.len() < 100 {
+                    break;
+                }
+            }
+            found
+        } else {
+            None
+        };
+        let payment = filtered
+            .or(fallback.as_ref())
+            .ok_or("Cobrança confirmada ainda não disponível")?;
         let sub_id = str_field(payment, "subscription").ok_or("Assinatura ausente")?;
         let customer = str_field(payment, "customer").ok_or("Cliente ausente")?;
         let sub = self
             .asaas_get(&format!("/v3/subscriptions/{sub_id}"))
             .await?;
+        if str_field(&sub, "checkoutSession").as_deref() != Some(checkout_id)
+            || str_field(&sub, "customer") != Some(customer.clone())
+            || str_field(&sub, "status").as_deref() != Some("ACTIVE")
+        {
+            return Err("Assinatura não corresponde ao checkout pago".into());
+        }
         let next_charge = str_field(&sub, "nextDueDate").ok_or("Próxima cobrança ausente")?;
         let payment_id = str_field(payment, "id").ok_or("Cobrança sem identificador")?;
         let due_date = str_field(payment, "dueDate")
@@ -439,7 +493,11 @@ impl Billing {
         }
         let sub_id = match &account.subscription_id {
             Some(id) => id.clone(),
-            None => self.reconcile_checkout(&account.checkout_id).await?.0,
+            None => {
+                self.reconcile_checkout(&account.checkout_id, account.checkout_expires_at)
+                    .await?
+                    .0
+            }
         };
         let response = self
             .client
@@ -580,8 +638,9 @@ impl Billing {
                 if account.subscription_id.is_some() {
                     return Ok(());
                 }
-                let (sub_id, customer, next_charge, payment_id, due_date) =
-                    self.reconcile_checkout(&id).await?;
+                let (sub_id, customer, next_charge, payment_id, due_date) = self
+                    .reconcile_checkout(&id, account.checkout_expires_at)
+                    .await?;
                 let estimated_through = add_month(due_date).format("%Y-%m-%d").to_string();
                 let through = if next_charge > estimated_through {
                     next_charge.clone()
@@ -679,6 +738,19 @@ impl Billing {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn checkout_reconciliation_requires_matching_confirmed_payment() {
+        let valid = json!({"id":"pay_1","checkoutSession":"checkout-1","status":"CONFIRMED","value":8.99,"subscription":"sub_1","customer":"cus_1"});
+        assert!(paid_checkout_payment(std::slice::from_ref(&valid), "checkout-1").is_some());
+        for invalid in [
+            json!({"checkoutSession":"checkout-2","status":"CONFIRMED","value":8.99,"subscription":"sub_1","customer":"cus_1"}),
+            json!({"checkoutSession":"checkout-1","status":"PENDING","value":8.99,"subscription":"sub_1","customer":"cus_1"}),
+            json!({"checkoutSession":"checkout-1","status":"CONFIRMED","value":99.00,"subscription":"sub_1","customer":"cus_1"}),
+            json!({"checkoutSession":"checkout-1","status":"CONFIRMED","value":8.99,"customer":"cus_1"}),
+        ] {
+            assert!(paid_checkout_payment(&[invalid], "checkout-1").is_none());
+        }
+    }
     #[test]
     fn google_identity_uses_a_stable_hash() {
         assert!(google_key("subject-1").starts_with("GOOGLE#"));
