@@ -11,6 +11,7 @@ use std::sync::Arc;
 use subtle::ConstantTimeEq;
 
 const GEMINI_MODEL: &str = "gemini-3.8-flash";
+const GEMINI_FALLBACK_MODEL: &str = "gemini-3.1-pro-preview";
 const GEMINI_TOTAL_BUDGET: std::time::Duration = std::time::Duration::from_secs(24);
 pub const TRIAL_LIMIT: u32 = 5;
 const ASAAS_USER_AGENT: &str = "Biorotina/0.1 (+https://biorotina.app.br)";
@@ -196,12 +197,57 @@ fn should_retry_gemini(
     status == 503 && attempt == 0 && remaining > pause + std::time::Duration::from_secs(3)
 }
 
+fn should_fallback_to_pro(
+    status: u16,
+    flash_attempt: usize,
+    paid: bool,
+    remaining: std::time::Duration,
+) -> bool {
+    paid && status == 503 && flash_attempt == 1 && remaining > std::time::Duration::from_secs(5)
+}
+
+fn gemini_request_body(image: &str) -> Value {
+    json!({
+        "contents": [{"parts": [
+            {"text": PROMPT},
+            {"inline_data": {"mime_type": "image/jpeg", "data": image}}
+        ]}],
+        "generationConfig": {
+            "maxOutputTokens": 2048,
+            "thinkingConfig": {"thinkingLevel": "LOW"},
+            "responseFormat": {"text": {
+                // The v1beta REST endpoint expects the enum name; lowercase application/json returns 400.
+                "mimeType": "APPLICATION_JSON",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "description": {"type": "string", "description": "Descrição da refeição em português do Brasil"},
+                        "foods": {"type": "array", "maxItems": 30, "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string", "description": "Nome simples do alimento ou bebida"},
+                                "amount": {"type": "string", "description": "Porção aproximada em gramas ou medida caseira"},
+                                "caloriesKcal": {"type": "number", "minimum": 0, "maximum": 5000}
+                            },
+                            "required": ["name", "amount", "caloriesKcal"]
+                        }}
+                    },
+                    "required": ["description", "foods"]
+                }
+            }}
+        }
+    })
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum AnalysisFailure {
     InvalidImage,
     GeminiNetwork,
     GeminiTimeout,
     GeminiStatus(u16),
+    GeminiProNetwork,
+    GeminiProTimeout,
+    GeminiProStatus(u16),
     GeminiResponse,
     NoCandidate,
     SafetyBlocked,
@@ -229,6 +275,9 @@ impl AnalysisFailure {
             Self::GeminiNetwork => "gemini_network",
             Self::GeminiTimeout => "gemini_timeout",
             Self::GeminiStatus(_) => "gemini_status",
+            Self::GeminiProNetwork => "gemini_pro_network",
+            Self::GeminiProTimeout => "gemini_pro_timeout",
+            Self::GeminiProStatus(_) => "gemini_pro_status",
             Self::GeminiResponse => "gemini_response",
             Self::NoCandidate => "gemini_no_candidate",
             Self::SafetyBlocked => "gemini_safety_blocked",
@@ -252,7 +301,7 @@ impl AnalysisFailure {
 
     pub fn upstream_status(&self) -> Option<u16> {
         match self {
-            Self::GeminiStatus(status) => Some(*status),
+            Self::GeminiStatus(status) | Self::GeminiProStatus(status) => Some(*status),
             _ => None,
         }
     }
@@ -791,7 +840,7 @@ impl Billing {
         }
     }
 
-    pub async fn analyze(&self, image: &str) -> Result<Analysis, AnalysisFailure> {
+    pub async fn analyze(&self, image: &str, paid: bool) -> Result<Analysis, AnalysisFailure> {
         if image.len() > 480_000
             || image.len() < 100
             || !image
@@ -800,41 +849,55 @@ impl Billing {
         {
             return Err(AnalysisFailure::InvalidImage);
         }
-        let body = json!({"contents":[{"parts":[{"text":PROMPT},{"inline_data":{"mime_type":"image/jpeg","data":image}}]}],"generationConfig":{"temperature":0.2,"maxOutputTokens":2048,"thinkingConfig":{"thinkingLevel":"LOW"},"responseFormat":{"text":{"mimeType":"APPLICATION_JSON","schema":{"type":"object","properties":{"description":{"type":"string"},"foods":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"amount":{"type":"string"},"caloriesKcal":{"type":"number"}},"required":["name","amount","caloriesKcal"]}}},"required":["description","foods"]}}}}});
+        let body = gemini_request_body(image);
         let mut attempt = 0;
+        let mut using_pro = false;
         let started = std::time::Instant::now();
         let response = loop {
             let remaining = GEMINI_TOTAL_BUDGET.saturating_sub(started.elapsed());
-            let response = self.client.post(format!("https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"))
+            let model = if using_pro {
+                GEMINI_FALLBACK_MODEL
+            } else {
+                GEMINI_MODEL
+            };
+            let response = self.client.post(format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"))
                 .timeout(remaining)
                 .header("x-goog-api-key", self.gemini_key.as_str())
                 .json(&body)
                 .send()
                 .await
-                .map_err(|error| {
-                    if error.is_timeout() {
-                        AnalysisFailure::GeminiTimeout
-                    } else {
-                        AnalysisFailure::GeminiNetwork
-                    }
+                .map_err(|error| match (using_pro, error.is_timeout()) {
+                    (true, true) => AnalysisFailure::GeminiProTimeout,
+                    (true, false) => AnalysisFailure::GeminiProNetwork,
+                    (false, true) => AnalysisFailure::GeminiTimeout,
+                    (false, false) => AnalysisFailure::GeminiNetwork,
                 })?;
             let jitter_ms = Utc::now().timestamp_subsec_millis() as u64 % 501;
             let pause = std::time::Duration::from_millis(700 + jitter_ms);
-            if should_retry_gemini(
-                response.status().as_u16(),
-                attempt,
-                GEMINI_TOTAL_BUDGET.saturating_sub(started.elapsed()),
-                pause,
-            ) {
+            let remaining = GEMINI_TOTAL_BUDGET.saturating_sub(started.elapsed());
+            if !using_pro
+                && should_retry_gemini(response.status().as_u16(), attempt, remaining, pause)
+            {
                 observability::warning("billing", "analyze", "gemini_retry_503", Some(503));
                 tokio::time::sleep(pause).await;
                 attempt += 1;
                 continue;
             }
+            if !using_pro
+                && should_fallback_to_pro(response.status().as_u16(), attempt, paid, remaining)
+            {
+                observability::warning("billing", "analyze", "gemini_fallback_pro", Some(503));
+                using_pro = true;
+                continue;
+            }
             break response;
         };
         if !response.status().is_success() {
-            return Err(AnalysisFailure::GeminiStatus(response.status().as_u16()));
+            return Err(if using_pro {
+                AnalysisFailure::GeminiProStatus(response.status().as_u16())
+            } else {
+                AnalysisFailure::GeminiStatus(response.status().as_u16())
+            });
         }
         let result: Value = response
             .json()
@@ -842,7 +905,9 @@ impl Billing {
             .map_err(|_| AnalysisFailure::GeminiResponse)?;
         let text = extract_analysis_text(&result)?;
         let analysis = parse_analysis(text)?;
-        if attempt > 0 {
+        if using_pro {
+            observability::warning("billing", "analyze", "gemini_fallback_pro_recovered", None);
+        } else if attempt > 0 {
             observability::warning("billing", "analyze", "gemini_retry_recovered", None);
         }
         Ok(analysis)
@@ -1019,6 +1084,49 @@ mod tests {
             std::time::Duration::from_secs(4),
             pause
         ));
+    }
+
+    #[test]
+    fn uses_pro_only_after_paid_flash_retries_fail() {
+        let remaining = std::time::Duration::from_secs(15);
+        assert!(should_fallback_to_pro(503, 1, true, remaining));
+        assert!(!should_fallback_to_pro(503, 0, true, remaining));
+        assert!(!should_fallback_to_pro(503, 1, false, remaining));
+        assert!(!should_fallback_to_pro(429, 1, true, remaining));
+        assert!(!should_fallback_to_pro(
+            503,
+            1,
+            true,
+            std::time::Duration::from_secs(5)
+        ));
+        assert_eq!(
+            AnalysisFailure::GeminiProStatus(503).code(),
+            "gemini_pro_status"
+        );
+        assert_eq!(
+            AnalysisFailure::GeminiProStatus(503).upstream_status(),
+            Some(503)
+        );
+    }
+
+    #[test]
+    fn requests_a_structured_json_response_for_both_models() {
+        assert_eq!(GEMINI_MODEL, "gemini-3.8-flash");
+        assert_eq!(GEMINI_FALLBACK_MODEL, "gemini-3.1-pro-preview");
+        let body = gemini_request_body("Zm9v");
+        assert_eq!(
+            body.pointer("/contents/0/parts/1/inline_data/data"),
+            Some(&json!("Zm9v"))
+        );
+        assert_eq!(
+            body.pointer("/generationConfig/responseFormat/text/mimeType"),
+            Some(&json!("APPLICATION_JSON"))
+        );
+        assert_eq!(
+            body.pointer("/generationConfig/responseFormat/text/schema/properties/foods/maxItems"),
+            Some(&json!(30))
+        );
+        assert!(body.pointer("/generationConfig/temperature").is_none());
     }
 
     #[test]

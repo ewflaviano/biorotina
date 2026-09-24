@@ -42,6 +42,11 @@ describe("análise de refeição com Gemini", () => {
       expect(body.generationConfig.responseFormat.text.mimeType).toBe(
         "APPLICATION_JSON",
       );
+      expect(
+        body.generationConfig.responseFormat.text.schema.properties.foods
+          .maxItems,
+      ).toBe(30);
+      expect(body.generationConfig).not.toHaveProperty("temperature");
       expect(body.generationConfig.thinkingConfig.thinkingLevel).toBe("LOW");
       return new Response(
         JSON.stringify({

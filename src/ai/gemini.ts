@@ -60,6 +60,7 @@ const responseSchema = {
     },
     foods: {
       type: "array",
+      maxItems: 30,
       items: {
         type: "object",
         properties: {
@@ -71,6 +72,8 @@ const responseSchema = {
           caloriesKcal: {
             type: "number",
             description: "Calorias estimadas da porção",
+            minimum: 0,
+            maximum: 5_000,
           },
         },
         required: ["name", "amount", "caloriesKcal"],
@@ -177,10 +180,10 @@ export async function analyzeMealImage(
           },
         ],
         generationConfig: {
-          temperature: 0.2,
           maxOutputTokens: 2_048,
           thinkingConfig: { thinkingLevel: "LOW" },
           responseFormat: {
+            // v1beta REST expects this enum name; lowercase application/json returns 400.
             text: { mimeType: "APPLICATION_JSON", schema: responseSchema },
           },
         },

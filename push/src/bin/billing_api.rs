@@ -29,7 +29,7 @@ fn failure(operation: &'static str, code: &'static str, text: &'static str) -> R
 }
 fn analysis_failure_response(reason: AnalysisFailure) -> Response {
     match reason {
-        AnalysisFailure::GeminiStatus(503) => error(
+        AnalysisFailure::GeminiStatus(503) | AnalysisFailure::GeminiProStatus(503) => error(
             StatusCode::SERVICE_UNAVAILABLE,
             "O Gemini está temporariamente indisponível. Tente novamente com a mesma foto em instantes.",
         ),
@@ -286,7 +286,7 @@ async fn analyze(
             )
         }
     };
-    match billing.analyze(&body.image).await {
+    match billing.analyze(&body.image, paid).await {
         Ok(analysis) => reply(StatusCode::OK, json!(analysis)),
         Err(reason) => {
             observability::error(
@@ -306,12 +306,17 @@ mod tests {
     use super::*;
     #[test]
     fn a_503_asks_to_retry_the_same_photo() {
-        let response = analysis_failure_response(AnalysisFailure::GeminiStatus(503));
-        assert_eq!(response.0, StatusCode::SERVICE_UNAVAILABLE);
-        assert!(response.2 .0["error"]
-            .as_str()
-            .unwrap()
-            .contains("mesma foto"));
+        for failure in [
+            AnalysisFailure::GeminiStatus(503),
+            AnalysisFailure::GeminiProStatus(503),
+        ] {
+            let response = analysis_failure_response(failure);
+            assert_eq!(response.0, StatusCode::SERVICE_UNAVAILABLE);
+            assert!(response.2 .0["error"]
+                .as_str()
+                .unwrap()
+                .contains("mesma foto"));
+        }
     }
     #[test]
     fn rejects_missing_google_token() {
