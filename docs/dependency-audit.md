@@ -25,8 +25,9 @@ deve trocá-la sem preparar as credenciais e confirmar a elegibilidade. Até lá
 o utilitário permanece apenas no ambiente de build/deploy, com dependências
 travadas no lockfile, ações de CI fixadas por commit e permissão AWS limitada.
 
-Antes de abrir o repositório ao público, repetir ambas as auditorias, revisar
-os termos do Serverless 4 e decidir a migração ou outra ferramenta de deploy.
+Repetir ambas as auditorias regularmente, revisar os termos do Serverless 4 e
+decidir a migração ou outra ferramenta de deploy. Os alertas conhecidos acima
+não devem ser ocultados só porque o código está disponível publicamente.
 
 Referências: [aviso RSA](https://github.com/RustCrypto/RSA/security/advisories/GHSA-c38w-74pg-36hr),
 [código VAPID do web-push](https://github.com/pimeys/rust-web-push/blob/master/src/vapid/key.rs),

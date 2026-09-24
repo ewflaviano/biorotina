@@ -1,6 +1,7 @@
 /** Site visit measurement. This module never receives app records or account data. */
 
 const PREFERENCE_KEY = "biorotina.analytics.consent.v1";
+const PREFERENCE_EVENT = "biorotina:analytics-preference-changed";
 const PRODUCTION_HOST = "biorotina.app.br";
 
 export type AnalyticsPreference = "accepted" | "declined" | "unselected";
@@ -21,6 +22,18 @@ export function getAnalyticsPreference(): AnalyticsPreference {
   }
 }
 
+export function subscribeAnalyticsPreference(callback: () => void): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === PREFERENCE_KEY) callback();
+  };
+  window.addEventListener(PREFERENCE_EVENT, callback);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(PREFERENCE_EVENT, callback);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
 /** Change the local measurement preference from Settings. */
 export async function setAnalyticsPreference(
   preference: Exclude<AnalyticsPreference, "unselected">,
@@ -35,6 +48,11 @@ export async function setAnalyticsPreference(
       // Analytics must never prevent local preferences or app use.
     }
     return false;
+  }
+  try {
+    window.dispatchEvent?.(new Event(PREFERENCE_EVENT));
+  } catch {
+    // An event listener must not invalidate a preference already saved.
   }
 
   if (preference === "declined") {

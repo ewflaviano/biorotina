@@ -181,6 +181,45 @@ h3 {
   flex: none;
   font-weight: 700;
 }
+.analytics-consent-banner {
+  border-bottom: 1px solid var(--color-border);
+  padding: 10px 16px;
+  background: var(--green-50);
+  color: var(--color-text);
+  font-size: 13px;
+}
+.analytics-consent-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.analytics-consent-main p {
+  margin: 0;
+}
+.analytics-consent-actions {
+  display: flex;
+  gap: 8px;
+}
+.analytics-consent-actions .button {
+  min-width: 82px;
+}
+.analytics-consent-banner .info-disclosure-trigger {
+  min-height: 28px;
+  padding: 0;
+}
+.analytics-consent-banner .info-disclosure-content {
+  max-width: 680px;
+}
+@media (max-width: 650px) {
+  .analytics-consent-actions {
+    width: 100%;
+  }
+  .analytics-consent-actions .button {
+    flex: 1;
+  }
+}
 .settings-link {
   display: grid;
   place-items: center;

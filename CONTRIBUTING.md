@@ -50,6 +50,6 @@ cargo test --manifest-path push/Cargo.toml
 
 Não envie arquivos `.env`, backups, dados reais de saúde ou credenciais. O verificador automático de segredos cobre padrões comuns, mas cada contribuição ainda precisa de revisão humana.
 
-## Preparação para código aberto
+## Licença e segurança
 
-O repositório ainda está privado. Antes da abertura pública, os mantenedores precisam escolher uma licença e revisar o histórico completo do Git em busca de credenciais ou dados sensíveis. Até a publicação de uma licença, o código não recebe automaticamente uma licença de reutilização.
+Ao contribuir, considere que o código e a documentação original do projeto são publicados sob a [licença MIT](LICENSE). Não inclua dados pessoais nem segredos em código, testes, imagens, issues ou PRs. Os mantenedores revisam o histórico e os alertas de dependências continuamente; uma checagem automática não substitui a revisão humana.

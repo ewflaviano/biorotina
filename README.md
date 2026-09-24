@@ -11,11 +11,11 @@ Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acomp
 - Sincronização opcional com o **Google Drive da própria pessoa** para usar os dados em outro navegador ou dispositivo.
 - Registros locais separados por conta Google. Ao sair, o app apaga os dados e a chave pessoal deste navegador; se houver alterações pendentes, oferece esperar, baixar JSON ou apagar sem backup.
 - Sem banco de dados central de registros de saúde operado pelo projeto; o serviço de avisos guarda dados técnicos da inscrição e horários. O plano de IA guarda somente estado da assinatura e uso diário.
-- Métricas de acesso para contagem agregada, sem publicidade, ativadas apenas por escolha em Configurações e sem envio de registros de saúde.
+- Métricas de acesso e diagnósticos de erros opcionais, sem publicidade e sem envio de registros de saúde. Um aviso breve permite aceitar ou recusar; a escolha pode ser alterada em Configurações.
 
 O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação têm a ação **Repetir**, que prepara um novo registro sem salvá-lo automaticamente, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; a entrega agendada foi confirmada em iPhone e Android.
 
-No celular, há um convite discreto para adicionar a Biorotina à tela inicial e uma página com instruções para Safari e Chrome. A página **Apoiar** apresenta um Pix estático opcional para financiar o projeto. O repositório continua privado enquanto concluímos os testes com pessoas reais, a revisão de segurança e a escolha da licença.
+No celular, há um convite discreto para adicionar a Biorotina à tela inicial e uma página com instruções para Safari e Chrome. A página **Apoiar** apresenta um Pix estático opcional para financiar o projeto. O código-fonte é disponibilizado sob a [licença MIT](LICENSE).
 
 Quem quiser colaborar pode começar pelo [guia de contribuição](CONTRIBUTING.md) e pelas [issues](https://github.com/ewflaviano/biorotina/issues). Questões sensíveis devem seguir a [política de segurança](SECURITY.md). O CI valida todo pull request; publicação na AWS ocorre apenas após merge em `master`.
 
@@ -36,7 +36,7 @@ Abra `http://127.0.0.1:5173/`. `make` (ou `make run`) inicia o servidor local; `
 
 `make build` verifica tipos e gera os arquivos estáticos em `dist/`.
 
-Para manutenção, `make check` executa a checagem do frontend, Clippy e testes Rust; `npm run test:coverage` mostra a cobertura dos testes de interface. No repositório privado [ewflaviano/biorotina](https://github.com/ewflaviano/biorotina), o GitHub Actions valida os pull requests e valida/publica alterações em `master`. Veja [implantação e domínio](docs/deployment.md). A verificação automática de padrões conhecidos nos arquivos e no histórico não substitui uma revisão humana antes de abrir o código.
+Para manutenção, `make check` executa a checagem do frontend, Clippy e testes Rust; `npm run test:coverage` mostra a cobertura dos testes de interface. No [repositório do projeto](https://github.com/ewflaviano/biorotina), o GitHub Actions valida os pull requests e valida/publica alterações em `master`. Veja [implantação e domínio](docs/deployment.md). A verificação automática de padrões conhecidos nos arquivos e no histórico não substitui uma revisão humana contínua.
 
 ## Estrutura
 
@@ -51,14 +51,14 @@ Para manutenção, `make check` executa a checagem do frontend, Clippy e testes 
 - [Guia detalhado](docs/design-system.md): princípios, identidade, cores, tipografia, espaçamento, ícones, componentes, gráficos, conteúdo, acessibilidade e padrões por área do produto.
 - [Catálogo visual](docs/design-system.html): exemplos responsivos de tokens, componentes e uma tela inicial conceitual.
 - [Tokens CSS](docs/tokens.css): base de cores, tipografia e espaçamento usada pela interface.
-- [Arquitetura](docs/architecture.md): dados locais, Google Drive, serviço de notificações e cuidados para abrir o código.
+- [Arquitetura](docs/architecture.md): dados locais, Google Drive, serviço de notificações e segurança.
 - [Próximas etapas](docs/next-steps.md): critérios de entrega para Google Drive e lembretes.
 - [Revisão de UX/UI](docs/ux-review.md): passo a passo das telas, ajustes feitos e pontos para próximas iterações.
 - [Instalação no celular](docs/installation.md): convite, compatibilidade e transferência de registros.
 - [Apoio ao projeto](docs/support.md): origem e manutenção do Pix estático.
 - [Assinatura e webhook](docs/billing.md): fluxo, configuração do Asaas e homologação.
 - [Roteiro de testes no navegador](docs/manual-browser-test.md): casos reproduzíveis sem login, com teste grátis e com plano ativo.
-- [Recuperação de dados](docs/data-recovery.md) e [auditoria de dependências](docs/dependency-audit.md): verificações operacionais antes da abertura pública.
+- [Recuperação de dados](docs/data-recovery.md) e [auditoria de dependências](docs/dependency-audit.md): verificações operacionais e riscos conhecidos.
 
 ## Decisões ainda abertas
 
@@ -66,8 +66,12 @@ Para manutenção, `make check` executa a checagem do frontend, Clippy e testes 
 2. Edição retroativa de peso, atividade, refeição e água, além de recuperação após perda do navegador. Exclusão com desfazer e migração de dados antigos para a versão 4 já funcionam.
 3. Continuar testes de Web Push em desktop e revisar a operação do serviço; iPhone e Android receberam avisos agendados.
 4. Ampliar os testes de foto e cobrança em dispositivos e contas de teste, incluindo renovação, reembolso, limites e falhas temporárias. O [relatório da rodada no navegador](docs/manual-browser-test-runs/2026-09-24.md) separa o que já passou do que ainda não foi executado.
-5. Definir o destino dos alertas operacionais; hoje o alarme da fila de falhas de cobrança não tem destinatário. Reavaliar a dependência vulnerável de desenvolvimento do Serverless Framework e o aviso residual de `rsa` antes da abertura pública.
-6. Definir licença e concluir a revisão do histórico completo antes de abrir o projeto no GitHub. A proteção de `master` já exige PR e checks aprovados. A decisão sobre consentimento de métricas está pausada.
+5. Definir o destino dos alertas operacionais; hoje o alarme da fila de falhas de cobrança não tem destinatário. Reavaliar a dependência vulnerável de desenvolvimento do Serverless Framework e o aviso residual de `rsa` conforme a [auditoria](docs/dependency-audit.md).
+6. Manter a revisão de segredos, dependências e permissões do CI. A proteção de `master` já exige PR e checks aprovados; métricas e diagnósticos permanecem desligados até a escolha da pessoa.
+
+## Licença
+
+O código-fonte e a documentação original da Biorotina estão sob [MIT](LICENSE). Dependências e materiais de terceiros mantêm suas próprias licenças; a fonte DM Sans distribuída no projeto inclui seu aviso [OFL](docs/assets/OFL.txt). O campo `private: true` do npm apenas impede publicação acidental do pacote, sem limitar a licença do código.
 
 Integrações com Apple Health e Health Connect estão fora do escopo inicial.
 

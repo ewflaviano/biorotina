@@ -102,8 +102,8 @@ export function PrivacyPage() {
             dados de saúde, fotos, e-mail, chave Gemini, tokens ou
             identificadores da conta. Esses registros técnicos ficam nos logs do
             serviço por até 14 dias para ajudar a corrigir problemas. Se você
-            não ativar as métricas nas Configurações, o app não envia esses
-            diagnósticos. Você pode desligar ambos depois.
+            não ativar as métricas no aviso inicial ou nas Configurações, o app
+            não envia esses diagnósticos. Você pode desligar ambos depois.
           </p>
         </section>
         <section className="panel">
@@ -128,7 +128,7 @@ export function PrivacyPage() {
             visitas.
           </p>
           <p>
-            Você pode ativar ou desativar a medição e o envio de diagnósticos a
+            Você pode aceitar ou recusar no aviso inicial e mudar sua escolha a
             qualquer momento em <Link to="/configuracoes">Configurações</Link>.
             Sem uma escolha, ambos ficam desligados neste navegador.
           </p>

@@ -1,25 +1,21 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  getAnalyticsPreference,
-  setAnalyticsPreference,
-  type AnalyticsPreference,
-} from "./visits";
+import { getAnalyticsPreference, setAnalyticsPreference } from "./visits";
 import { InfoDisclosure } from "../components/InfoDisclosure";
+import { useAnalyticsPreference } from "./useAnalyticsPreference";
 
 export function AnalyticsChoice() {
-  const [preference, setPreference] = useState<AnalyticsPreference>(
-    getAnalyticsPreference,
-  );
+  const preference = useAnalyticsPreference();
   const [message, setMessage] = useState("");
 
   function choose(value: "accepted" | "declined") {
     void setAnalyticsPreference(value).catch(() => undefined);
-    setPreference(getAnalyticsPreference());
     setMessage(
-      value === "accepted"
-        ? "Métricas e diagnóstico de erros ativados neste navegador."
-        : "Métricas e diagnóstico de erros desativados neste navegador.",
+      getAnalyticsPreference() !== value
+        ? "Não foi possível guardar sua escolha neste navegador. A coleta continua desligada."
+        : value === "accepted"
+          ? "Métricas e diagnóstico de erros ativados neste navegador."
+          : "Métricas e diagnóstico de erros desativados neste navegador.",
     );
   }
 
