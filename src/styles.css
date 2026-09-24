@@ -55,7 +55,7 @@ h3 {
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px 20px;
-  padding: 12px 20px 88px;
+  padding: 12px 20px calc(124px + env(safe-area-inset-bottom));
   color: var(--color-text-secondary);
   font-size: 12px;
 }
@@ -181,7 +181,7 @@ h3 {
 .main-content {
   max-width: 1240px;
   margin: 0 auto;
-  padding: 28px 16px calc(156px + env(safe-area-inset-bottom));
+  padding: 28px 16px calc(124px + env(safe-area-inset-bottom));
 }
 .bottom-nav {
   position: fixed;
