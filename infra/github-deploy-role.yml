@@ -79,6 +79,7 @@ Resources:
                 Action:
                   - iam:DeleteRole
                   - iam:GetRole
+                  - iam:GetRolePolicy
                   - iam:PutRolePolicy
                   - iam:DeleteRolePolicy
                   - iam:TagRole
