@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { openDB } from "idb";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setAnalyticsPreference } from "../analytics/visits";
 import { Layout } from "../components/Layout";
 import { emptyData, todayIsoDate, type AppData } from "../domain/data";
 import { AppDataProvider, useAppData } from "../state/AppDataContext";
@@ -113,6 +114,8 @@ beforeEach(async () => {
   db.close();
   snapshots.length = 0;
   localStorage.clear();
+  // This suite tests Drive, not the first-visit analytics consent dialog.
+  await setAnalyticsPreference("declined");
   forgetGoogleAccount();
   vi.mocked(connectGoogle).mockResolvedValue({
     ...account,
@@ -145,11 +148,17 @@ describe("login e sincronização automática", () => {
     });
     const user = userEvent.setup();
     render(<App />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Registrar água" }),
+      ).toBeEnabled(),
+    );
     await user.click(
       await screen.findByRole("button", {
         name: "Entrar com Google para sincronizar",
       }),
     );
+    await waitFor(() => expect(connectGoogle).toHaveBeenCalledTimes(1));
     expect(
       await screen.findByRole("dialog", {
         name: "Guardar sua rotina no Drive?",
