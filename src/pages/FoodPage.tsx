@@ -59,6 +59,7 @@ export function FoodPage() {
   const [calories, setCalories] = useState("");
   const [when, setWhen] = useState(toLocalDateTime(new Date().toISOString()));
   const [error, setError] = useState("");
+  const [photoError, setPhotoError] = useState("");
   const [saving, setSaving] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -197,6 +198,7 @@ export function FoodPage() {
       setCalories("");
       setFoods([]);
       setPhoto(null);
+      setPhotoError("");
       setPhotoAssisted(false);
       setTotalEdited(false);
       setWhen(toLocalDateTime(new Date().toISOString()));
@@ -227,6 +229,7 @@ export function FoodPage() {
       })),
     );
     setPhoto(null);
+    setPhotoError("");
     setPhotoAssisted(false);
     setTotalEdited(true);
     setPrefilled(true);
@@ -238,14 +241,14 @@ export function FoodPage() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    setError("");
+    setPhotoError("");
     setPhoto(null);
     setPreparingPhoto(true);
     try {
       setPhoto(await prepareMealImage(file));
     } catch (cause) {
       setPhoto(null);
-      setError(
+      setPhotoError(
         cause instanceof Error
           ? cause.message
           : "Não foi possível abrir a foto.",
@@ -283,7 +286,7 @@ export function FoodPage() {
 
   async function analyzePhoto() {
     if (!photo) return;
-    setError("");
+    setPhotoError("");
     setAnalyzing(true);
     try {
       let suggestion;
@@ -353,7 +356,7 @@ export function FoodPage() {
         /teste grátis não está disponível/.test(cause.message)
       ) {
         setTrialEnabled(false);
-        setError(cause.message);
+        setPhotoError(cause.message);
       } else if (
         selectedPhotoMode === "trial" &&
         cause instanceof Error &&
@@ -361,7 +364,7 @@ export function FoodPage() {
       ) {
         setPhotoOffer("exhausted");
       } else {
-        setError(
+        setPhotoError(
           cause instanceof Error
             ? cause.message
             : "Não foi possível analisar a foto.",
@@ -579,7 +582,10 @@ export function FoodPage() {
                       <button
                         className="entry-action"
                         type="button"
-                        onClick={() => setPhoto(null)}
+                        onClick={() => {
+                          setPhoto(null);
+                          setPhotoError("");
+                        }}
                       >
                         Remover foto
                       </button>
@@ -589,6 +595,11 @@ export function FoodPage() {
                     <p className="meal-photo-status" role="status">
                       Analisando a imagem. Você poderá revisar a sugestão antes
                       de salvar.
+                    </p>
+                  )}
+                  {photoError && (
+                    <p className="form-error" role="alert">
+                      {photoError}
                     </p>
                   )}
                   {!checkingPlan && (
@@ -860,6 +871,7 @@ export function FoodPage() {
                 onClick={() => {
                   setPhotoOffer(null);
                   setPhoto(null);
+                  setPhotoError("");
                   setPhotoExpanded(false);
                   document.getElementById("meal-name")?.focus();
                 }}

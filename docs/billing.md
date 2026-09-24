@@ -15,6 +15,12 @@
 
 O teste grátis fica habilitado por padrão. Para interrompê-lo, grave o item `CONFIG#PHOTO_TRIAL` na tabela DynamoDB `BillingTable` com o atributo `data` igual a `{"enabled":false}`. Para reativar, use `{"enabled":true}` ou remova o item. O backend consulta essa configuração ao mostrar a opção e antes de reservar cada análise. A contagem vitalícia fica no item `TRIAL#<identificador derivado da conta>`; não há foto ou resultado nesse item. Não apague os itens de contagem ao desligar o recurso.
 
+## Proteção contra análises sem resultado
+
+Além da cota de análises concluídas, cada conta Google tem no máximo **cinco análises sem sugestão aproveitável por dia**, tanto no teste grátis quanto no plano, no fuso de São Paulo. A API reserva essa vaga de forma atômica **antes** de chamar o Gemini, impedindo que chamadas paralelas ignorem o limite. Um resultado válido libera a vaga; uma resposta sem alimento ou outro retorno inutilizável a mantém até o dia seguinte. Erros de rede/indisponibilidade do Gemini e imagens rejeitadas antes da análise liberam a vaga, para não atribuir a falha ao usuário. A cota de análises concluídas continua sendo devolvida quando a análise falha.
+
+Ao atingir o limite, a API responde 429 antes de enviar outra foto ao Gemini e informa que o registro manual continua disponível. Uma foto sem refeição recebe 422 com mensagem específica, em vez de 503 genérico. A contagem diária fica em `AI_FAILURE#<identificador derivado da conta>#<data>` com expiração; não contém foto nem resposta da IA. Esse limite por conta reduz custo acidental, mas não substitui proteção contra múltiplas contas ou tráfego anômalo no API Gateway/WAF.
+
 ## Configuração automática de produção
 
 O GitHub Actions, após implantar o backend, executa `scripts/configure-billing.mjs`. Ele lê `ASAAS_API_KEY` e `GEMINI_API_KEY` dos secrets do repositório, grava as duas chaves em um segredo do AWS Secrets Manager e cria/atualiza o webhook no Asaas. O token do webhook é gerado pela AWS em outro segredo e enviado ao campo `authToken`. Nenhum valor é gravado no Git, no bundle do navegador ou nos logs do CI.
