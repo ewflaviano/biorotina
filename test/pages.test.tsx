@@ -215,6 +215,9 @@ describe("hidratação", () => {
       screen.getByRole("dialog", { name: "Quer receber este lembrete?" }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Agora não" }));
+    await user.click(
+      screen.getByRole("button", { name: "Como funcionam os avisos?" }),
+    );
     expect(
       screen.getByText(/A quantidade de água que você bebe não é enviada/),
     ).toBeInTheDocument();

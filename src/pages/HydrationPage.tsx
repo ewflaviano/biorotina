@@ -15,6 +15,7 @@ import { useAppData } from "../state/AppDataContext";
 import { DateTimeField } from "../components/DateTimeField";
 import { TimeSelect } from "../components/TimeSelect";
 import { PushActivationPrompt } from "../components/PushActivationPrompt";
+import { InfoDisclosure } from "../components/InfoDisclosure";
 import { removeEntry, restoreEntry } from "../domain/recordActions";
 import type { HydrationEntry } from "../domain/data";
 
@@ -304,10 +305,13 @@ export function HydrationPage() {
             ) : (
               <p className="muted reminder-empty">Nenhum horário escolhido.</p>
             )}
-            <small className="muted">
-              Ao ativar avisos, compartilhamos apenas os horários necessários
-              para enviá-los. A quantidade de água que você bebe não é enviada.
-            </small>
+            <InfoDisclosure label="Como funcionam os avisos?">
+              <p>
+                Ao ativar avisos, compartilhamos apenas os horários necessários
+                para enviá-los. A quantidade de água que você bebe não é
+                enviada.
+              </p>
+            </InfoDisclosure>
           </section>
         </aside>
       </div>
