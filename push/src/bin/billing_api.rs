@@ -8,7 +8,8 @@ use axum::{
     Json, Router,
 };
 use biorotina_push::billing::{
-    Account, AnalysisFailure, Billing, FAILED_ANALYSIS_LIMIT, TRIAL_LIMIT,
+    valid_jpeg_image, Account, AnalysisFailure, Billing, DAILY_ATTEMPT_LIMIT,
+    FAILED_ANALYSIS_LIMIT, TRIAL_LIMIT,
 };
 use biorotina_push::observability;
 use serde::Deserialize;
@@ -229,7 +230,7 @@ async fn analyze(
         Ok(key) => key,
         Err(error) => return error,
     };
-    if body.image.len() > 480_000 || body.image.len() < 100 {
+    if !valid_jpeg_image(&body.image) {
         return error(StatusCode::BAD_REQUEST, "Imagem inválida ou grande demais.");
     }
     let account = match billing.account(&key).await {
@@ -312,6 +313,28 @@ async fn analyze(
             );
         }
     };
+    match billing.reserve_attempt_slot(&key).await {
+        Ok(true) => {}
+        Ok(false) => {
+            billing.refund_reservation(&usage_key).await;
+            billing.refund_reservation(&failure_slot).await;
+            return error(
+                StatusCode::TOO_MANY_REQUESTS,
+                &format!(
+                    "Muitas tentativas de análise hoje ({DAILY_ATTEMPT_LIMIT}). Você pode registrar manualmente e tentar novamente amanhã."
+                ),
+            );
+        }
+        Err(_) => {
+            billing.refund_reservation(&usage_key).await;
+            billing.refund_reservation(&failure_slot).await;
+            return failure(
+                "analyze",
+                "attempt_limit_lookup_failed",
+                "Não foi possível verificar o limite de tentativas.",
+            );
+        }
+    }
     match billing.analyze(&body.image, paid).await {
         Ok(analysis) => {
             billing.refund_reservation(&failure_slot).await;
