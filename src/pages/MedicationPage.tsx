@@ -293,10 +293,6 @@ export function MedicationPage() {
                     ))}
                   </ul>
                 )}
-                <small>
-                  Você pode escolher vários horários, de 30 em 30 minutos. Um
-                  horário selecionado também é salvo ao salvar o medicamento.
-                </small>
               </div>
               <fieldset className="field full reminder-weekdays">
                 <legend>Dias da semana</legend>
