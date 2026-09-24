@@ -8,7 +8,7 @@ import {
   reminderTimeSchema,
 } from "../domain/data";
 import { TimeSelect } from "../components/TimeSelect";
-import { PushControl } from "../components/PushControl";
+import { PushActivationPrompt } from "../components/PushActivationPrompt";
 import { EmptyState, Notice, PageHeader } from "../components/Layout";
 import { useAppData } from "../state/AppDataContext";
 import {
@@ -26,6 +26,10 @@ export function MedicationPage() {
   const [unit, setUnit] = useState("mg");
   const [reminderTimes, setReminderTimes] = useState<string[]>([]);
   const [newTime, setNewTime] = useState("");
+  const [reminderWeekdays, setReminderWeekdays] = useState([
+    0, 1, 2, 3, 4, 5, 6,
+  ]);
+  const [showPushPrompt, setShowPushPrompt] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -50,6 +54,8 @@ export function MedicationPage() {
       const times = [
         ...new Set([...reminderTimes, ...(newTime ? [newTime] : [])]),
       ].sort();
+      if (times.length && !reminderWeekdays.length)
+        throw new Error("Escolha pelo menos um dia da semana.");
       await mutate((current) =>
         editingId
           ? {
@@ -62,6 +68,7 @@ export function MedicationPage() {
                       dose: doseValue,
                       unit: unit.trim(),
                       reminderTimes: times,
+                      reminderWeekdays,
                     }
                   : item,
               ),
@@ -75,12 +82,14 @@ export function MedicationPage() {
                   dose: doseValue,
                   unit: unit.trim(),
                   reminderTimes: times,
+                  reminderWeekdays,
                   createdAt: new Date().toISOString(),
                 },
                 ...current.medications,
               ],
             },
       );
+      if (times.length) setShowPushPrompt(true);
       clearForm();
     } catch (cause) {
       setError(
@@ -99,6 +108,7 @@ export function MedicationPage() {
     setUnit("mg");
     setReminderTimes([]);
     setNewTime("");
+    setReminderWeekdays([0, 1, 2, 3, 4, 5, 6]);
     setEditingId(null);
     setError("");
   }
@@ -109,6 +119,7 @@ export function MedicationPage() {
     setDose(inputDecimal(item.dose));
     setUnit(item.unit);
     setReminderTimes(item.reminderTimes);
+    setReminderWeekdays(item.reminderWeekdays);
     setNewTime("");
     setError("");
     document.getElementById("med-name")?.focus();
@@ -287,6 +298,36 @@ export function MedicationPage() {
                   horário selecionado também é salvo ao salvar o medicamento.
                 </small>
               </div>
+              <fieldset className="field full reminder-weekdays">
+                <legend>Dias da semana</legend>
+                <div>
+                  {[
+                    [0, "Dom"],
+                    [1, "Seg"],
+                    [2, "Ter"],
+                    [3, "Qua"],
+                    [4, "Qui"],
+                    [5, "Sex"],
+                    [6, "Sáb"],
+                  ].map(([day, label]) => (
+                    <label key={String(day)}>
+                      <input
+                        type="checkbox"
+                        checked={reminderWeekdays.includes(day as number)}
+                        onChange={() =>
+                          setReminderWeekdays((current) =>
+                            current.includes(day as number)
+                              ? current.filter((item) => item !== day)
+                              : [...current, day as number].sort(),
+                          )
+                        }
+                      />{" "}
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <small>Escolha em quais dias estes horários se repetem.</small>
+              </fieldset>
               {error && (
                 <p className="form-error" role="alert">
                   {error}
@@ -336,6 +377,9 @@ export function MedicationPage() {
                           {inputDecimal(item.dose)} {item.unit}
                           {item.reminderTimes.length
                             ? ` · horários ${item.reminderTimes.join(", ")}`
+                            : ""}
+                          {item.reminderTimes.length
+                            ? ` · ${item.reminderWeekdays.length === 7 ? "todos os dias" : `${item.reminderWeekdays.length} dias por semana`}`
                             : ""}
                         </small>
                         {latestTodayLog && (
@@ -445,13 +489,16 @@ export function MedicationPage() {
               Um uso só aparece depois que você o registra.
             </p>
           </div>
-          <PushControl />
           <Notice>
             Este diário não substitui orientação médica. Não altere uma dose com
             base nos números exibidos aqui.
           </Notice>
         </aside>
       </div>
+      <PushActivationPrompt
+        open={showPushPrompt}
+        onClose={() => setShowPushPrompt(false)}
+      />
     </>
   );
 }

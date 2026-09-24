@@ -32,6 +32,7 @@ import { AnalyticsChoice } from "../analytics/AnalyticsChoice";
 import { GeminiSettings } from "../ai/GeminiSettings";
 import { Link } from "react-router-dom";
 import { loadLegacyData } from "../storage/indexedDb";
+import { PushControl } from "../components/PushControl";
 
 export function SettingsPage() {
   const { data, mutate, replace } = useAppData();
@@ -155,6 +156,7 @@ export function SettingsPage() {
           </Link>
         </section>
         <GeminiSettings />
+        <PushControl />
         <section className="panel">
           <div className="card-title">
             <span className="list-icon">

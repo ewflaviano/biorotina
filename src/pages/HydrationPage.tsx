@@ -14,7 +14,7 @@ import {
 import { useAppData } from "../state/AppDataContext";
 import { DateTimeField } from "../components/DateTimeField";
 import { TimeSelect } from "../components/TimeSelect";
-import { PushControl } from "../components/PushControl";
+import { PushActivationPrompt } from "../components/PushActivationPrompt";
 import { removeEntry, restoreEntry } from "../domain/recordActions";
 import type { HydrationEntry } from "../domain/data";
 
@@ -28,6 +28,7 @@ export function HydrationPage() {
   const [quickError, setQuickError] = useState("");
   const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showPushPrompt, setShowPushPrompt] = useState(false);
   const entries = [...data.hydrationEntries].sort((a, b) =>
     b.drankAt.localeCompare(a.drankAt),
   );
@@ -125,6 +126,7 @@ export function HydrationPage() {
         };
       });
       setReminderTime("");
+      setShowPushPrompt(true);
     } catch (cause) {
       setReminderError(
         cause instanceof Error ? cause.message : "Informe um horário válido.",
@@ -310,9 +312,12 @@ export function HydrationPage() {
               para enviá-los. A quantidade de água que você bebe não é enviada.
             </small>
           </section>
-          <PushControl />
         </aside>
       </div>
+      <PushActivationPrompt
+        open={showPushPrompt}
+        onClose={() => setShowPushPrompt(false)}
+      />
     </>
   );
 }

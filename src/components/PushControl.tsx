@@ -32,18 +32,10 @@ export function PushControl() {
         configurado
         {scheduleCount === 1 ? "" : "s"} entre água e medicação.
       </p>
-      {scheduleCount === 0 && (
-        <p className="push-setup-hint" id="push-setup-hint">
-          Para ativar os avisos, escolha primeiro um horário de lembrete em{" "}
-          <Link to="/hidratacao">Hidratação</Link> ou em um medicamento. Depois,
-          volte a este botão.
-        </p>
-      )}
       {status === "unavailable" && (
         <p className="muted">
           Este navegador não permite avisos aqui. Veja como instalar a Biorotina
           no celular para receber lembretes.
-          <Link to="/instalar"> Ver passo a passo</Link>
         </p>
       )}
       {status === "install_required" && (
@@ -107,9 +99,6 @@ export function PushControl() {
               status === "connecting" ||
               scheduleCount === 0
             }
-            aria-describedby={
-              scheduleCount === 0 ? "push-setup-hint" : undefined
-            }
             onClick={enable}
           >
             {activationLabel}
@@ -121,10 +110,6 @@ export function PushControl() {
           {message}
         </p>
       )}
-      <small>
-        O aviso é genérico: não mostra nome de medicamento, dose ou seus
-        registros na tela bloqueada. Você pode desligar a qualquer momento.
-      </small>
     </section>
   );
 }

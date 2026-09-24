@@ -111,7 +111,7 @@ async fn read(State(app): State<App>, Path(id): Path<String>, headers: HeaderMap
     };
     response(
         StatusCode::OK,
-        json!({"active":true,"times":subscription.times,"timeZone":subscription.time_zone}),
+        json!({"active":true,"reminders":subscription.reminders,"timeZone":subscription.time_zone}),
     )
 }
 
@@ -130,7 +130,7 @@ async fn update(
     }
     let updated = StoredSubscription {
         subscription: request.subscription,
-        times: request.times,
+        reminders: request.reminders,
         time_zone: request.time_zone,
         ..existing
     };
@@ -180,7 +180,14 @@ async fn test(State(app): State<App>, Path(id): Path<String>, headers: HeaderMap
             StatusCode::SERVICE_UNAVAILABLE,
             json!({"error":"Serviço indisponível."}),
         ),
-        Ok(true) => match app.sender.send(&subscription).await {
+        Ok(true) => match app
+            .sender
+            .send(
+                &subscription,
+                biorotina_push::model::ReminderKind::Hydration,
+            )
+            .await
+        {
             Ok(()) => response(StatusCode::OK, json!({"sent":true})),
             Err(error) => {
                 if is_expired_endpoint(&error) {

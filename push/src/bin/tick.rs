@@ -35,7 +35,7 @@ async fn send_due(app: &App) -> Result<usize, StoreError> {
             app.store.advance(&subscription, &due.slot, now).await?;
             continue;
         }
-        let Some((date, time)) = schedule::due_slot(&subscription, due.at) else {
+        let Some((date, time, kind)) = schedule::due_slot(&subscription, due.at) else {
             app.store.advance(&subscription, &due.slot, now).await?;
             continue;
         };
@@ -48,7 +48,7 @@ async fn send_due(app: &App) -> Result<usize, StoreError> {
             app.store.advance(&subscription, &due.slot, due.at).await?;
             continue;
         }
-        match app.sender.send(&subscription).await {
+        match app.sender.send(&subscription, kind).await {
             Ok(()) => {
                 sent += 1;
                 app.store.advance(&subscription, &due.slot, due.at).await?;

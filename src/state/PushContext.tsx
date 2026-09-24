@@ -26,6 +26,12 @@ interface DeviceSession {
   id: string;
   token: string;
 }
+type ReminderKind = "hydration" | "medication";
+interface RemoteReminder {
+  time: string;
+  days: number[];
+  kind: ReminderKind;
+}
 
 interface PushContextValue {
   status: PushStatus;
@@ -157,19 +163,26 @@ export function PushProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState("");
   const busy = useRef(false);
   const lastSynced = useRef("");
-  const times = useMemo(
-    () =>
-      [
-        ...new Set([
-          ...data.hydrationReminderTimes,
-          ...data.medications.flatMap((medication) => medication.reminderTimes),
-        ]),
-      ].sort(),
+  const reminders = useMemo<RemoteReminder[]>(
+    () => [
+      ...data.hydrationReminderTimes.map((time) => ({
+        time,
+        days: [0, 1, 2, 3, 4, 5, 6],
+        kind: "hydration" as const,
+      })),
+      ...data.medications.flatMap((medication) =>
+        medication.reminderTimes.map((time) => ({
+          time,
+          days: medication.reminderWeekdays,
+          kind: "medication" as const,
+        })),
+      ),
+    ],
     [data.hydrationReminderTimes, data.medications],
   );
   const timeZone =
     Intl.DateTimeFormat().resolvedOptions().timeZone || "Etc/UTC";
-  const scheduleKey = timeZone + "|" + times.join(",");
+  const scheduleKey = timeZone + "|" + JSON.stringify(reminders);
 
   useEffect(() => {
     if (!session || loading || !supported()) return;
@@ -187,7 +200,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
           headers: authHeader(session!),
           body: JSON.stringify({
             subscription: subscriptionPayload(subscription),
-            times,
+            reminders,
             timeZone,
           }),
         });
@@ -218,7 +231,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [loading, scheduleKey, session, timeZone, times]);
+  }, [loading, reminders, scheduleKey, session, timeZone]);
 
   useEffect(() => {
     const pending = readSession(pendingRevokeKey);
@@ -274,7 +287,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
         }));
       const body = {
         subscription: subscriptionPayload(createdSubscription),
-        times,
+        reminders,
         timeZone,
       };
       let activeSession = session;
@@ -389,7 +402,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
       value={{
         status,
         message,
-        scheduleCount: times.length,
+        scheduleCount: reminders.length,
         subscribed: Boolean(session),
         enable,
         disable,

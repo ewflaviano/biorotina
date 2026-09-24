@@ -19,7 +19,7 @@ import {
 describe("modelo e backup", () => {
   it("cria um documento vazio com versão explícita e sem dados pessoais", () => {
     const data = emptyData();
-    expect(data.schemaVersion).toBe(4);
+    expect(data.schemaVersion).toBe(5);
     expect(data.profile).toEqual({ displayName: "", heightCm: null });
     expect(totalRecords(data)).toBe(0);
     expect(appDataSchema.parse(data)).toEqual(data);
@@ -57,6 +57,7 @@ describe("modelo e backup", () => {
       dose: 10,
       unit: "mg",
       reminderTimes: ["08:00"],
+      reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
       createdAt: new Date().toISOString(),
     });
     data.medicationLogs.push({
@@ -82,7 +83,7 @@ describe("modelo e backup", () => {
       Object.entries(data).filter(([key]) => !key.startsWith("hydration")),
     );
     const migrated = parseBackup({ ...oldData, schemaVersion: 1 });
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.profile.displayName).toBe("Ana");
     expect(migrated.hydrationEntries).toEqual([]);
     expect(migrated.hydrationReminderTimes).toEqual([]);
@@ -131,7 +132,7 @@ describe("modelo e backup", () => {
   });
 
   it("rejeita versões futuras para evitar interpretar um formato desconhecido", () => {
-    expect(() => parseBackup({ ...emptyData(), schemaVersion: 5 })).toThrow();
+    expect(() => parseBackup({ ...emptyData(), schemaVersion: 6 })).toThrow();
   });
 
   it("rejeita valores de saúde impossíveis ou malformados na importação", () => {
@@ -161,6 +162,7 @@ describe("modelo e backup", () => {
             dose: 0,
             unit: "mg",
             reminderTimes: ["25:00"],
+            reminderWeekdays: [0],
             createdAt: date,
           },
         ],
