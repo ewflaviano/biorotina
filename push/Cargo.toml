@@ -13,6 +13,10 @@ name = "biorotina-billing-api"
 path = "src/bin/billing_api.rs"
 
 [[bin]]
+name = "biorotina-billing-worker"
+path = "src/bin/billing_worker.rs"
+
+[[bin]]
 name = "biorotina-tick"
 path = "src/bin/tick.rs"
 
@@ -25,6 +29,7 @@ axum = "0.8"
 aws-config = "1"
 aws-sdk-dynamodb = "1"
 aws-sdk-secretsmanager = "1"
+aws-sdk-sqs = "1"
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10"

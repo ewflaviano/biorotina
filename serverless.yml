@@ -24,6 +24,8 @@ provider:
       Ref: BillingKeys
     BILLING_WEBHOOK_TOKEN_ARN:
       Ref: BillingWebhookToken
+    BILLING_EVENTS_QUEUE_URL:
+      Ref: BillingEventsQueue
     GOOGLE_CLIENT_ID: ${env:VITE_GOOGLE_CLIENT_ID, ''}
     PUBLIC_APP_URL:
       Fn::If:
@@ -82,6 +84,17 @@ provider:
           Resource:
             - Ref: BillingKeys
             - Ref: BillingWebhookToken
+        - Effect: Allow
+          Action: sqs:SendMessage
+          Resource:
+            Fn::GetAtt: [BillingEventsQueue, Arn]
+        - Effect: Allow
+          Action:
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            Fn::GetAtt: [BillingEventsQueue, Arn]
 
 functions:
   api:
@@ -129,6 +142,16 @@ functions:
       - httpApi:
           path: /api/ai/trial-config
           method: ANY
+  billingWorker:
+    handler: bootstrap
+    timeout: 120
+    package:
+      artifact: push/target/lambda/biorotina-billing-worker.zip
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt: [BillingEventsQueue, Arn]
+          batchSize: 1
 
 resources:
   extensions:
@@ -217,6 +240,42 @@ resources:
         GenerateSecretString:
           PasswordLength: 64
           ExcludePunctuation: true
+    BillingEventsDlq:
+      Type: AWS::SQS::Queue
+      DeletionPolicy: Retain
+      Properties:
+        QueueName: biorotina-${sls:stage}-billing-dlq.fifo
+        FifoQueue: true
+        MessageRetentionPeriod: 1209600
+        SqsManagedSseEnabled: true
+    BillingEventsQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: biorotina-${sls:stage}-billing-events.fifo
+        FifoQueue: true
+        MessageRetentionPeriod: 345600
+        VisibilityTimeout: 720
+        SqsManagedSseEnabled: true
+        RedrivePolicy:
+          deadLetterTargetArn:
+            Fn::GetAtt: [BillingEventsDlq, Arn]
+          maxReceiveCount: 5
+    BillingEventsDlqAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmDescription: Billing webhook events need manual reconciliation
+        Namespace: AWS/SQS
+        MetricName: ApproximateNumberOfMessagesVisible
+        Dimensions:
+          - Name: QueueName
+            Value:
+              Fn::GetAtt: [BillingEventsDlq, QueueName]
+        Statistic: Maximum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
     FrontendBucket:
       Type: AWS::S3::Bucket
       Properties:
