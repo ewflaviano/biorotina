@@ -31,6 +31,7 @@ Resources:
               - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:PushVapidSeed-*
               - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:BillingKeys-*
               - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:BillingWebhookToken-*
+              - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:GoogleOAuthClientSecret-*
           - Effect: Allow
             Action:
               - sqs:SendMessage
@@ -81,6 +82,7 @@ Resources:
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-tick-execution
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-api-execution
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-worker-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-auth-api-execution
                 Condition:
                   StringEquals:
                     iam:PermissionsBoundary: !Ref LambdaExecutionBoundary
@@ -100,6 +102,7 @@ Resources:
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-tick-execution
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-api-execution
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-worker-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-auth-api-execution
               - Effect: Allow
                 Action: iam:PassRole
                 Resource:
@@ -108,6 +111,7 @@ Resources:
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-tick-execution
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-api-execution
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-worker-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-auth-api-execution
                 Condition:
                   StringEquals:
                     iam:PassedToService:
@@ -126,6 +130,7 @@ Resources:
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-tick-execution
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-api-execution
                   - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-billing-worker-execution
+                  - !Sub arn:aws:iam::${AWS::AccountId}:role/biorotina-dev-auth-api-execution
               - Effect: Deny
                 Action:
                   - iam:CreatePolicyVersion

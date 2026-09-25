@@ -33,8 +33,8 @@ Para verificar, consultar `lambda get-function-configuration` para cada função
 `iam get-role` para o limite de permissões e o estado do Scheduler e da fila.
 Nenhum teste deve provocar cobrança real nem alterar dados de usuários.
 
-Depois da migração, a role do GitHub só pode criar as cinco roles de execução
-conhecidas se tiverem a política de limite; só pode alterar essas roles e
+Depois da migração, a role do GitHub só pode criar as roles de execução aprovadas
+se tiverem a política de limite; só pode alterar essas roles e
 passá-las ao Lambda ou ao Scheduler. Ela não pode alterar a si mesma nem remover
 o limite. Uma função nova exigirá atualização explícita dessa lista e revisão
 das permissões antes do deploy. A política gerenciada `PowerUserAccess` ainda
