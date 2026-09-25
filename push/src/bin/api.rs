@@ -1,5 +1,7 @@
 use aws_config::BehaviorVersion;
 use aws_sdk_sesv2::{
+    error::{ProvideErrorMetadata, SdkError},
+    operation::send_email::SendEmailError,
     types::{Body, Content, Destination, EmailContent, Message},
     Client as SesClient,
 };
@@ -63,6 +65,54 @@ fn failure(operation: &'static str, code: &'static str, text: &'static str) -> A
     response(StatusCode::SERVICE_UNAVAILABLE, json!({"error":text}))
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct FeedbackEmailFailure {
+    code: &'static str,
+    upstream_status: Option<u16>,
+}
+
+impl FeedbackEmailFailure {
+    const fn new(code: &'static str) -> Self {
+        Self {
+            code,
+            upstream_status: None,
+        }
+    }
+}
+
+fn ses_service_code(code: Option<&str>) -> &'static str {
+    // Never log the SDK's message: it can contain addresses and request data.
+    match code {
+        Some("AccessDenied") | Some("AccessDeniedException") => "email_access_denied",
+        Some("AccountSuspendedException") => "email_account_suspended",
+        Some("BadRequestException") => "email_bad_request",
+        Some("LimitExceededException") => "email_limit_exceeded",
+        Some("MailFromDomainNotVerifiedException") => "email_sender_unverified",
+        Some("MessageRejected") => "email_message_rejected",
+        Some("NotFoundException") => "email_resource_not_found",
+        Some("SendingPausedException") => "email_sending_paused",
+        Some("TooManyRequestsException") | Some("ThrottlingException") => "email_throttled",
+        _ => "email_service_unclassified",
+    }
+}
+
+fn classify_ses_error(error: &SdkError<SendEmailError>) -> FeedbackEmailFailure {
+    match error {
+        SdkError::ConstructionFailure(_) => FeedbackEmailFailure::new("email_request_build_failed"),
+        SdkError::TimeoutError(_) => FeedbackEmailFailure::new("email_sdk_timeout"),
+        SdkError::DispatchFailure(_) => FeedbackEmailFailure::new("email_network_failed"),
+        SdkError::ResponseError(response) => FeedbackEmailFailure {
+            code: "email_response_invalid",
+            upstream_status: Some(response.raw().status().as_u16()),
+        },
+        SdkError::ServiceError(response) => FeedbackEmailFailure {
+            code: ses_service_code(response.err().code()),
+            upstream_status: Some(response.raw().status().as_u16()),
+        },
+        _ => FeedbackEmailFailure::new("email_sdk_unclassified"),
+    }
+}
+
 async fn preflight() -> StatusCode {
     StatusCode::NO_CONTENT
 }
@@ -83,19 +133,21 @@ fn valid_feedback_message(message: &str) -> Option<&str> {
     .then_some(message)
 }
 
-async fn send_feedback_email(message: &str) -> Result<(), &'static str> {
-    let from = std::env::var("FEEDBACK_FROM_EMAIL").map_err(|_| "email_config_missing")?;
-    let to = std::env::var("FEEDBACK_TO_EMAIL").map_err(|_| "email_config_missing")?;
+async fn send_feedback_email(message: &str) -> Result<(), FeedbackEmailFailure> {
+    let from = std::env::var("FEEDBACK_FROM_EMAIL")
+        .map_err(|_| FeedbackEmailFailure::new("email_config_missing"))?;
+    let to = std::env::var("FEEDBACK_TO_EMAIL")
+        .map_err(|_| FeedbackEmailFailure::new("email_config_missing"))?;
     let subject = Content::builder()
         .data("Novo feedback da Biorotina")
         .charset("UTF-8")
         .build()
-        .map_err(|_| "email_build_failed")?;
+        .map_err(|_| FeedbackEmailFailure::new("email_build_failed"))?;
     let body = Content::builder()
         .data(message)
         .charset("UTF-8")
         .build()
-        .map_err(|_| "email_build_failed")?;
+        .map_err(|_| FeedbackEmailFailure::new("email_build_failed"))?;
     let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
     let client = SesClient::new(&config);
     timeout(
@@ -117,8 +169,8 @@ async fn send_feedback_email(message: &str) -> Result<(), &'static str> {
             .send(),
     )
     .await
-    .map_err(|_| "email_timeout")?
-    .map_err(|_| "email_send_failed")?;
+    .map_err(|_| FeedbackEmailFailure::new("email_timeout"))?
+    .map_err(|error| classify_ses_error(&error))?;
     Ok(())
 }
 
@@ -164,11 +216,19 @@ async fn feedback(
     }
     match send_feedback_email(message).await {
         Ok(()) => response(StatusCode::OK, json!({"sent":true})),
-        Err(code) => failure(
-            "feedback",
-            code,
-            "Não foi possível enviar sua mensagem agora.",
-        ),
+        Err(error) => {
+            observability::error_with_upstream(
+                "push_api",
+                "feedback",
+                error.code,
+                Some(503),
+                error.upstream_status,
+            );
+            response(
+                StatusCode::SERVICE_UNAVAILABLE,
+                json!({"error":"Não foi possível enviar sua mensagem agora."}),
+            )
+        }
     }
 }
 
@@ -422,5 +482,29 @@ mod tests {
             json!({"message":"ok","email":"secret"})
         )
         .is_err());
+    }
+
+    #[test]
+    fn ses_errors_have_fixed_diagnostic_codes_without_sdk_messages() {
+        assert_eq!(
+            ses_service_code(Some("AccessDeniedException")),
+            "email_access_denied"
+        );
+        assert_eq!(
+            ses_service_code(Some("MessageRejected")),
+            "email_message_rejected"
+        );
+        assert_eq!(
+            ses_service_code(Some("user@example.test")),
+            "email_service_unclassified"
+        );
+        let timeout = SdkError::<SendEmailError>::timeout_error(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "private upstream message",
+        ));
+        assert_eq!(
+            classify_ses_error(&timeout),
+            FeedbackEmailFailure::new("email_sdk_timeout")
+        );
     }
 }
