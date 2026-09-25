@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { CalendarDays } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toLocalDateTime } from "../domain/data";
 import { TimeSelect } from "./TimeSelect";
 
@@ -42,6 +43,7 @@ export function DateTimeField({
   className?: string;
 }) {
   const [dateText, setDateText] = useState(() => formatDate(value));
+  const datePickerRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setDateText(formatDate(value));
@@ -56,6 +58,16 @@ export function DateTimeField({
 
   function resetInvalidDate() {
     if (!toIsoDate(dateText)) setDateText(formatDate(value));
+  }
+
+  function openDatePicker() {
+    const picker = datePickerRef.current;
+    if (!picker) return;
+    const pickerWithDialog = picker as HTMLInputElement & {
+      showPicker?: () => void;
+    };
+    if (pickerWithDialog.showPicker) pickerWithDialog.showPicker();
+    else picker.click();
   }
 
   return (
@@ -76,18 +88,41 @@ export function DateTimeField({
       <div className="date-time-controls">
         <div className="field">
           <label htmlFor={id}>Data</label>
-          <input
-            id={id}
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            placeholder="dd/mm/aaaa"
-            value={dateText}
-            onChange={(event) => changeDate(event.target.value)}
-            onBlur={resetInvalidDate}
-            maxLength={10}
-            required
-          />
+          <div className="date-input">
+            <input
+              id={id}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="dd/mm/aaaa"
+              value={dateText}
+              onChange={(event) => changeDate(event.target.value)}
+              onBlur={resetInvalidDate}
+              maxLength={10}
+              required
+            />
+            <button
+              type="button"
+              className="date-picker-button"
+              aria-label="Escolher data"
+              onClick={openDatePicker}
+            >
+              <CalendarDays size={18} aria-hidden="true" />
+            </button>
+            <input
+              ref={datePickerRef}
+              className="date-picker-native"
+              type="date"
+              tabIndex={-1}
+              aria-hidden="true"
+              value={value.split("T")[0] ?? ""}
+              onChange={(event) => {
+                const nextValue = `${event.target.value}T${value.split("T")[1] ?? "00:00"}`;
+                setDateText(formatDate(nextValue));
+                onChange(nextValue);
+              }}
+            />
+          </div>
         </div>
         <div className="field">
           <label htmlFor={`${id}-time`}>Horário (24 h)</label>
