@@ -1,5 +1,5 @@
 import { CalendarDays } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toLocalDateTime } from "../domain/data";
 import { TimeSelect } from "./TimeSelect";
 
@@ -42,22 +42,27 @@ export function DateTimeField({
   onChange: (value: string) => void;
   className?: string;
 }) {
-  const [dateText, setDateText] = useState(() => formatDate(value));
+  const [dateDraft, setDateDraft] = useState<string | null>(null);
   const datePickerRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setDateText(formatDate(value));
-  }, [value]);
+  const dateText = dateDraft ?? formatDate(value);
 
   function changeDate(next: string) {
     const formatted = formatDateTyping(next);
-    setDateText(formatted);
+    setDateDraft(formatted);
     const isoDate = toIsoDate(formatted);
-    if (isoDate) onChange(`${isoDate}T${value.split("T")[1] ?? "00:00"}`);
+    if (isoDate) {
+      setDateDraft(null);
+      onChange(`${isoDate}T${value.split("T")[1] ?? "00:00"}`);
+    }
   }
 
   function resetInvalidDate() {
-    if (!toIsoDate(dateText)) setDateText(formatDate(value));
+    if (!toIsoDate(dateText)) setDateDraft(null);
+  }
+
+  function useCurrentDateTime() {
+    setDateDraft(null);
+    onChange(toLocalDateTime(new Date().toISOString()));
   }
 
   function openDatePicker() {
@@ -78,10 +83,7 @@ export function DateTimeField({
     >
       <div className="field-label-row">
         <strong>Data e hora</strong>
-        <button
-          type="button"
-          onClick={() => onChange(toLocalDateTime(new Date().toISOString()))}
-        >
+        <button type="button" onClick={useCurrentDateTime}>
           Agora
         </button>
       </div>
@@ -118,7 +120,7 @@ export function DateTimeField({
               value={value.split("T")[0] ?? ""}
               onChange={(event) => {
                 const nextValue = `${event.target.value}T${value.split("T")[1] ?? "00:00"}`;
-                setDateText(formatDate(nextValue));
+                setDateDraft(null);
                 onChange(nextValue);
               }}
             />
