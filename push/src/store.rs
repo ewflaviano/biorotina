@@ -1,4 +1,5 @@
 use crate::model::{ReminderRequest, StoredSubscription};
+use crate::observability;
 use crate::schedule::{next_due_utc, slot_key};
 use aws_sdk_dynamodb::types::AttributeValue;
 use aws_sdk_dynamodb::Client;
@@ -33,7 +34,19 @@ pub struct DueSubscription {
 
 pub const PUBLIC_CREATE_LIMIT_PER_DAY: u32 = 30;
 pub const PUBLIC_FEEDBACK_LIMIT_PER_DAY: u32 = 5;
+pub const PUBLIC_FEEDBACK_ATTEMPT_LIMIT_PER_DAY: u32 = 20;
 const GLOBAL_FEEDBACK_LIMIT_PER_DAY: u32 = 100;
+// New keys also let connections blocked by failed sends before this fix retry today.
+const FEEDBACK_ATTEMPT_CATEGORY: &str = "RATE#FEEDBACK_ATTEMPT_V2";
+const FEEDBACK_SENT_CATEGORY: &str = "RATE#FEEDBACK_SENT_V2";
+const FEEDBACK_GLOBAL_CATEGORY: &str = "RATE#FEEDBACK_GLOBAL_V2";
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum FeedbackLimit {
+    DailySent,
+    DailyAttempts,
+    Global,
+}
 
 fn due_shard(id: &str) -> String {
     let digest = Sha256::digest(id.as_bytes());
@@ -58,19 +71,73 @@ impl Store {
         &self,
         anonymous_key: &str,
         day: &str,
-    ) -> Result<bool, StoreError> {
+    ) -> Result<Result<(), FeedbackLimit>, StoreError> {
         if !self
             .reserve_counter(
-                "RATE#FEEDBACK",
+                FEEDBACK_ATTEMPT_CATEGORY,
+                anonymous_key,
+                PUBLIC_FEEDBACK_ATTEMPT_LIMIT_PER_DAY,
+            )
+            .await?
+        {
+            return Ok(Err(FeedbackLimit::DailyAttempts));
+        }
+        if !self
+            .reserve_counter(
+                FEEDBACK_SENT_CATEGORY,
                 anonymous_key,
                 PUBLIC_FEEDBACK_LIMIT_PER_DAY,
             )
             .await?
         {
-            return Ok(false);
+            return Ok(Err(FeedbackLimit::DailySent));
         }
-        self.reserve_counter("RATE#FEEDBACK_GLOBAL", day, GLOBAL_FEEDBACK_LIMIT_PER_DAY)
+        match self
+            .reserve_counter(FEEDBACK_GLOBAL_CATEGORY, day, GLOBAL_FEEDBACK_LIMIT_PER_DAY)
             .await
+        {
+            Ok(true) => Ok(Ok(())),
+            result => {
+                if self
+                    .release_counter(FEEDBACK_SENT_CATEGORY, anonymous_key)
+                    .await
+                    .is_err()
+                {
+                    observability::error("push_store", "feedback_reserve", "refund_failed", None);
+                    return Err(StoreError);
+                }
+                result.map(|_| Err(FeedbackLimit::Global))
+            }
+        }
+    }
+
+    pub async fn release_public_feedback(
+        &self,
+        anonymous_key: &str,
+        day: &str,
+    ) -> Result<(), StoreError> {
+        // Try both even if one fails: each successful decrement matters.
+        let sent = self
+            .release_counter(FEEDBACK_SENT_CATEGORY, anonymous_key)
+            .await;
+        let global = self.release_counter(FEEDBACK_GLOBAL_CATEGORY, day).await;
+        sent.and(global)
+    }
+
+    async fn release_counter(&self, category: &str, key: &str) -> Result<(), StoreError> {
+        self.client
+            .update_item()
+            .table_name(&self.table)
+            .key("pk", AttributeValue::S(category.into()))
+            .key("sk", AttributeValue::S(key.into()))
+            .update_expression("SET #count = #count - :one")
+            .condition_expression("attribute_exists(#count) AND #count >= :one")
+            .expression_attribute_names("#count", "count")
+            .expression_attribute_values(":one", AttributeValue::N("1".into()))
+            .send()
+            .await
+            .map_err(|_| StoreError)?;
+        Ok(())
     }
 
     async fn reserve_counter(
