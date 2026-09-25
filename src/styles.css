@@ -2029,6 +2029,9 @@ h3 {
   .medication-actions {
     padding-left: 0;
   }
+  .measurement-weight-value .measurement-value-input {
+    max-width: 300px;
+  }
 }
 @media (max-width: 420px) {
   .date-time-controls {

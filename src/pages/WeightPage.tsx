@@ -190,8 +190,11 @@ export function WeightPage() {
                 registro.
               </p>
             )}
-            <form onSubmit={submit} className="form-grid">
-              <div className="field">
+            <form
+              onSubmit={submit}
+              className="form-grid measurement-weight-form"
+            >
+              <div className="field full measurement-weight-value">
                 <label htmlFor="weight-value">Peso em kg</label>
                 <div className="measurement-value-input">
                   <input
@@ -205,7 +208,12 @@ export function WeightPage() {
                   <span aria-hidden="true">kg</span>
                 </div>
               </div>
-              <DateTimeField id="weight-date" value={when} onChange={setWhen} />
+              <DateTimeField
+                id="weight-date"
+                value={when}
+                onChange={setWhen}
+                className="full"
+              />
               <div className="field full">
                 <label htmlFor="weight-note">
                   Observação <span className="optional">opcional</span>
