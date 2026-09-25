@@ -15,7 +15,10 @@ use biorotina_push::{
     delivery::is_expired_endpoint,
     model::{validate, ReminderRequest, StoredSubscription},
     observability,
-    store::{PUBLIC_CREATE_LIMIT_PER_DAY, PUBLIC_FEEDBACK_LIMIT_PER_DAY},
+    store::{
+        FeedbackLimit, PUBLIC_CREATE_LIMIT_PER_DAY, PUBLIC_FEEDBACK_ATTEMPT_LIMIT_PER_DAY,
+        PUBLIC_FEEDBACK_LIMIT_PER_DAY,
+    },
     App,
 };
 use chrono::Utc;
@@ -208,16 +211,25 @@ async fn feedback(
     };
     let day = Utc::now().with_timezone(&Sao_Paulo).date_naive();
     let key = app.sender.create_limit_key(ip, day);
-    match app
-        .store
-        .reserve_public_feedback(&key, &day.to_string())
-        .await
-    {
-        Ok(true) => {}
-        Ok(false) => {
+    let day = day.to_string();
+    match app.store.reserve_public_feedback(&key, &day).await {
+        Ok(Ok(())) => {}
+        Ok(Err(FeedbackLimit::DailySent)) => {
             return response(
                 StatusCode::TOO_MANY_REQUESTS,
                 json!({"error":format!("Muitas mensagens desta conexão hoje (limite de {PUBLIC_FEEDBACK_LIMIT_PER_DAY}). Tente novamente amanhã.")}),
+            )
+        }
+        Ok(Err(FeedbackLimit::DailyAttempts)) => {
+            return response(
+                StatusCode::TOO_MANY_REQUESTS,
+                json!({"error":format!("Muitas tentativas desta conexão hoje (limite de {PUBLIC_FEEDBACK_ATTEMPT_LIMIT_PER_DAY}). Tente novamente amanhã.")}),
+            )
+        }
+        Ok(Err(FeedbackLimit::Global)) => {
+            return response(
+                StatusCode::TOO_MANY_REQUESTS,
+                json!({"error":"O envio de mensagens está muito ocupado hoje. Tente novamente amanhã."}),
             )
         }
         Err(_) => {
@@ -231,6 +243,9 @@ async fn feedback(
     match send_feedback_email(message).await {
         Ok(()) => response(StatusCode::OK, json!({"sent":true})),
         Err(error) => {
+            if app.store.release_public_feedback(&key, &day).await.is_err() {
+                observability::error("push_api", "feedback", "refund_failed", Some(503));
+            }
             observability::error_with_upstream(
                 "push_api",
                 "feedback",
