@@ -75,6 +75,3 @@ O código-fonte e a documentação original da Biorotina estão sob [MIT](LICENS
 
 Integrações com Apple Health e Health Connect estão fora do escopo inicial.
 
-## Planejamento no Vortex
-
-As tarefas de planejamento e entrega ficam no projeto **Biorotina** (`82E-YHH`) no Vortex. Consulte lá o estado atual de cada tarefa; esta página descreve o código e os testes, sem duplicar estados que podem mudar.
