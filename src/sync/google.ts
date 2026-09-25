@@ -77,6 +77,15 @@ export interface GoogleAccount {
 
 export class GoogleReconnectRequiredError extends Error {}
 
+export class GoogleDriveHttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 let connectedAccount: GoogleAccount | null = null;
 
 function readStoredAccount(): GoogleAccount | null {
@@ -303,11 +312,15 @@ async function authorizedFetch(
       "A conexão com o Google expirou. Conecte novamente.",
     );
   if (response.status === 403)
-    throw new Error(
+    throw new GoogleDriveHttpError(
       "O Google Drive recusou o acesso. Confira a permissão do app.",
+      response.status,
     );
   if (!response.ok)
-    throw new Error(`Falha ao acessar o Google Drive (${response.status}).`);
+    throw new GoogleDriveHttpError(
+      `Falha ao acessar o Google Drive (${response.status}).`,
+      response.status,
+    );
   return response;
 }
 

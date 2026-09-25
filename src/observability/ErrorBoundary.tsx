@@ -13,7 +13,7 @@ export class ErrorBoundary extends Component<Props, { failed: boolean }> {
   }
 
   componentDidCatch() {
-    reportClientError("runtime", "render_failure");
+    reportClientError("runtime", "render_failure", "app_render");
   }
 
   render() {

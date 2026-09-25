@@ -12,7 +12,10 @@ import {
   currentDeviceNeedsHomeScreen,
   requestNotificationPermission,
 } from "./pushAvailability";
-import { reportClientError } from "../observability/client";
+import {
+  reportClientError,
+  type ErrorOperation,
+} from "../observability/client";
 
 type PushStatus =
   | "install_required"
@@ -82,7 +85,7 @@ function readSession(key: string): DeviceSession | null {
       return { id: value.id, token: value.token };
     }
   } catch {
-    reportClientError("storage", "local_storage_failed");
+    reportClientError("storage", "local_storage_failed", "push_load");
     return null;
   }
   return null;
@@ -93,12 +96,16 @@ function saveSession(key: string, session: DeviceSession | null) {
     if (session) localStorage.setItem(key, JSON.stringify(session));
     else localStorage.removeItem(key);
   } catch (cause) {
-    reportClientError("storage", "local_storage_failed");
+    reportClientError("storage", "local_storage_failed", "push_save");
     throw cause;
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(
+  path: string,
+  operation: ErrorOperation,
+  init?: RequestInit,
+): Promise<T> {
   const response = await fetch(apiBase + "/api/push" + path, {
     ...init,
     headers: {
@@ -106,17 +113,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...init?.headers,
     },
   }).catch((cause: unknown) => {
-    reportClientError("push", "network_failed");
+    reportClientError("push", "network_failed", operation);
     throw cause;
   });
   const body: unknown = await response.json().catch(() => {
     if (response.ok)
-      reportClientError("push", "response_invalid", response.status);
+      reportClientError("push", "response_invalid", operation, response.status);
     return {};
   });
   if (!response.ok) {
     if (response.status >= 500)
-      reportClientError("push", "push_failed", response.status);
+      reportClientError("push", "push_failed", operation, response.status);
     const message =
       body &&
       typeof body === "object" &&
@@ -228,7 +235,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
         const subscription = await registration.pushManager.getSubscription();
         if (!subscription)
           throw new Error("Este navegador precisa ativar os avisos novamente.");
-        await request("/subscriptions/" + session!.id, {
+        await request("/subscriptions/" + session!.id, "push_update", {
           method: "PUT",
           headers: authHeader(session!),
           body: JSON.stringify({
@@ -245,7 +252,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
       } catch (cause) {
         if (!cancelled) {
           if (!(cause instanceof PushApiError))
-            reportClientError("push", "push_failed");
+            reportClientError("push", "push_failed", "push_update");
           if (invalidSession(cause)) {
             saveSession(storageKey, null);
             setSession(null);
@@ -271,7 +278,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const pending = readSession(pendingRevokeKey);
     if (!pending) return;
-    void request("/subscriptions/" + pending.id, {
+    void request("/subscriptions/" + pending.id, "push_remove", {
       method: "DELETE",
       headers: authHeader(pending),
     }).then(
@@ -311,7 +318,10 @@ export function PushProvider({ children }: { children: ReactNode }) {
         return;
       }
       setMessage("Permissão concedida. Conectando o serviço de avisos…");
-      const config = await request<{ publicKey: string }>("/config");
+      const config = await request<{ publicKey: string }>(
+        "/config",
+        "push_config",
+      );
       const registration = await navigator.serviceWorker.register("/sw.js");
       const existing = await registration.pushManager.getSubscription();
       createdSubscription =
@@ -328,7 +338,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
       let activeSession = session;
       if (activeSession) {
         try {
-          await request("/subscriptions/" + activeSession.id, {
+          await request("/subscriptions/" + activeSession.id, "push_update", {
             method: "PUT",
             headers: authHeader(activeSession),
             body: JSON.stringify(body),
@@ -341,10 +351,14 @@ export function PushProvider({ children }: { children: ReactNode }) {
         }
       }
       if (!activeSession) {
-        const next = await request<DeviceSession>("/subscriptions", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
+        const next = await request<DeviceSession>(
+          "/subscriptions",
+          "push_register",
+          {
+            method: "POST",
+            body: JSON.stringify(body),
+          },
+        );
         saveSession(storageKey, next);
         setSession(next);
       }
@@ -353,7 +367,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
       setMessage("Avisos ativados neste dispositivo.");
     } catch (cause) {
       if (!(cause instanceof PushApiError))
-        reportClientError("push", "push_failed");
+        reportClientError("push", "push_failed", "push_register");
       if (createdSubscription && !session)
         await createdSubscription.unsubscribe().catch(() => undefined);
       setStatus("error");
@@ -378,7 +392,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
       const subscription = await registration?.pushManager.getSubscription();
       await subscription?.unsubscribe();
       try {
-        await request("/subscriptions/" + session.id, {
+        await request("/subscriptions/" + session.id, "push_remove", {
           method: "DELETE",
           headers: authHeader(session),
         });
@@ -396,7 +410,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
       setMessage("Avisos desativados neste dispositivo.");
       return true;
     } catch {
-      reportClientError("push", "push_failed");
+      reportClientError("push", "push_failed", "push_remove");
       setStatus("error");
       setMessage("Não foi possível desativar os avisos. Tente novamente.");
       return false;
@@ -410,14 +424,14 @@ export function PushProvider({ children }: { children: ReactNode }) {
     busy.current = true;
     setMessage("");
     try {
-      await request("/subscriptions/" + session.id + "/test", {
+      await request("/subscriptions/" + session.id + "/test", "push_test", {
         method: "POST",
         headers: authHeader(session),
       });
       setMessage("Teste enviado. Confira as notificações deste dispositivo.");
     } catch (cause) {
       if (!(cause instanceof PushApiError))
-        reportClientError("push", "push_failed");
+        reportClientError("push", "push_failed", "push_test");
       if (invalidSession(cause)) {
         saveSession(storageKey, null);
         setSession(null);

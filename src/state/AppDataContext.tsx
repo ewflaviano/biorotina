@@ -83,7 +83,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       setUndoActions([]);
       setError(null);
     } catch {
-      reportClientError("storage", "local_storage_failed");
+      reportClientError("storage", "local_storage_failed", "storage_read");
       setError("Não foi possível abrir os dados sem conta neste navegador.");
     } finally {
       setLoading(false);
@@ -103,7 +103,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (!active) return;
-        reportClientError("storage", "local_storage_failed");
+        reportClientError("storage", "local_storage_failed", "storage_read");
         setError(
           "Não foi possível abrir os dados neste navegador. Seus registros não foram alterados.",
         );
@@ -140,7 +140,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
               setData(fresh.data);
             }
           })
-          .catch(() => reportClientError("storage", "local_storage_failed"));
+          .catch(() =>
+            reportClientError(
+              "storage",
+              "local_storage_failed",
+              "storage_read",
+            ),
+          );
       }
     };
     if (channel) channel.onmessage = handleChange;
@@ -208,7 +214,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
               setData(fresh.data);
               continue;
             }
-            reportClientError("storage", "local_storage_failed");
+            reportClientError(
+              "storage",
+              "local_storage_failed",
+              "storage_write",
+            );
             throw cause;
           }
         }
@@ -253,7 +263,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       });
       queue.current = task.catch(() => undefined);
       return task.catch(() => {
-        reportClientError("storage", "local_storage_failed");
+        reportClientError("storage", "local_storage_failed", "storage_read");
         setError(
           "Não foi possível abrir os dados desta conta. Seus registros não foram alterados.",
         );

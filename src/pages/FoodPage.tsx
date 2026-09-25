@@ -117,7 +117,7 @@ export function FoodPage() {
         if (active) setHasGeminiKey(Boolean(key));
       })
       .catch(() => {
-        reportClientError("storage", "local_storage_failed");
+        reportClientError("storage", "local_storage_failed", "storage_read");
         if (active) setHasGeminiKey(false);
       });
     return () => {
@@ -323,7 +323,7 @@ export function FoodPage() {
           .catch(() => undefined);
       } else {
         const key = await loadGeminiKey().catch((cause: unknown) => {
-          reportClientError("storage", "local_storage_failed");
+          reportClientError("storage", "local_storage_failed", "storage_read");
           throw cause;
         });
         if (!key)

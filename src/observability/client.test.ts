@@ -15,13 +15,14 @@ describe("private error reporting", () => {
       .mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetcher);
     const { reportClientError } = await import("./client");
-    reportClientError("photo", "response_invalid", 200);
+    reportClientError("photo", "response_invalid", "photo_parse", 200);
     expect(fetcher).toHaveBeenCalledTimes(1);
     const [url, init] = fetcher.mock.calls[0];
     expect(url).toBe("https://api.example.test/api/telemetry/error");
     expect(JSON.parse(init.body)).toEqual({
       source: "photo",
       code: "response_invalid",
+      operation: "photo_parse",
       screen: "alimentacao",
       environment: "development",
       status: 200,
@@ -49,13 +50,13 @@ describe("private error reporting", () => {
       .mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetcher);
     const { reportClientError } = await import("./client");
-    reportClientError("storage", "local_storage_failed");
+    reportClientError("storage", "local_storage_failed", "storage_read");
     expect(fetcher).not.toHaveBeenCalled();
     localStorage.setItem("biorotina.analytics.consent.v1", "accepted");
-    reportClientError("storage", "local_storage_failed");
+    reportClientError("storage", "local_storage_failed", "storage_read");
     expect(fetcher).toHaveBeenCalledTimes(1);
     localStorage.setItem("biorotina.analytics.consent.v1", "declined");
-    reportClientError("storage", "local_storage_failed");
+    reportClientError("storage", "local_storage_failed", "storage_read");
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
@@ -67,11 +68,12 @@ describe("private error reporting", () => {
     vi.stubGlobal("fetch", fetcher);
     const { reportClientError } = await import("./client");
 
-    reportClientError("drive", "drive_reconnect_required");
+    reportClientError("drive", "drive_reconnect_required", "google_reconnect");
 
     expect(JSON.parse(fetcher.mock.calls[0][1].body as string)).toEqual({
       source: "drive",
       code: "drive_reconnect_required",
+      operation: "google_reconnect",
       screen: "alimentacao",
       environment: "development",
     });
