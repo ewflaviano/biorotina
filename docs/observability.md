@@ -7,6 +7,16 @@ Os campos estáveis (`kind`, `service`, `operation` ou `source`, `code`, `screen
 assinatura dos log groups. Não registrar payloads, mensagens de exceção, stack traces, URLs,
 fotos, resultados de IA, identificadores de contas, tokens ou chaves.
 
+No envio de feedback, o log `operation=feedback` distingue configuração ausente,
+montagem da mensagem, tempo esgotado, falha de rede, resposta inválida e os
+códigos conhecidos do Amazon SES (acesso negado, identidade não verificada,
+mensagem rejeitada, limite, suspensão). `status` é a resposta da Biorotina e
+`upstream_status` é o HTTP do SES quando ele respondeu. Códigos desconhecidos
+viram `email_service_unclassified`: nunca copiar para o log a mensagem bruta
+do SDK, que pode incluir endereços ou partes da solicitação. A presença de
+`email_service_unclassified` pede ampliar a classificação após investigação,
+sem afrouxar essa regra de privacidade.
+
 Após a pessoa ativar métricas e diagnósticos, o app pode enviar `POST /api/telemetry/error` sem autenticação para captar inclusive
 falhas antes do login. O esquema aceita apenas enums predefinidos e status HTTP;
 campos extras e corpos acima de 512 bytes são recusados. A tela é reduzida a
