@@ -175,7 +175,10 @@ describe("campos de registro", () => {
     const time = (screen.getByLabelText("Horário (24 h)") as HTMLSelectElement)
       .value;
     expect(
-      Math.abs(Date.now() - new Date(`${date}T${time}`).getTime()),
+      Math.abs(
+        Date.now() -
+          new Date(`${date.split("/").reverse().join("-")}T${time}`).getTime(),
+      ),
     ).toBeLessThan(60_000);
   });
 });

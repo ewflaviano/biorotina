@@ -669,7 +669,7 @@ describe("medicação", () => {
     const user = await renderPage(<MedicationPage />, initial);
     await user.click(screen.getByRole("button", { name: "Outra data" }));
     await user.clear(screen.getByLabelText("Data"));
-    await user.type(screen.getByLabelText("Data"), "2026-09-24");
+    await user.type(screen.getByLabelText("Data"), "24/09/2026");
     await user.selectOptions(screen.getByLabelText("Horário (24 h)"), "08:00");
     await user.click(screen.getByRole("button", { name: "Salvar registro" }));
     await waitFor(async () =>
