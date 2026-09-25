@@ -1859,29 +1859,15 @@ h3 {
 .support-feedback .card-title {
   margin-bottom: 20px;
 }
-.support-feedback-message {
+.support-feedback-invite {
+  margin: 0 0 16px;
+}
+.support-email-button {
   width: 100%;
-  min-height: 120px;
-  resize: vertical;
-  padding: 12px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  line-height: 1.5;
-}
-.support-feedback-message:focus {
-  border-color: var(--color-action);
-  outline: 2px solid var(--green-100);
-}
-.support-feedback-actions {
-  display: grid;
-  gap: 10px;
-  margin-top: 16px;
-}
-.support-feedback-actions .button {
-  width: 100%;
+  min-width: 0;
+  padding-block: 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .support-feedback-note,
 .support-feedback-status {

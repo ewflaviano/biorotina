@@ -60,89 +60,58 @@ describe("support page", () => {
     );
   });
 
-  it("sends only the message the person typed and confirms delivery", async () => {
-    const user = userEvent.setup();
-    vi.stubEnv("VITE_PUSH_API_URL", "https://api.example.test");
-    const send = vi.fn().mockResolvedValue({ ok: true, status: 200 });
-    vi.stubGlobal("fetch", send);
-    render(
-      <MemoryRouter>
-        <SupportPage />
-      </MemoryRouter>,
-    );
-    expect(
-      screen.getByRole("button", { name: "Enviar feedback" }),
-    ).toBeDisabled();
-
-    const feedback = "A tela de água ficou ótima & simples.";
-    await user.type(
-      screen.getByRole("textbox", { name: "Sua mensagem" }),
-      feedback,
-    );
-
-    await user.click(screen.getByRole("button", { name: "Enviar feedback" }));
-    expect(send).toHaveBeenCalledWith("https://api.example.test/api/feedback", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message: feedback }),
-      signal: expect.any(AbortSignal),
-    });
-    expect(
-      await screen.findByText("Mensagem enviada. Obrigado pela ajuda!"),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Sua mensagem" })).toHaveValue(
-      "",
-    );
-  });
-
-  it("keeps the message when sending fails", async () => {
-    const user = userEvent.setup();
-    vi.stubEnv("VITE_PUSH_API_URL", "https://api.example.test");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: false, status: 503 }),
-    );
-    render(
-      <MemoryRouter>
-        <SupportPage />
-      </MemoryRouter>,
-    );
-    await user.type(
-      screen.getByRole("textbox", { name: "Sua mensagem" }),
-      "Minha ideia",
-    );
-    await user.click(screen.getByRole("button", { name: "Enviar feedback" }));
-    expect(
-      await screen.findByText(/Não foi possível enviar agora/),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Sua mensagem" })).toHaveValue(
-      "Minha ideia",
-    );
-  });
-
-  it("offers a copy fallback for the feedback", async () => {
+  it("copies the contact email without sending a request", async () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockResolvedValue(undefined);
+    const fetch = vi.fn();
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: { writeText },
     });
+    vi.stubGlobal("fetch", fetch);
     render(
       <MemoryRouter>
         <SupportPage />
       </MemoryRouter>,
     );
     expect(
-      screen.getByRole("button", { name: "Copiar mensagem" }),
-    ).toBeDisabled();
-    await user.type(
-      screen.getByRole("textbox", { name: "Sua mensagem" }),
-      "Minha sugestão",
+      screen.queryByRole("textbox", { name: "Sua mensagem" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", {
+        name: "Copiar e-mail ewanderson.flaviano@gmail.com",
+      }),
     );
-    await user.click(screen.getByRole("button", { name: "Copiar mensagem" }));
-    expect(writeText).toHaveBeenCalledWith("Minha sugestão");
+    expect(writeText).toHaveBeenCalledWith("ewanderson.flaviano@gmail.com");
+    expect(fetch).not.toHaveBeenCalled();
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "Mensagem copiada",
+      "E-mail copiado",
+    );
+  });
+
+  it("keeps the address visible when automatic copy is unavailable", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+    });
+    render(
+      <MemoryRouter>
+        <SupportPage />
+      </MemoryRouter>,
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Copiar e-mail ewanderson.flaviano@gmail.com",
+      }),
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "Copiar e-mail ewanderson.flaviano@gmail.com",
+      }),
+    ).toHaveTextContent("ewanderson.flaviano@gmail.com");
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Não foi possível copiar automaticamente",
     );
   });
 });

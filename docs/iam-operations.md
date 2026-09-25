@@ -7,7 +7,7 @@ agendamento. Cada função ainda precisa de sua própria política mais restrita
 
 | Função | Recursos necessários |
 | --- | --- |
-| `api` | Tabela de avisos, segredo VAPID e envio SES restrito à identidade verificada do remetente |
+| `api` | Tabela de avisos, segredo VAPID e envio SES restrito ao remetente e destinatário do feedback |
 | `tick` | Tabela de avisos, segredo VAPID e invocação pelo Scheduler |
 | `telemetry` | Apenas o próprio grupo de logs |
 | `billingApi` | Tabela e segredos de faturamento; envio à fila |
@@ -23,12 +23,11 @@ restringir a role de implantação a essas roles protegidas.
 Ao implantar o formulário de feedback, atualizar **primeiro** o stack separado
 `biorotina-github-deploy` com este template para adicionar `ses:SendEmail` à
 política de limite. A role `PushApiExecutionRole` recebe a mesma permissão
-no `serverless.yml`. Ambas autorizam somente a identidade verificada
-`inovaprog@gmail.com`; o destinatário é fixado pelo código e pela configuração
-da API. A condição IAM `ses:Recipients` foi removida das duas políticas após
-provocar 403 no envio real do SES v2, mesmo com o destinatário correto; por
-isso uma função comprometida teria permissão para enviar a outro destinatário
-usando essa identidade. O envio não requer permissões SES das demais funções.
+restrita no `serverless.yml`. Sem as duas alterações, o endpoint não consegue
+encaminhar as mensagens. O envio não requer permissões SES das demais funções.
+O erro 503 do formulário ainda está em investigação: remover temporariamente
+a condição de destinatário das duas políticas não resolveu o 403 do SES.
+Portanto, a restrição foi restaurada enquanto o formulário fica fora do site.
 
 Para verificar, consultar `lambda get-function-configuration` para cada função,
 `iam get-role` para o limite de permissões e o estado do Scheduler e da fila.
