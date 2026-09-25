@@ -46,11 +46,6 @@ Resources:
           - Effect: Allow
             Action: ses:SendEmail
             Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/inovaprog@gmail.com
-            Condition:
-              ForAllValues:StringEquals:
-                ses:Recipients: ewanderson.flaviano@gmail.com
-              'Null':
-                ses:Recipients: 'false'
   GithubDeployRole:
     Type: AWS::IAM::Role
     Properties:
