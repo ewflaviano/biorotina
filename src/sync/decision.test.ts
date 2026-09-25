@@ -11,7 +11,7 @@ describe("decisão de sincronização", () => {
         localHasContent: true,
         previous: {
           snapshotId: "meu-upload",
-          contentHash: "minha-versao",
+          contentHash: "versao-inicial",
         },
       }),
     ).toBe("conflict");
@@ -24,6 +24,21 @@ describe("decisão de sincronização", () => {
         remoteHash: "dados",
         localHash: "vazio",
         localHasContent: false,
+      }),
+    ).toBe("restore");
+  });
+
+  it("traz a versão do outro aparelho quando este não mudou desde o último backup", () => {
+    expect(
+      decideSync({
+        remoteId: "celular-com-13-registros",
+        remoteHash: "treze-registros",
+        localHash: "doze-registros",
+        localHasContent: true,
+        previous: {
+          snapshotId: "backup-com-12-registros",
+          contentHash: "doze-registros",
+        },
       }),
     ).toBe("restore");
   });

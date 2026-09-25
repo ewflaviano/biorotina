@@ -54,7 +54,7 @@ describe("decisão de sincronização", () => {
     ).toBe("upload");
   });
 
-  it("pede escolha após outro backup e restaura só no primeiro acesso vazio", () => {
+  it("restaura um backup novo quando o navegador não mudou", () => {
     expect(
       decideSync({
         remoteId: "new",
@@ -63,13 +63,25 @@ describe("decisão de sincronização", () => {
         localHasContent: true,
         previous,
       }),
-    ).toBe("conflict");
+    ).toBe("restore");
     expect(
       decideSync({
         remoteId: "new",
         remoteHash: "new-content",
         localHash: "empty",
         localHasContent: false,
+      }),
+    ).toBe("restore");
+  });
+
+  it("atualiza sem perguntar quando só o Drive avançou", () => {
+    expect(
+      decideSync({
+        remoteId: "new",
+        remoteHash: "remote-with-new-record",
+        localHash: "same",
+        localHasContent: true,
+        previous,
       }),
     ).toBe("restore");
   });

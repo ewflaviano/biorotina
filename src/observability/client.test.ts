@@ -58,4 +58,22 @@ describe("private error reporting", () => {
     reportClientError("storage", "local_storage_failed");
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
+
+  it("reports a Google reconnection only as a fixed anonymous code", async () => {
+    localStorage.setItem("biorotina.analytics.consent.v1", "accepted");
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetcher);
+    const { reportClientError } = await import("./client");
+
+    reportClientError("drive", "drive_reconnect_required");
+
+    expect(JSON.parse(fetcher.mock.calls[0][1].body as string)).toEqual({
+      source: "drive",
+      code: "drive_reconnect_required",
+      screen: "alimentacao",
+      environment: "development",
+    });
+  });
 });

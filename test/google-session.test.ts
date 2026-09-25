@@ -123,4 +123,46 @@ describe("sessão Google ao atualizar a página", () => {
     );
     expect(requestAccessToken).toHaveBeenCalledWith({ prompt: "none" });
   });
+
+  it("reconecta por ação da pessoa com o Drive já autorizado", async () => {
+    const requestAccessToken = vi.fn();
+    const initTokenClient = vi.fn(
+      (options: { scope: string; callback: (response: object) => void }) => ({
+        requestAccessToken: (input: { prompt: string }) => {
+          requestAccessToken(input);
+          options.callback({
+            access_token: "fresh-token",
+            expires_in: 3600,
+            scope: options.scope,
+          });
+        },
+      }),
+    );
+    vi.stubGlobal("google", { accounts: { oauth2: { initTokenClient } } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ sub: "person", email: "person@example.com" }),
+      ),
+    );
+    const google = await import("../src/sync/google");
+    google.rememberGoogleAccount({
+      id: "person",
+      email: "person@example.com",
+      token: "expired",
+      expiresAt: Date.now() - 1,
+      driveAuthorized: true,
+    });
+
+    const reconnected = await google.reconnectGoogle("public-client-id");
+    expect(reconnected.token).toBe("fresh-token");
+    expect(reconnected.driveAuthorized).toBe(true);
+    expect(initTokenClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        login_hint: "person@example.com",
+        scope: expect.stringContaining("/auth/drive.appdata"),
+      }),
+    );
+    expect(requestAccessToken).toHaveBeenCalledWith({ prompt: "" });
+  });
 });

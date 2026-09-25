@@ -159,7 +159,7 @@ export function Layout() {
               <HeartHandshake size={17} aria-hidden="true" />
               <span>Apoiar</span>
             </NavLink>
-            {drive.account ? (
+            {drive.account && drive.status !== "reconnect-required" ? (
               <NavLink
                 className={`drive-topbar ${drive.status}`}
                 to="/configuracoes"
@@ -194,15 +194,27 @@ export function Layout() {
                 type="button"
                 onClick={() => void drive.connect()}
                 disabled={!drive.available || drive.busy}
-                aria-label="Entrar com Google para sincronizar"
+                aria-label={
+                  drive.reconnectAvailable
+                    ? "Reconectar Google para sincronizar"
+                    : "Entrar com Google para sincronizar"
+                }
                 title={
                   drive.available
-                    ? "Entrar com Google"
+                    ? drive.reconnectAvailable
+                      ? "Renovar a conexão com o Google"
+                      : "Entrar com Google"
                     : "Google Drive indisponível nesta instalação"
                 }
               >
                 <Cloud size={18} aria-hidden="true" />
-                <span>{drive.busy ? "Entrando…" : "Entrar"}</span>
+                <span>
+                  {drive.busy
+                    ? "Conectando…"
+                    : drive.reconnectAvailable
+                      ? "Reconectar"
+                      : "Entrar"}
+                </span>
               </button>
             )}
             <NavLink
