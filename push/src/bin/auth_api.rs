@@ -57,7 +57,23 @@ struct Identity {
     email: String,
     aud: String,
     iss: String,
-    email_verified: Option<bool>,
+    email_verified: Option<VerifiedClaim>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum VerifiedClaim {
+    Boolean(bool),
+    Text(String),
+}
+
+impl VerifiedClaim {
+    fn is_unverified(&self) -> bool {
+        match self {
+            Self::Boolean(value) => !value,
+            Self::Text(value) => !value.eq_ignore_ascii_case("true"),
+        }
+    }
 }
 
 #[tokio::main]
@@ -267,7 +283,10 @@ async fn exchange(
     };
     if identity.aud != app.client_id
         || !(identity.iss == "accounts.google.com" || identity.iss == "https://accounts.google.com")
-        || identity.email_verified == Some(false)
+        || identity
+            .email_verified
+            .as_ref()
+            .is_some_and(VerifiedClaim::is_unverified)
         || !valid_scopes(&tokens.scope)
     {
         return response(
