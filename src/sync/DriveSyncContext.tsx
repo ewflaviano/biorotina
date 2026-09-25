@@ -14,7 +14,10 @@ import { loadData, loadDriveSync, saveDriveSync } from "../storage/indexedDb";
 import { decideSync } from "./decision";
 import { downloadJson } from "./download";
 import { mergeAppData } from "./merge";
-import { reportClientError } from "../observability/client";
+import {
+  reportClientError,
+  type ErrorOperation,
+} from "../observability/client";
 import {
   authorizeGoogleDrive,
   connectGoogle,
@@ -33,6 +36,7 @@ import {
   type DriveSnapshot,
   type GoogleAccount,
   GoogleReconnectRequiredError,
+  GoogleDriveHttpError,
 } from "./google";
 
 function hasLocalContent(data: AppData): boolean {
@@ -145,6 +149,7 @@ export function DriveSyncProvider({
       setStatus("syncing");
       setError("");
       setConflict(null);
+      let phase: ErrorOperation = "drive_list";
       try {
         do {
           rerun.current = false;
@@ -156,6 +161,7 @@ export function DriveSyncProvider({
             return;
           }
           if (!currentGoogleAccount()) {
+            phase = "google_reconnect";
             try {
               const refreshed = googleClientId
                 ? await renewGoogle(googleClientId)
@@ -175,22 +181,29 @@ export function DriveSyncProvider({
               );
             }
           }
+          phase = "drive_list";
           const snapshots = await listDriveSnapshots(connected.token);
           const remote = snapshots[0] ?? null;
           setLatest(remote);
+          phase = "storage_read";
           const local = await loadData(connected.id);
+          phase = "drive_hash";
           const localHash = await contentHash(local);
+          phase = "storage_read";
           const previous = await loadDriveSync(connected.id);
+          phase = "drive_download";
           const remoteData =
             remote && previous?.snapshotId !== remote.id
               ? await downloadDriveSnapshot(connected.token, remote)
               : null;
+          phase = "drive_hash";
           const remoteHash = remoteData ? await contentHash(remoteData) : null;
           if (
             accountRef.current?.id !== connected.id ||
             currentGoogleAccount()?.id !== connected.id
           )
             return;
+          phase = "drive_compare";
           const decision = decideSync({
             remoteId: remote?.id ?? null,
             remoteHash,
@@ -205,12 +218,14 @@ export function DriveSyncProvider({
               "Conta conectada. Seus novos registros serão sincronizados automaticamente.",
             );
           } else if (decision === "upload") {
+            phase = "drive_upload";
             const saved = await uploadDriveSnapshot(connected.token, local);
             if (
               accountRef.current?.id !== connected.id ||
               currentGoogleAccount()?.id !== connected.id
             )
               return;
+            phase = "storage_write";
             await saveDriveSync(connected.id, {
               snapshotId: saved.id,
               contentHash: localHash,
@@ -225,6 +240,7 @@ export function DriveSyncProvider({
             if (!remote || !remoteData || !remoteHash)
               throw new Error("Backup do Drive incompleto.");
             if (decision === "mark-synced") {
+              phase = "storage_write";
               await saveDriveSync(connected.id, {
                 snapshotId: remote.id,
                 contentHash: localHash,
@@ -232,7 +248,9 @@ export function DriveSyncProvider({
               setStatus("synced");
               setMessage("Seus dados estão sincronizados.");
             } else if (decision === "restore") {
+              phase = "drive_restore";
               await replaceIfRevision(local.revision, remoteData);
+              phase = "storage_write";
               await saveDriveSync(connected.id, {
                 snapshotId: remote.id,
                 contentHash: remoteHash,
@@ -251,6 +269,7 @@ export function DriveSyncProvider({
           setSettledRevision(
             decision === "restore" ? local.revision + 1 : local.revision,
           );
+          phase = "drive_hash";
           if (
             (await contentHash(await loadData(connected.id))) !== localHash &&
             decision !== "restore"
@@ -263,6 +282,8 @@ export function DriveSyncProvider({
           cause instanceof GoogleReconnectRequiredError
             ? "drive_reconnect_required"
             : "drive_sync_failed",
+          phase,
+          cause instanceof GoogleDriveHttpError ? cause.status : undefined,
         );
         const description =
           cause instanceof Error
@@ -299,7 +320,11 @@ export function DriveSyncProvider({
           setStatus("authorization-needed");
       })
       .catch(() => {
-        reportClientError("drive", "drive_reconnect_required");
+        reportClientError(
+          "drive",
+          "drive_reconnect_required",
+          "google_restore_session",
+        );
         if (!cancelled && !accountRef.current)
           setMessage("Toque em Entrar para reconectar sua conta Google.");
       });
@@ -339,6 +364,7 @@ export function DriveSyncProvider({
       reportClientError(
         "drive",
         reconnecting ? "drive_reconnect_required" : "drive_sync_failed",
+        reconnecting ? "google_reconnect" : "google_connect",
       );
       setError(
         cause instanceof Error
@@ -369,7 +395,7 @@ export function DriveSyncProvider({
       setBusy(false);
       await syncAccount(authorized);
     } catch (cause) {
-      reportClientError("drive", "drive_sync_failed");
+      reportClientError("drive", "drive_sync_failed", "google_authorize_drive");
       setError(
         cause instanceof Error
           ? cause.message
@@ -414,7 +440,7 @@ export function DriveSyncProvider({
         setDrivePermissionPrompt(false);
         setGuestCopyAvailable(false);
       } catch {
-        reportClientError("drive", "drive_sync_failed");
+        reportClientError("drive", "drive_sync_failed", "drive_disconnect");
         setError(
           "Não foi possível remover os dados desta conta do navegador. Tente novamente.",
         );
@@ -501,7 +527,7 @@ export function DriveSyncProvider({
         "Esta versão foi salva no Drive. O backup anterior continua disponível.",
       );
     } catch (cause) {
-      reportClientError("drive", "drive_sync_failed");
+      reportClientError("drive", "drive_sync_failed", "drive_upload");
       setError(
         cause instanceof Error
           ? cause.message
@@ -551,7 +577,7 @@ export function DriveSyncProvider({
         "Backup do Drive restaurado. A versão local anterior foi baixada em JSON.",
       );
     } catch (cause) {
-      reportClientError("drive", "drive_sync_failed");
+      reportClientError("drive", "drive_sync_failed", "drive_restore");
       setError(
         cause instanceof Error
           ? cause.message
@@ -604,7 +630,7 @@ export function DriveSyncProvider({
       setSettledRevision(merged.revision);
       setMessage("Registros deste navegador e do Drive foram reunidos.");
     } catch (cause) {
-      reportClientError("drive", "drive_sync_failed");
+      reportClientError("drive", "drive_sync_failed", "drive_merge");
       setError(
         cause instanceof Error
           ? cause.message
@@ -629,7 +655,7 @@ export function DriveSyncProvider({
           );
       })
       .catch(() => {
-        reportClientError("storage", "local_storage_failed");
+        reportClientError("storage", "local_storage_failed", "storage_read");
         if (active) setGuestCopyAvailable(false);
       });
     return () => {
@@ -657,7 +683,7 @@ export function DriveSyncProvider({
       setGuestCopyAvailable(false);
       await syncAccount(connected);
     } catch (cause) {
-      reportClientError("drive", "drive_sync_failed");
+      reportClientError("drive", "drive_sync_failed", "drive_guest_merge");
       setError(
         cause instanceof Error
           ? cause.message

@@ -16,9 +16,16 @@ viram `email_service_unclassified`: nunca copiar para o log a mensagem bruta
 do SDK, que pode incluir endereços ou partes da solicitação. A presença de
 `email_service_unclassified` pede ampliar a classificação após investigação,
 sem afrouxar essa regra de privacidade.
+Quando o SES retorna 403, somente frases fixas da explicação de IAM são
+classificadas para distinguir role, limite de permissões, política do recurso
+e SCP; nomes de roles, ARNs e endereços não entram no evento.
 
 Após a pessoa ativar métricas e diagnósticos, o app pode enviar `POST /api/telemetry/error` sem autenticação para captar inclusive
 falhas antes do login. O esquema aceita apenas enums predefinidos e status HTTP;
+`operation` identifica a etapa técnica fixa (por exemplo, `drive_list`,
+`drive_upload`, `billing_status` ou `feedback_send`), sem receber texto da
+página ou do erro. Clientes antigos sem esse campo continuam aceitos durante
+a atualização; as versões novas sempre o enviam.
 campos extras e corpos acima de 512 bytes são recusados. A tela é reduzida a
 uma lista fixa, sem query string. O cliente deduplica por um minuto, limita a
 20 eventos por sessão e descarta falhas do próprio envio, sem fila local. O envio
@@ -38,7 +45,10 @@ O endereço não entra nos registros do aplicativo.
 No Drive, `drive_reconnect_required` identifica a expiração ou falha de
 renovação do acesso Google; `drive_sync_failed` fica para as demais falhas de
 sincronização. Ambos são códigos fixos, sem e-mail, token, registros ou mensagem
-de erro, e só são enviados após consentimento.
+de erro, e só são enviados após consentimento. Para falhas HTTP do Drive que
+não sejam 401, `status` registra apenas o número da resposta; `operation`
+mostra se a falha ocorreu ao listar, baixar ou enviar o backup. Não é um log
+de sucesso: ausência de evento não comprova sincronização concluída.
 
 Para investigar erros de análise, consultar o grupo
 `/aws/lambda/biorotina-dev-billingApi` e filtrar por `operation=analyze`.

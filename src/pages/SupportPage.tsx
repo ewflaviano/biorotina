@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { PageHeader } from "../components/Layout";
+import { reportClientError } from "../observability/client";
 import {
   PIX_CNPJ,
   PIX_COPY_PASTE,
@@ -40,6 +41,7 @@ export function SupportPage() {
       "",
     );
     if (!apiBase) {
+      reportClientError("feedback", "feedback_failed", "feedback_send");
       setFeedbackSendStatus("failed");
       return;
     }
@@ -55,12 +57,19 @@ export function SupportPage() {
       if (response.status === 429) {
         setFeedbackSendStatus("limited");
       } else if (!response.ok) {
+        reportClientError(
+          "feedback",
+          "feedback_failed",
+          "feedback_send",
+          response.status,
+        );
         setFeedbackSendStatus("failed");
       } else {
         setFeedback("");
         setFeedbackSendStatus("sent");
       }
     } catch {
+      reportClientError("feedback", "network_failed", "feedback_send");
       setFeedbackSendStatus("failed");
     } finally {
       window.clearTimeout(timer);

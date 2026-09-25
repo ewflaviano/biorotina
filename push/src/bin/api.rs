@@ -80,10 +80,24 @@ impl FeedbackEmailFailure {
     }
 }
 
-fn ses_service_code(code: Option<&str>) -> &'static str {
-    // Never log the SDK's message: it can contain addresses and request data.
+fn ses_service_code(code: Option<&str>, message: Option<&str>) -> &'static str {
+    // Inspect only fixed phrases in AWS authorization text. Never log the raw
+    // message: it can contain role ARNs, addresses and request data.
     match code {
-        Some("AccessDenied") | Some("AccessDeniedException") => "email_access_denied",
+        Some("AccessDenied") | Some("AccessDeniedException") => {
+            let text = message.unwrap_or_default().to_ascii_lowercase();
+            if text.contains("permissions boundary") {
+                "email_boundary_denied"
+            } else if text.contains("identity-based policy") {
+                "email_role_policy_denied"
+            } else if text.contains("resource-based policy") {
+                "email_resource_policy_denied"
+            } else if text.contains("service control policy") {
+                "email_scp_denied"
+            } else {
+                "email_access_denied"
+            }
+        }
         Some("AccountSuspendedException") => "email_account_suspended",
         Some("BadRequestException") => "email_bad_request",
         Some("LimitExceededException") => "email_limit_exceeded",
@@ -106,7 +120,7 @@ fn classify_ses_error(error: &SdkError<SendEmailError>) -> FeedbackEmailFailure 
             upstream_status: Some(response.raw().status().as_u16()),
         },
         SdkError::ServiceError(response) => FeedbackEmailFailure {
-            code: ses_service_code(response.err().code()),
+            code: ses_service_code(response.err().code(), response.err().message()),
             upstream_status: Some(response.raw().status().as_u16()),
         },
         _ => FeedbackEmailFailure::new("email_sdk_unclassified"),
@@ -487,15 +501,22 @@ mod tests {
     #[test]
     fn ses_errors_have_fixed_diagnostic_codes_without_sdk_messages() {
         assert_eq!(
-            ses_service_code(Some("AccessDeniedException")),
+            ses_service_code(Some("AccessDeniedException"), None),
             "email_access_denied"
         );
         assert_eq!(
-            ses_service_code(Some("MessageRejected")),
+            ses_service_code(
+                Some("AccessDeniedException"),
+                Some("User private@example.test is not authorized because no identity-based policy allows ses:SendEmail"),
+            ),
+            "email_role_policy_denied"
+        );
+        assert_eq!(
+            ses_service_code(Some("MessageRejected"), None),
             "email_message_rejected"
         );
         assert_eq!(
-            ses_service_code(Some("user@example.test")),
+            ses_service_code(Some("user@example.test"), None),
             "email_service_unclassified"
         );
         let timeout = SdkError::<SendEmailError>::timeout_error(std::io::Error::new(

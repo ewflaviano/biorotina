@@ -11,6 +11,7 @@ enum Source {
     Push,
     Photo,
     Billing,
+    Feedback,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -25,8 +26,47 @@ enum Code {
     PushFailed,
     PhotoAnalysisFailed,
     BillingFailed,
+    FeedbackFailed,
     NetworkFailed,
     ResponseInvalid,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum Operation {
+    AppRuntime,
+    AppRender,
+    StorageRead,
+    StorageWrite,
+    GoogleRestoreSession,
+    GoogleConnect,
+    GoogleReconnect,
+    GoogleAuthorizeDrive,
+    DriveList,
+    DriveDownload,
+    DriveHash,
+    DriveCompare,
+    DriveUpload,
+    DriveRestore,
+    DriveMerge,
+    DriveDisconnect,
+    DriveGuestMerge,
+    PushLoad,
+    PushSave,
+    PushConfig,
+    PushRegister,
+    PushUpdate,
+    PushRemove,
+    PushTest,
+    BillingRequest,
+    BillingStatus,
+    BillingTrialConfig,
+    BillingCheckout,
+    BillingCancel,
+    PhotoAnalyze,
+    PhotoParse,
+    PhotoPrepare,
+    FeedbackSend,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -60,6 +100,8 @@ enum Environment {
 struct ClientError {
     source: Source,
     code: Code,
+    // Optional until previously deployed browsers have refreshed the app.
+    operation: Option<Operation>,
     screen: Screen,
     environment: Environment,
     status: Option<u16>,
@@ -92,6 +134,7 @@ async fn record(Json(event): Json<ClientError>) -> StatusCode {
             "service": "frontend",
             "source": event.source,
             "code": event.code,
+            "operation": event.operation,
             "screen": event.screen,
             "environment": event.environment,
             "status": event.status,
@@ -111,6 +154,7 @@ mod tests {
             json!({"source":"runtime","code":"runtime_exception","screen":"home","environment":"production","token":"secret"}),
             json!({"source":"runtime","code":"runtime_exception","screen":"#/alimentacao?email=x","environment":"production"}),
             json!({"source":"runtime","code":"arbitrary","screen":"home","environment":"production"}),
+            json!({"source":"runtime","code":"runtime_exception","operation":"arbitrary","screen":"home","environment":"production"}),
         ] {
             assert!(serde_json::from_value::<ClientError>(payload).is_err());
         }
@@ -119,7 +163,7 @@ mod tests {
     #[tokio::test]
     async fn accepts_only_fixed_diagnostic_fields() {
         let event: ClientError = serde_json::from_value(json!({
-            "source":"photo", "code":"response_invalid", "screen":"alimentacao", "environment":"development", "status":200
+            "source":"photo", "code":"response_invalid", "operation":"photo_parse", "screen":"alimentacao", "environment":"development", "status":200
         }))
         .unwrap();
         assert_eq!(record(Json(event)).await, StatusCode::NO_CONTENT);
@@ -128,5 +172,10 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(record(Json(reconnect)).await, StatusCode::NO_CONTENT);
+        let feedback: ClientError = serde_json::from_value(json!({
+            "source":"feedback", "code":"feedback_failed", "operation":"feedback_send", "screen":"apoiar", "environment":"production", "status":503
+        }))
+        .unwrap();
+        assert_eq!(record(Json(feedback)).await, StatusCode::NO_CONTENT);
     }
 }

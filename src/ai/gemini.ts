@@ -191,7 +191,7 @@ export async function analyzeMealImage(
       signal: controller.signal,
     });
   } catch (cause) {
-    reportClientError("photo", "network_failed");
+    reportClientError("photo", "network_failed", "photo_analyze");
     if (controller.signal.aborted)
       throw new Error("A análise demorou demais. Tente novamente.", { cause });
     throw new Error(
@@ -202,20 +202,46 @@ export async function analyzeMealImage(
     clearTimeout(timeout);
   }
 
-  if (response.status === 400)
+  if (response.status === 400) {
+    reportClientError(
+      "photo",
+      "photo_analysis_failed",
+      "photo_analyze",
+      response.status,
+    );
     throw new Error(
       "O Gemini recusou o formato da solicitação. Atualize a Biorotina e tente novamente.",
     );
-  if (response.status === 401 || response.status === 403)
+  }
+  if (response.status === 401 || response.status === 403) {
+    reportClientError(
+      "photo",
+      "photo_analysis_failed",
+      "photo_analyze",
+      response.status,
+    );
     throw new Error(
       "O Gemini não aceitou a chave ou a solicitação. Confira sua chave no Google AI Studio.",
     );
-  if (response.status === 429)
+  }
+  if (response.status === 429) {
+    reportClientError(
+      "photo",
+      "photo_analysis_failed",
+      "photo_analyze",
+      response.status,
+    );
     throw new Error(
       "O limite de uso da sua chave Gemini foi atingido. Tente mais tarde.",
     );
+  }
   if (!response.ok) {
-    reportClientError("photo", "photo_analysis_failed", response.status);
+    reportClientError(
+      "photo",
+      "photo_analysis_failed",
+      "photo_analyze",
+      response.status,
+    );
     throw new Error(
       "O Gemini não conseguiu analisar esta foto agora. Tente novamente.",
     );
@@ -236,7 +262,12 @@ export async function analyzeMealImage(
     .data?.candidates[0]?.content.parts.map((part) => part.text ?? "")
     .join("");
   if (!text) {
-    reportClientError("photo", "response_invalid", response.status);
+    reportClientError(
+      "photo",
+      "response_invalid",
+      "photo_parse",
+      response.status,
+    );
     throw new Error(
       "O Gemini não identificou alimentos nesta foto. Tente outra imagem.",
     );
@@ -245,14 +276,24 @@ export async function analyzeMealImage(
   try {
     json = JSON.parse(text);
   } catch {
-    reportClientError("photo", "response_invalid", response.status);
+    reportClientError(
+      "photo",
+      "response_invalid",
+      "photo_parse",
+      response.status,
+    );
     throw new Error(
       "A sugestão veio incompleta. Tente outra foto ou registre manualmente.",
     );
   }
   const parsed = analysisSchema.safeParse(json);
   if (!parsed.success) {
-    reportClientError("photo", "response_invalid", response.status);
+    reportClientError(
+      "photo",
+      "response_invalid",
+      "photo_parse",
+      response.status,
+    );
     throw new Error(
       "A sugestão veio incompleta. Tente outra foto ou registre manualmente.",
     );
