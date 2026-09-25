@@ -18,7 +18,7 @@ const links = [
   },
   {
     to: "/peso",
-    label: "Peso",
+    label: "Medidas",
     detail: "Medidas e evolução",
     icon: Scale,
   },

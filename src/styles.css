@@ -1297,6 +1297,41 @@ h3 {
 .form-grid > .button {
   justify-self: start;
 }
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.measurement-height .card-title,
+.medication-log-panel .card-title {
+  margin-bottom: 16px;
+}
+.measurement-height-form {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+.measurement-height-form .field {
+  flex: 1 1 180px;
+}
+.measurement-value-input {
+  position: relative;
+}
+.measurement-value-input input {
+  padding-right: 48px;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.measurement-value-input span {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  pointer-events: none;
+}
 .entry-list li {
   display: flex;
   align-items: center;
@@ -1993,6 +2028,18 @@ h3 {
   }
   .medication-actions {
     padding-left: 0;
+  }
+}
+@media (max-width: 420px) {
+  .date-time-controls {
+    grid-template-columns: 1fr;
+  }
+  .measurement-height-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .measurement-height-form .button {
+    width: 100%;
   }
 }
 @media (min-width: 900px) {

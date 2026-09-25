@@ -1,13 +1,16 @@
-import { Pill, Trash2 } from "lucide-react";
+import { CalendarClock, Pill, Trash2 } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import {
   dateTimePt,
+  fromLocalDateTime,
   inputDecimal,
   isToday,
   parseDecimal,
   reminderTimeSchema,
+  toLocalDateTime,
 } from "../domain/data";
 import { TimeSelect } from "../components/TimeSelect";
+import { DateTimeField } from "../components/DateTimeField";
 import { PushActivationPrompt } from "../components/PushActivationPrompt";
 import { EmptyState, Notice, PageHeader } from "../components/Layout";
 import { useAppData } from "../state/AppDataContext";
@@ -34,6 +37,10 @@ export function MedicationPage() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
+  const [logMedicationId, setLogMedicationId] = useState<string | null>(null);
+  const [logWhen, setLogWhen] = useState(
+    toLocalDateTime(new Date().toISOString()),
+  );
   const pendingLogIds = useRef(new Set<string>());
   const [loggingIds, setLoggingIds] = useState<Set<string>>(new Set());
   const medications = [...data.medications].sort((a, b) =>
@@ -125,31 +132,59 @@ export function MedicationPage() {
     document.getElementById("med-name")?.focus();
   }
 
-  async function logTaken(medicationId: string) {
-    if (pendingLogIds.current.has(medicationId)) return;
+  async function logTaken(
+    medicationId: string,
+    takenAt: string,
+  ): Promise<boolean> {
+    if (pendingLogIds.current.has(medicationId)) return false;
     pendingLogIds.current.add(medicationId);
     setLoggingIds(new Set(pendingLogIds.current));
     setActionError("");
     try {
-      const now = new Date().toISOString();
+      const createdAt = new Date().toISOString();
       await mutate((current) => ({
         ...current,
         medicationLogs: [
           {
             id: crypto.randomUUID(),
             medicationId,
-            takenAt: now,
-            createdAt: now,
+            takenAt,
+            createdAt,
           },
           ...current.medicationLogs,
         ],
       }));
+      return true;
     } catch {
       setActionError("Não foi possível registrar o uso.");
+      return false;
     } finally {
       pendingLogIds.current.delete(medicationId);
       setLoggingIds(new Set(pendingLogIds.current));
     }
+  }
+
+  async function registerPastUse(event: FormEvent) {
+    event.preventDefault();
+    if (!logMedicationId) return;
+    try {
+      if (await logTaken(logMedicationId, fromLocalDateTime(logWhen))) {
+        setLogMedicationId(null);
+        setLogWhen(toLocalDateTime(new Date().toISOString()));
+      }
+    } catch (cause) {
+      setActionError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível registrar o uso.",
+      );
+    }
+  }
+
+  function openPastUse(medicationId: string) {
+    setActionError("");
+    setLogMedicationId(medicationId);
+    setLogWhen(toLocalDateTime(new Date().toISOString()));
   }
 
   function addReminderTime() {
@@ -391,13 +426,23 @@ export function MedicationPage() {
                           className="button secondary compact"
                           type="button"
                           disabled={loggingIds.has(item.id)}
-                          onClick={() => logTaken(item.id)}
+                          onClick={() =>
+                            void logTaken(item.id, new Date().toISOString())
+                          }
                         >
                           {loggingIds.has(item.id)
                             ? "Registrando…"
                             : todayLogs.length
                               ? "Registrar outro uso"
                               : "Registrar uso"}
+                        </button>
+                        <button
+                          className="entry-action"
+                          type="button"
+                          disabled={loggingIds.has(item.id)}
+                          onClick={() => openPastUse(item.id)}
+                        >
+                          Outra data
                         </button>
                         {latestTodayLog && (
                           <button
@@ -442,6 +487,55 @@ export function MedicationPage() {
               />
             )}
           </section>
+          {logMedicationId && (
+            <section
+              className="panel medication-log-panel"
+              aria-labelledby="registro-passado"
+            >
+              <div className="card-title">
+                <span className="list-icon">
+                  <CalendarClock size={20} aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 id="registro-passado">Registrar uso em outra data</h2>
+                  <p>
+                    {data.medications.find(
+                      (item) => item.id === logMedicationId,
+                    )?.name ?? "Medicamento"}
+                  </p>
+                </div>
+              </div>
+              <form onSubmit={registerPastUse} className="form-grid">
+                <DateTimeField
+                  id="medication-use-date"
+                  value={logWhen}
+                  onChange={setLogWhen}
+                />
+                {actionError && (
+                  <p className="form-error" role="alert">
+                    {actionError}
+                  </p>
+                )}
+                <div className="form-actions">
+                  <button
+                    className="button primary"
+                    disabled={loggingIds.has(logMedicationId)}
+                  >
+                    {loggingIds.has(logMedicationId)
+                      ? "Salvando…"
+                      : "Salvar registro"}
+                  </button>
+                  <button
+                    type="button"
+                    className="button secondary"
+                    onClick={() => setLogMedicationId(null)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </section>
+          )}
           {logs.length > 0 && (
             <section className="panel">
               <h2>Histórico de uso</h2>

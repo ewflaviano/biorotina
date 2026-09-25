@@ -60,7 +60,7 @@ describe("navegação", () => {
     expect(
       within(mobileNav).getByRole("link", { name: "Água" }),
     ).not.toHaveClass("active");
-    await user.click(screen.getAllByRole("link", { name: "Peso" })[0]);
+    await user.click(screen.getAllByRole("link", { name: "Medidas" })[0]);
     expect(await screen.findByText("Área de peso")).toBeInTheDocument();
     await user.click(screen.getAllByRole("link", { name: "Hidratação" })[0]);
     expect(await screen.findByText("Área de hidratação")).toBeInTheDocument();
