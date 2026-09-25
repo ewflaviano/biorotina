@@ -14,8 +14,10 @@ export function decideSync(options: {
   if (previous?.snapshotId === remoteId)
     return previous.contentHash === localHash ? "synced" : "upload";
   if (remoteHash === localHash) return "mark-synced";
+  // Only the Drive advanced. This device has no unsynced changes to preserve.
+  if (previous?.contentHash === localHash && remoteHash) return "restore";
   // A newer remote snapshot may be a sibling, not a descendant of our last
-  // upload. Never replace local records silently when this device has history.
+  // upload. Never replace local records silently when this device also changed.
   if (!previous && !localHasContent) return "restore";
   return "conflict";
 }

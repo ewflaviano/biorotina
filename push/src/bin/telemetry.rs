@@ -21,6 +21,7 @@ enum Code {
     RenderFailure,
     LocalStorageFailed,
     DriveSyncFailed,
+    DriveReconnectRequired,
     PushFailed,
     PhotoAnalysisFailed,
     BillingFailed,
@@ -122,5 +123,10 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(record(Json(event)).await, StatusCode::NO_CONTENT);
+        let reconnect: ClientError = serde_json::from_value(json!({
+            "source":"drive", "code":"drive_reconnect_required", "screen":"configuracoes", "environment":"production"
+        }))
+        .unwrap();
+        assert_eq!(record(Json(reconnect)).await, StatusCode::NO_CONTENT);
     }
 }

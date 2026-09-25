@@ -27,10 +27,12 @@ import {
   listDriveSnapshots,
   preloadGoogleIdentity,
   rememberGoogleAccount,
+  reconnectGoogle,
   renewGoogle,
   uploadDriveSnapshot,
   type DriveSnapshot,
   type GoogleAccount,
+  GoogleReconnectRequiredError,
 } from "./google";
 
 function hasLocalContent(data: AppData): boolean {
@@ -50,6 +52,7 @@ interface Conflict {
 export type DriveSyncStatus =
   | "disconnected"
   | "authorization-needed"
+  | "reconnect-required"
   | "syncing"
   | "synced"
   | "pending"
@@ -58,6 +61,7 @@ export type DriveSyncStatus =
 
 interface DriveSyncValue {
   available: boolean;
+  reconnectAvailable: boolean;
   account: GoogleAccount | null;
   latest: DriveSnapshot | null;
   conflict: Conflict | null;
@@ -116,6 +120,7 @@ export function DriveSyncProvider({
     guestCopyAvailable,
   );
   const running = useRef(false);
+  const reconnectRequired = useRef(false);
   const rerun = useRef(false);
   const previousRevision = useRef(data.revision);
   const renewal = useRef<ReturnType<typeof renewGoogle> | null>(null);
@@ -126,6 +131,7 @@ export function DriveSyncProvider({
 
   const syncAccount = useCallback(
     async (connected: GoogleAccount): Promise<void> => {
+      if (reconnectRequired.current) return;
       if (connected.driveAuthorized === false) {
         setStatus("authorization-needed");
         return;
@@ -164,7 +170,7 @@ export function DriveSyncProvider({
                 return;
               }
             } catch {
-              throw new Error(
+              throw new GoogleReconnectRequiredError(
                 "A conexão com o Google expirou. Conecte novamente para sincronizar.",
               );
             }
@@ -252,25 +258,29 @@ export function DriveSyncProvider({
             rerun.current = true;
         } while (rerun.current && accountRef.current?.id === connected.id);
       } catch (cause) {
-        reportClientError("drive", "drive_sync_failed");
+        reportClientError(
+          "drive",
+          cause instanceof GoogleReconnectRequiredError
+            ? "drive_reconnect_required"
+            : "drive_sync_failed",
+        );
         const description =
           cause instanceof Error
             ? cause.message
             : "Não foi possível sincronizar com o Google Drive.";
-        if (description.includes("Conecte novamente")) {
-          forgetGoogleAccount();
-          accountRef.current = null;
-          setAccount(null);
-          await switchScope(null);
-        }
         setError(description);
-        setStatus("error");
+        if (cause instanceof GoogleReconnectRequiredError) {
+          reconnectRequired.current = true;
+          setStatus("reconnect-required");
+        } else {
+          setStatus("error");
+        }
       } finally {
         running.current = false;
         setBusy(false);
       }
     },
-    [googleClientId, replaceIfRevision, switchScope],
+    [googleClientId, replaceIfRevision],
   );
 
   useEffect(() => {
@@ -289,7 +299,7 @@ export function DriveSyncProvider({
           setStatus("authorization-needed");
       })
       .catch(() => {
-        reportClientError("drive", "drive_sync_failed");
+        reportClientError("drive", "drive_reconnect_required");
         if (!cancelled && !accountRef.current)
           setMessage("Toque em Entrar para reconectar sua conta Google.");
       });
@@ -307,10 +317,16 @@ export function DriveSyncProvider({
     setBusy(true);
     setError("");
     setMessage("");
+    const reconnecting = Boolean(
+      reconnectRequired.current || hasRememberedGoogleAccount(),
+    );
     try {
-      const connected = await connectGoogle(googleClientId);
+      const connected = reconnecting
+        ? await reconnectGoogle(googleClientId, accountRef.current ?? undefined)
+        : await connectGoogle(googleClientId);
       await switchScope(connected.id);
       rememberGoogleAccount(connected);
+      reconnectRequired.current = false;
       accountRef.current = connected;
       setAccount(connected);
       setStatus(
@@ -320,13 +336,16 @@ export function DriveSyncProvider({
       );
       setDrivePermissionPrompt(connected.driveAuthorized === false);
     } catch (cause) {
-      reportClientError("drive", "drive_sync_failed");
+      reportClientError(
+        "drive",
+        reconnecting ? "drive_reconnect_required" : "drive_sync_failed",
+      );
       setError(
         cause instanceof Error
           ? cause.message
           : "Não foi possível conectar ao Google.",
       );
-      setStatus("error");
+      setStatus(reconnectRequired.current ? "reconnect-required" : "error");
       setBusy(false);
       return;
     }
@@ -409,6 +428,7 @@ export function DriveSyncProvider({
   useEffect(() => {
     if (loading || scope !== null || !accountRef.current) return;
     forgetGoogleAccount();
+    reconnectRequired.current = false;
     accountRef.current = null;
     setAccount(null);
     setLatest(null);
@@ -657,6 +677,11 @@ export function DriveSyncProvider({
     <Context.Provider
       value={{
         available: Boolean(googleClientId),
+        reconnectAvailable: Boolean(
+          googleClientId &&
+          (status === "reconnect-required" ||
+            (!account && hasRememberedGoogleAccount())),
+        ),
         account,
         latest,
         conflict,

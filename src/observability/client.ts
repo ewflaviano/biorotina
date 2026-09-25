@@ -9,6 +9,7 @@ export type ErrorCode =
   | "render_failure"
   | "local_storage_failed"
   | "drive_sync_failed"
+  | "drive_reconnect_required"
   | "push_failed"
   | "photo_analysis_failed"
   | "billing_failed"

@@ -69,9 +69,9 @@ export function DriveBackup() {
       {!drive.account ? (
         <>
           <p className="muted">
-            Entre com Google e, se quiser sincronizar seus registros, autorize
-            depois o acesso à área privada da Biorotina no seu Drive. O uso do
-            app continua livre, sem login.
+            {drive.reconnectAvailable
+              ? "A conexão anterior com o Google expirou. Reconecte para abrir os registros desta conta e retomar a sincronização. Eles não foram apagados deste navegador."
+              : "Entre com Google e, se quiser sincronizar seus registros, autorize depois o acesso à área privada da Biorotina no seu Drive. O uso do app continua livre, sem login."}
           </p>
           <button
             className="button primary"
@@ -79,7 +79,11 @@ export function DriveBackup() {
             onClick={() => void drive.connect()}
             disabled={drive.busy}
           >
-            {drive.busy ? "Entrando…" : "Entrar com Google"}
+            {drive.busy
+              ? "Conectando…"
+              : drive.reconnectAvailable
+                ? "Reconectar Google"
+                : "Entrar com Google"}
           </button>
         </>
       ) : (
@@ -161,7 +165,24 @@ export function DriveBackup() {
               {exitError}
             </p>
           )}
-          {drive.account.driveAuthorized === false ? (
+          {drive.status === "reconnect-required" ? (
+            <div className="drive-guest-copy">
+              <strong>Reconecte para sincronizar</strong>
+              <p>
+                O acesso temporário ao Google expirou. Seus registros continuam
+                neste navegador; apenas a sincronização está pausada.
+              </p>
+              <button
+                className="button primary"
+                type="button"
+                disabled={drive.busy}
+                onClick={() => void drive.connect()}
+              >
+                <RefreshCw size={17} aria-hidden="true" />
+                {drive.busy ? "Conectando…" : "Reconectar Google"}
+              </button>
+            </div>
+          ) : drive.account.driveAuthorized === false ? (
             <div className="drive-guest-copy">
               <strong>Ative a sincronização quando quiser</strong>
               <p>

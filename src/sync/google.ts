@@ -75,6 +75,8 @@ export interface GoogleAccount {
   driveAuthorized?: boolean;
 }
 
+export class GoogleReconnectRequiredError extends Error {}
+
 let connectedAccount: GoogleAccount | null = null;
 
 function readStoredAccount(): GoogleAccount | null {
@@ -258,6 +260,24 @@ export async function renewGoogle(
   return renewed;
 }
 
+/** Reuses an existing grant after a user gesture, without asking for it twice. */
+export async function reconnectGoogle(
+  clientId: string,
+  currentAccount?: GoogleAccount,
+): Promise<GoogleAccount> {
+  const previous = currentAccount ?? readStoredAccount();
+  if (!previous) throw new Error("Não há uma conta Google para reconectar.");
+  const reconnected = await requestGoogleAccount(
+    clientId,
+    "",
+    previous.driveAuthorized !== false,
+    previous.email,
+  );
+  if (reconnected.id !== previous.id)
+    throw new Error("Selecione a mesma conta Google para continuar.");
+  return reconnected;
+}
+
 export function disconnectGoogle(account: GoogleAccount): void {
   forgetGoogleAccount();
   window.google?.accounts.oauth2.revoke(account.token, () => undefined);
@@ -279,7 +299,9 @@ async function authorizedFetch(
   headers.set("Authorization", `Bearer ${token}`);
   const response = await fetcher(url, { ...init, headers });
   if (response.status === 401)
-    throw new Error("A conexão com o Google expirou. Conecte novamente.");
+    throw new GoogleReconnectRequiredError(
+      "A conexão com o Google expirou. Conecte novamente.",
+    );
   if (response.status === 403)
     throw new Error(
       "O Google Drive recusou o acesso. Confira a permissão do app.",

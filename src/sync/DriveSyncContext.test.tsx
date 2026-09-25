@@ -24,8 +24,10 @@ import {
   downloadDriveSnapshot,
   forgetGoogleAccount,
   listDriveSnapshots,
+  reconnectGoogle,
   renewGoogle,
   uploadDriveSnapshot,
+  GoogleReconnectRequiredError,
   type DriveSnapshot,
 } from "./google";
 
@@ -38,6 +40,7 @@ vi.mock("./google", async (importOriginal) => {
     downloadDriveSnapshot: vi.fn(),
     listDriveSnapshots: vi.fn(),
     preloadGoogleIdentity: vi.fn().mockResolvedValue(undefined),
+    reconnectGoogle: vi.fn(),
     renewGoogle: vi.fn(),
     uploadDriveSnapshot: vi.fn(),
   };
@@ -127,6 +130,10 @@ beforeEach(async () => {
     expiresAt: Date.now() + 3_600_000,
   });
   vi.mocked(renewGoogle).mockResolvedValue(null);
+  vi.mocked(reconnectGoogle).mockResolvedValue({
+    ...account,
+    expiresAt: Date.now() + 3_600_000,
+  });
   vi.mocked(listDriveSnapshots).mockImplementation(async () => [...snapshots]);
   vi.mocked(uploadDriveSnapshot).mockImplementation(async (_token, data) => {
     const saved = {
@@ -317,9 +324,47 @@ describe("login e sincronização automática", () => {
     expect(screen.getByText("0 registros de água")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: "Entrar com Google para sincronizar",
+        name: "Reconectar Google para sincronizar",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("mantém os registros locais quando o Drive pede reconexão", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Entrar com Google para sincronizar",
+      }),
+    );
+    await screen.findByRole("link", { name: "Google Drive: sincronizado" });
+    await user.click(screen.getByRole("button", { name: "Registrar água" }));
+    await waitFor(() => expect(uploadDriveSnapshot).toHaveBeenCalledTimes(1), {
+      timeout: 3_000,
+    });
+    vi.mocked(listDriveSnapshots).mockRejectedValueOnce(
+      new GoogleReconnectRequiredError(
+        "A conexão com o Google expirou. Conecte novamente.",
+      ),
+    );
+    window.dispatchEvent(new Event("focus"));
+
+    const reconnect = await screen.findByRole("button", {
+      name: "Reconectar Google para sincronizar",
+    });
+    expect(screen.getByText("1 registros de água")).toBeInTheDocument();
+    expect((await loadData(account.id)).hydrationEntries).toHaveLength(1);
+    expect(localStorage.getItem("biorotina:google-account")).toContain(
+      account.id,
+    );
+
+    await user.click(reconnect);
+    await screen.findByRole("link", { name: "Google Drive: sincronizado" });
+    expect(reconnectGoogle).toHaveBeenCalledWith(
+      "test-client-id",
+      expect.objectContaining({ id: account.id }),
+    );
+    expect((await loadData(account.id)).hydrationEntries).toHaveLength(1);
   });
 
   it("renova em segundo plano uma conta lembrada depois que o token expira", async () => {
@@ -345,6 +390,38 @@ describe("login e sincronização automática", () => {
     ).toBeInTheDocument();
   });
 
+  it("reconecta após falha da renovação silenciosa sem pedir Drive novamente", async () => {
+    const saved = emptyData();
+    saved.hydrationEntries.push({
+      id: crypto.randomUUID(),
+      amountMl: 250,
+      drankAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    });
+    await saveData(saved, account.id);
+    localStorage.setItem(
+      "biorotina:google-account",
+      JSON.stringify({ ...account, expiresAt: Date.now() - 1 }),
+    );
+    vi.mocked(renewGoogle).mockRejectedValue(new Error("Popup indisponível"));
+    const user = userEvent.setup();
+    render(<App />);
+
+    await waitFor(() => expect(renewGoogle).toHaveBeenCalled());
+    expect(screen.getByText("0 registros de água")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", {
+        name: "Reconectar Google para sincronizar",
+      }),
+    );
+
+    expect(await screen.findByText("1 registros de água")).toBeInTheDocument();
+    expect(reconnectGoogle).toHaveBeenCalledWith("test-client-id", undefined);
+    expect(
+      screen.queryByRole("dialog", { name: "Guardar sua rotina no Drive?" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("restaura o Drive no primeiro acesso de um navegador vazio", async () => {
     const remote: AppData = {
       ...emptyData(),
@@ -367,6 +444,44 @@ describe("login e sincronização automática", () => {
     expect(
       await screen.findByRole("link", { name: "Google Drive: sincronizado" }),
     ).toBeInTheDocument();
+  });
+
+  it("recebe um registro novo de outro aparelho sem pedir para juntar", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Entrar com Google para sincronizar",
+      }),
+    );
+    await screen.findByRole("link", { name: "Google Drive: sincronizado" });
+    await user.click(screen.getByRole("button", { name: "Registrar água" }));
+    await waitFor(() => expect(uploadDriveSnapshot).toHaveBeenCalledTimes(1), {
+      timeout: 3_000,
+    });
+    await screen.findByRole("link", { name: "Google Drive: sincronizado" });
+
+    const phoneData = await loadData(account.id);
+    phoneData.hydrationEntries.push({
+      id: crypto.randomUUID(),
+      amountMl: 300,
+      drankAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    });
+    snapshots.unshift({
+      id: "phone-backup",
+      createdTime: new Date().toISOString(),
+    });
+    vi.mocked(downloadDriveSnapshot).mockResolvedValue(phoneData);
+    window.dispatchEvent(new Event("focus"));
+
+    await waitFor(async () =>
+      expect((await loadData(account.id)).hydrationEntries).toHaveLength(2),
+    );
+    expect(
+      screen.queryByRole("dialog", { name: "Como guardar seus registros?" }),
+    ).not.toBeInTheDocument();
+    expect(uploadDriveSnapshot).toHaveBeenCalledTimes(1);
   });
 
   it("só copia os dados sem conta após confirmação explícita", async () => {

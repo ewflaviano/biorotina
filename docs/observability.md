@@ -25,6 +25,11 @@ pseudônimo diário derivado com segredo e marca o contador para expirar em trê
 dias (a exclusão física é assíncrona).
 O endereço não entra nos registros do aplicativo.
 
+No Drive, `drive_reconnect_required` identifica a expiração ou falha de
+renovação do acesso Google; `drive_sync_failed` fica para as demais falhas de
+sincronização. Ambos são códigos fixos, sem e-mail, token, registros ou mensagem
+de erro, e só são enviados após consentimento.
+
 Para investigar erros de análise, consultar o grupo
 `/aws/lambda/biorotina-dev-billingApi` e filtrar por `operation=analyze`.
 `gemini_status` inclui somente o código HTTP do upstream; `gemini_timeout` separa
