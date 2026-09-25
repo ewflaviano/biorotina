@@ -150,7 +150,7 @@ resources:
         - HttpApiRoutePostApiFeedback
         - HttpApiRoutePostApiPushSubscriptions
         - HttpApiRoutePostApiTelemetryError
-        - HttpApiRouteAnyApiAuthProxy
+        - HttpApiRouteAnyApiAuthProxyVar
       Properties:
         RouteSettings:
           'POST /api/feedback':
