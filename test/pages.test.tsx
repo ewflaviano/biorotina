@@ -654,9 +654,10 @@ describe("medicação", () => {
 
   it("permite registrar um uso em uma data anterior", async () => {
     const initial = emptyData();
+    const medicationId = crypto.randomUUID();
     initial.medications = [
       {
-        id: "medicamento-exemplo",
+        id: medicationId,
         name: "Medicamento exemplo",
         dose: 500,
         unit: "mg",
@@ -675,7 +676,7 @@ describe("medicação", () => {
       expect((await loadData()).medicationLogs).toHaveLength(1),
     );
     const log = (await loadData()).medicationLogs[0];
-    expect(log.medicationId).toBe("medicamento-exemplo");
+    expect(log.medicationId).toBe(medicationId);
     expect(toLocalDateTime(log.takenAt)).toBe("2026-09-24T08:00");
   });
 
