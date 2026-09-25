@@ -195,10 +195,17 @@ async function authorizeCode(
     },
     body: JSON.stringify({ code }),
   });
-  if (!response.ok)
-    throw new Error(
-      "Não foi possível manter a conexão com o Google. Tente conectar novamente.",
-    );
+  if (!response.ok) {
+    const failure: unknown = await response.json().catch(() => null);
+    const message =
+      failure &&
+      typeof failure === "object" &&
+      "error" in failure &&
+      typeof failure.error === "string"
+        ? failure.error
+        : "Não foi possível manter a conexão com o Google. Tente conectar novamente.";
+    throw new Error(message);
+  }
   const payload: unknown = await response.json();
   if (
     !payload ||
