@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { openDB } from "idb";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { emptyData, type AppData } from "../src/domain/data";
+import { emptyData, toLocalDateTime, type AppData } from "../src/domain/data";
 import { ActivityPage } from "../src/pages/ActivityPage";
 import { DashboardPage } from "../src/pages/DashboardPage";
 import { FoodPage } from "../src/pages/FoodPage";
@@ -286,13 +286,13 @@ describe("registro de peso", () => {
     initial.profile.heightCm = 180;
     const user = await renderPage(<WeightPage />, initial);
     await user.type(screen.getByLabelText("Peso em kg"), "0");
-    await user.click(screen.getByRole("button", { name: "Salvar peso" }));
+    await user.click(screen.getByRole("button", { name: "Salvar medida" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "maior que zero",
     );
     await user.clear(screen.getByLabelText("Peso em kg"));
     await user.type(screen.getByLabelText("Peso em kg"), "72,4");
-    await user.click(screen.getByRole("button", { name: "Salvar peso" }));
+    await user.click(screen.getByRole("button", { name: "Salvar medida" }));
     await waitFor(async () =>
       expect((await loadData()).weights).toHaveLength(1),
     );
@@ -325,15 +325,31 @@ describe("registro de peso", () => {
     const user = await renderPage(<WeightPage />);
     const weight = screen.getByLabelText("Peso em kg");
     await user.type(weight, "-4");
-    await user.click(screen.getByRole("button", { name: "Salvar peso" }));
+    await user.click(screen.getByRole("button", { name: "Salvar medida" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "maior que zero",
     );
     await user.clear(weight);
     await user.type(weight, "400");
-    await user.click(screen.getByRole("button", { name: "Salvar peso" }));
+    await user.click(screen.getByRole("button", { name: "Salvar medida" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("350 kg");
     expect((await loadData()).weights).toHaveLength(0);
+  });
+
+  it("salva a altura em Medidas e valida valores implausíveis", async () => {
+    const user = await renderPage(<WeightPage />);
+    const height = screen.getByLabelText("Altura");
+    await user.type(height, "300");
+    await user.click(screen.getByRole("button", { name: "Salvar altura" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("250 cm");
+    expect((await loadData()).profile.heightCm).toBeNull();
+
+    await user.clear(height);
+    await user.type(height, "168");
+    await user.click(screen.getByRole("button", { name: "Salvar altura" }));
+    await waitFor(async () =>
+      expect((await loadData()).profile.heightCm).toBe(168),
+    );
   });
 
   it("usa a medida anterior como modelo sem copiar a data antiga", async () => {
@@ -353,7 +369,7 @@ describe("registro de peso", () => {
     expect(screen.getByLabelText("Peso em kg")).toHaveValue("72,125");
     expect(screen.getByLabelText("Data")).not.toHaveValue("2026-01-01");
     expect(screen.getByLabelText(/Observação/)).toHaveValue("");
-    await user.click(screen.getByRole("button", { name: "Salvar peso" }));
+    await user.click(screen.getByRole("button", { name: "Salvar medida" }));
     await waitFor(async () =>
       expect((await loadData()).weights).toHaveLength(2),
     );
@@ -636,6 +652,34 @@ describe("medicação", () => {
     );
   });
 
+  it("permite registrar um uso em uma data anterior", async () => {
+    const initial = emptyData();
+    const medicationId = crypto.randomUUID();
+    initial.medications = [
+      {
+        id: medicationId,
+        name: "Medicamento exemplo",
+        dose: 500,
+        unit: "mg",
+        reminderTimes: [],
+        reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    const user = await renderPage(<MedicationPage />, initial);
+    await user.click(screen.getByRole("button", { name: "Outra data" }));
+    await user.clear(screen.getByLabelText("Data"));
+    await user.type(screen.getByLabelText("Data"), "24/09/2026");
+    await user.selectOptions(screen.getByLabelText("Horário (24 h)"), "08:00");
+    await user.click(screen.getByRole("button", { name: "Salvar registro" }));
+    await waitFor(async () =>
+      expect((await loadData()).medicationLogs).toHaveLength(1),
+    );
+    const log = (await loadData()).medicationLogs[0];
+    expect(log.medicationId).toBe(medicationId);
+    expect(toLocalDateTime(log.takenAt)).toBe("2026-09-24T08:00");
+  });
+
   it("edita sem perder histórico e confirma exclusão em cascata", async () => {
     const initial = emptyData();
     const now = new Date().toISOString();
@@ -691,14 +735,6 @@ describe("medicação", () => {
 });
 
 describe("configurações e backup", () => {
-  it("não salva altura implausível e mostra por que a ação falhou", async () => {
-    const user = await renderPage(<SettingsPage />);
-    await user.type(screen.getByLabelText(/Altura em cm/), "300");
-    await user.click(screen.getByRole("button", { name: "Salvar perfil" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("250 cm");
-    expect((await loadData()).profile.heightCm).toBeNull();
-  });
-
   it("recusa importar um backup com peso fora da faixa de entrada", async () => {
     const user = await renderPage(<SettingsPage />);
     const backup = emptyData();
@@ -724,7 +760,6 @@ describe("configurações e backup", () => {
   it("salva perfil e rejeita um JSON incompatível sem alterar os dados", async () => {
     const user = await renderPage(<SettingsPage />);
     await user.type(screen.getByLabelText(/Como você quer ser chamado/), "Ana");
-    await user.type(screen.getByLabelText(/Altura em cm/), "168");
     await user.click(screen.getByRole("button", { name: "Salvar perfil" }));
     await waitFor(async () =>
       expect((await loadData()).profile.displayName).toBe("Ana"),

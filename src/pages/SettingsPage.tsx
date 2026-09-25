@@ -17,11 +17,8 @@ import {
 import {
   dateTimePt,
   parseBackup,
-  parseDecimal,
   totalRecords,
   validateAnthropometrics,
-  MIN_HEIGHT_CM,
-  MAX_HEIGHT_CM,
   type AppData,
 } from "../domain/data";
 import { Notice, PageHeader } from "../components/Layout";
@@ -41,14 +38,9 @@ export function SettingsPage() {
   const [draft, setDraft] = useState({
     profileKey,
     name: data.profile.displayName,
-    height: data.profile.heightCm?.toString().replace(".", ",") ?? "",
   });
   const name =
     draft.profileKey === profileKey ? draft.name : data.profile.displayName;
-  const height =
-    draft.profileKey === profileKey
-      ? draft.height
-      : (data.profile.heightCm?.toString().replace(".", ",") ?? "");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<AppData | null>(null);
@@ -67,19 +59,9 @@ export function SettingsPage() {
     setError("");
     setMessage("");
     try {
-      const heightCm = height.trim()
-        ? parseDecimal(height, "uma altura")
-        : null;
-      if (
-        heightCm !== null &&
-        (heightCm < MIN_HEIGHT_CM || heightCm > MAX_HEIGHT_CM)
-      )
-        throw new Error(
-          `Confira a altura: informe entre ${MIN_HEIGHT_CM} e ${MAX_HEIGHT_CM} cm.`,
-        );
       await mutate((current) => ({
         ...current,
-        profile: { displayName: name.trim(), heightCm },
+        profile: { ...current.profile, displayName: name.trim() },
       }));
       setMessage("Perfil salvo neste navegador.");
     } catch (cause) {
@@ -180,24 +162,9 @@ export function SettingsPage() {
                 placeholder="Seu nome"
                 value={name}
                 onChange={(event) =>
-                  setDraft({ profileKey, name: event.target.value, height })
+                  setDraft({ profileKey, name: event.target.value })
                 }
               />
-            </div>
-            <div className="field">
-              <label htmlFor="profile-height">
-                Altura em cm <span className="optional">opcional</span>
-              </label>
-              <input
-                id="profile-height"
-                inputMode="decimal"
-                placeholder="Ex.: 168"
-                value={height}
-                onChange={(event) =>
-                  setDraft({ profileKey, name, height: event.target.value })
-                }
-              />
-              <small>Usada apenas para calcular o IMC.</small>
             </div>
             <button className="button primary">Salvar perfil</button>
           </form>

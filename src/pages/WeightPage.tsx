@@ -1,4 +1,4 @@
-import { Scale } from "lucide-react";
+import { Ruler, Scale } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import {
   bmi,
@@ -9,7 +9,9 @@ import {
   toLocalDateTime,
   fromLocalDateTime,
   inputDecimal,
+  MAX_HEIGHT_CM,
   MAX_WEIGHT_KG,
+  MIN_HEIGHT_CM,
 } from "../domain/data";
 import { EmptyState, Notice, PageHeader } from "../components/Layout";
 import { WeightTrend } from "../components/ProgressCharts";
@@ -22,10 +24,15 @@ import type { WeightEntry } from "../domain/data";
 export function WeightPage() {
   const { data, mutate, removeWithUndo } = useAppData();
   const [value, setValue] = useState("");
+  const [height, setHeight] = useState(
+    data.profile.heightCm?.toString().replace(".", ",") ?? "",
+  );
   const [when, setWhen] = useState(toLocalDateTime(new Date().toISOString()));
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [heightSaving, setHeightSaving] = useState(false);
+  const [heightMessage, setHeightMessage] = useState("");
   const [prefilled, setPrefilled] = useState(false);
   const [actionError, setActionError] = useState("");
   const weights = [...data.weights].sort((a, b) =>
@@ -77,6 +84,34 @@ export function WeightPage() {
     }
   }
 
+  async function saveHeight(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    setHeightMessage("");
+    setHeightSaving(true);
+    try {
+      const heightCm = parseDecimal(height, "uma altura");
+      if (heightCm < MIN_HEIGHT_CM || heightCm > MAX_HEIGHT_CM)
+        throw new Error(
+          `Confira a altura: informe entre ${MIN_HEIGHT_CM} e ${MAX_HEIGHT_CM} cm.`,
+        );
+      await mutate((current) => ({
+        ...current,
+        profile: { ...current.profile, heightCm },
+      }));
+      setHeight(inputDecimal(heightCm));
+      setHeightMessage("Altura salva. Ela será usada no cálculo de IMC.");
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível salvar a altura.",
+      );
+    } finally {
+      setHeightSaving(false);
+    }
+  }
+
   function repeatWeight(item: WeightEntry) {
     setValue(inputDecimal(item.weightKg));
     setNote("");
@@ -103,33 +138,82 @@ export function WeightPage() {
     <>
       <PageHeader
         eyebrow="Corpo"
-        title="Peso"
+        title="Medidas"
         description="Registre suas medidas e acompanhe mudanças ao longo do tempo, sem julgamentos."
       />
       <div className="page-grid">
         <div className="main-stack">
+          <section
+            className="panel measurement-height"
+            aria-labelledby="altura"
+          >
+            <div className="card-title">
+              <span className="list-icon">
+                <Ruler size={20} aria-hidden="true" />
+              </span>
+              <div>
+                <h2 id="altura">Sua altura</h2>
+                <p>Usamos essa medida apenas para calcular o IMC.</p>
+              </div>
+            </div>
+            <form onSubmit={saveHeight} className="measurement-height-form">
+              <div className="field">
+                <label htmlFor="height-value">Altura</label>
+                <div className="measurement-value-input">
+                  <input
+                    id="height-value"
+                    inputMode="decimal"
+                    placeholder="Ex.: 168"
+                    value={height}
+                    onChange={(event) => setHeight(event.target.value)}
+                    required
+                  />
+                  <span aria-hidden="true">cm</span>
+                </div>
+              </div>
+              <button className="button secondary" disabled={heightSaving}>
+                {heightSaving ? "Salvando…" : "Salvar altura"}
+              </button>
+            </form>
+            {heightMessage && (
+              <p className="template-note" role="status">
+                {heightMessage}
+              </p>
+            )}
+          </section>
           <section className="panel" aria-labelledby="novo-peso">
             <h2 id="novo-peso">Registrar peso</h2>
-            <p className="muted">A medida fica salva neste navegador.</p>
+            <p className="muted">Cada registro entra no seu histórico.</p>
             {prefilled && (
               <p className="template-note" role="status">
                 Medida anterior preenchida. Confira o valor e salve como novo
                 registro.
               </p>
             )}
-            <form onSubmit={submit} className="form-grid">
-              <div className="field">
+            <form
+              onSubmit={submit}
+              className="form-grid measurement-weight-form"
+            >
+              <div className="field full measurement-weight-value">
                 <label htmlFor="weight-value">Peso em kg</label>
-                <input
-                  id="weight-value"
-                  inputMode="decimal"
-                  placeholder="Ex.: 72,4"
-                  value={value}
-                  onChange={(event) => setValue(event.target.value)}
-                  required
-                />
+                <div className="measurement-value-input">
+                  <input
+                    id="weight-value"
+                    inputMode="decimal"
+                    placeholder="Ex.: 72,4"
+                    value={value}
+                    onChange={(event) => setValue(event.target.value)}
+                    required
+                  />
+                  <span aria-hidden="true">kg</span>
+                </div>
               </div>
-              <DateTimeField id="weight-date" value={when} onChange={setWhen} />
+              <DateTimeField
+                id="weight-date"
+                value={when}
+                onChange={setWhen}
+                className="full"
+              />
               <div className="field full">
                 <label htmlFor="weight-note">
                   Observação <span className="optional">opcional</span>
@@ -148,7 +232,7 @@ export function WeightPage() {
                 </p>
               )}
               <button className="button primary" disabled={saving}>
-                {saving ? "Salvando…" : "Salvar peso"}
+                {saving ? "Salvando…" : "Salvar medida"}
               </button>
             </form>
           </section>
@@ -235,7 +319,7 @@ export function WeightPage() {
                 : !latest
                   ? "Registre um peso para calcular."
                   : data.profile.heightCm === null
-                    ? "Adicione sua altura nas configurações para calcular."
+                    ? "Adicione sua altura em Medidas para calcular."
                     : "Confira o peso e a altura cadastrados para calcular."}
             </p>
             <InfoDisclosure label="De onde vêm as faixas do IMC?">

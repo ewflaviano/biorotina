@@ -25,7 +25,7 @@ export function DashboardPage() {
   const { data } = useAppData();
   const shortcuts = [
     { to: "/hidratacao", label: "Água", icon: Droplets },
-    { to: "/peso", label: "Peso", icon: Scale },
+    { to: "/peso", label: "Medidas", icon: Scale },
     { to: "/atividades", label: "Atividade", icon: Activity },
     { to: "/alimentacao", label: "Refeição", icon: Apple },
     { to: "/medicamentos", label: "Medicação", icon: Pill },

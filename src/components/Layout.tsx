@@ -32,7 +32,7 @@ import { useAnalyticsPreference } from "../analytics/useAnalyticsPreference";
 
 const desktopNav = [
   { to: "/", label: "Hoje", mobileLabel: "Hoje", icon: House },
-  { to: "/peso", label: "Peso", mobileLabel: "Peso", icon: Scale },
+  { to: "/peso", label: "Medidas", mobileLabel: "Medidas", icon: Scale },
   {
     to: "/atividades",
     label: "Atividades",

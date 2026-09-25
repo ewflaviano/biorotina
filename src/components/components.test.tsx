@@ -60,7 +60,7 @@ describe("navegação", () => {
     expect(
       within(mobileNav).getByRole("link", { name: "Água" }),
     ).not.toHaveClass("active");
-    await user.click(screen.getAllByRole("link", { name: "Peso" })[0]);
+    await user.click(screen.getAllByRole("link", { name: "Medidas" })[0]);
     expect(await screen.findByText("Área de peso")).toBeInTheDocument();
     await user.click(screen.getAllByRole("link", { name: "Hidratação" })[0]);
     expect(await screen.findByText("Área de hidratação")).toBeInTheDocument();
@@ -175,7 +175,10 @@ describe("campos de registro", () => {
     const time = (screen.getByLabelText("Horário (24 h)") as HTMLSelectElement)
       .value;
     expect(
-      Math.abs(Date.now() - new Date(`${date}T${time}`).getTime()),
+      Math.abs(
+        Date.now() -
+          new Date(`${date.split("/").reverse().join("-")}T${time}`).getTime(),
+      ),
     ).toBeLessThan(60_000);
   });
 });

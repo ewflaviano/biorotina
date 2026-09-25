@@ -1280,6 +1280,36 @@ h3 {
   color: var(--color-text-secondary);
   opacity: 0.8;
 }
+.date-input {
+  position: relative;
+}
+.date-input > input:first-child {
+  padding-right: 50px;
+}
+.date-picker-button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--color-text);
+}
+.date-picker-button:hover {
+  background: var(--color-action-soft);
+  color: var(--color-action);
+}
+.date-picker-native {
+  position: absolute;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0;
+  pointer-events: none;
+}
 .field small {
   color: var(--color-text-secondary);
   font-size: 12px;
@@ -1296,6 +1326,41 @@ h3 {
 }
 .form-grid > .button {
   justify-self: start;
+}
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.measurement-height .card-title,
+.medication-log-panel .card-title {
+  margin-bottom: 16px;
+}
+.measurement-height-form {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+.measurement-height-form .field {
+  flex: 1 1 180px;
+}
+.measurement-value-input {
+  position: relative;
+}
+.measurement-value-input input {
+  padding-right: 48px;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.measurement-value-input span {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  pointer-events: none;
 }
 .entry-list li {
   display: flex;
@@ -1993,6 +2058,21 @@ h3 {
   }
   .medication-actions {
     padding-left: 0;
+  }
+  .measurement-weight-value .measurement-value-input {
+    max-width: 300px;
+  }
+}
+@media (max-width: 420px) {
+  .date-time-controls {
+    grid-template-columns: 1fr;
+  }
+  .measurement-height-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .measurement-height-form .button {
+    width: 100%;
   }
 }
 @media (min-width: 900px) {
