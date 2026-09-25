@@ -10,6 +10,21 @@ import {
 } from "../observability/client";
 
 const API = (import.meta.env.VITE_PUSH_API_URL || "").replace(/\/$/, "");
+async function sessionAccessToken(): Promise<string> {
+  const response = await fetch(API + "/api/auth/access-token", {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!response.ok)
+    throw new Error("Conecte sua conta Google para usar o plano.");
+  const payload: unknown = await response.json();
+  const parsed = z
+    .object({ accessToken: z.string().min(1) })
+    .safeParse(payload);
+  if (!parsed.success)
+    throw new Error("Não foi possível renovar a sessão Google.");
+  return parsed.data.accessToken;
+}
 const statusSchema = z.object({
   active: z.boolean(),
   cancelled: z.boolean(),
@@ -33,12 +48,25 @@ async function request(
   if (!googleToken)
     throw new Error("Conecte sua conta Google para usar o plano.");
   let response: Response;
+  let sessionToken: string;
   const source = operation === "photo_analyze" ? "photo" : "billing";
+  try {
+    sessionToken = await sessionAccessToken();
+  } catch (cause) {
+    if (cause instanceof Error && cause.message.startsWith("Conecte"))
+      throw cause;
+    reportClientError(source, "network_failed", operation);
+    throw new Error(
+      "Não foi possível conectar ao serviço do plano. Tente novamente mais tarde.",
+      { cause },
+    );
+  }
   try {
     response = await fetch(API + path, {
       ...init,
+      credentials: "include",
       headers: {
-        authorization: `Bearer ${googleToken}`,
+        authorization: `Bearer ${sessionToken}`,
         "content-type": "application/json",
         ...init.headers,
       },

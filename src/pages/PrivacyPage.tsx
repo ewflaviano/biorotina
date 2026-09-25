@@ -55,22 +55,26 @@ export function PrivacyPage() {
             e-mail para mostrar qual conta está conectada, além de acesso à área
             privada da Biorotina no seu Google Drive para criar, encontrar e
             recuperar o backup. O app não acessa os outros arquivos do Drive. O
-            token de acesso temporário fica no armazenamento deste navegador
-            para manter a conexão ao atualizar a página. O app tenta renová-lo
-            quando expira, e você pode se desconectar a qualquer momento. Para o
-            teste grátis ou o plano de IA, o token temporário é enviado ao
-            serviço da Biorotina apenas para confirmar a conta Google; ele não é
-            armazenado no servidor nem usado para acessar seu Drive.
+            token de acesso temporário fica somente em memória no navegador.
+            Para manter o Drive conectado entre aberturas, guardamos no servidor
+            um token de renovação Google protegido por criptografia, associado à
+            sua conta. Ele é usado apenas para obter novos tokens de acesso e
+            acessar a área privada de backups. Você pode encerrar a sessão deste
+            aparelho no app ou revogar o acesso da Biorotina nas configurações
+            da Conta Google. Para o teste grátis ou o plano de IA, o token
+            temporário é enviado ao serviço da Biorotina apenas para confirmar a
+            conta Google; ele não é usado para acessar seu Drive.
           </p>
           <p>
             Ao sair da conta no app, os registros, a chave Gemini pessoal e a
-            sessão Google são removidos deste navegador. Se houver alterações
-            ainda não sincronizadas, você pode esperar a conexão voltar, baixar
-            um JSON antes de sair ou apagar os dados sem backup. A cópia no
-            Drive permanece na sua conta Google. Você também pode revogar o
-            acesso nas configurações da Conta Google e excluir o backup na área
-            de dados de apps do Drive. Os dados do Google não são vendidos nem
-            usados para anúncios.
+            sessão deste aparelho são removidos. O token de renovação permanece
+            protegido no servidor até revogação da autorização Google. Se houver
+            alterações ainda não sincronizadas, você pode esperar a conexão
+            voltar, baixar um JSON antes de sair ou apagar os dados sem backup.
+            A cópia no Drive permanece na sua conta Google. Você também pode
+            revogar o acesso nas configurações da Conta Google e excluir o
+            backup na área de dados de apps do Drive. Os dados do Google não são
+            vendidos nem usados para anúncios.
           </p>
         </section>
         <section className="panel">

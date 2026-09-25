@@ -19,6 +19,19 @@ ns-441.awsdns-55.com
 
 Os registros CNAME de validação dos certificados ACM já foram criados nessa zona. Os dois certificados estão emitidos, e a variável do repositório `ENABLE_CUSTOM_DOMAIN=true` está configurada. O Serverless associa `biorotina.app.br` à distribuição CloudFront, cria `api.biorotina.app.br` no API Gateway e os respectivos registros Alias na zona Route 53.
 
+## OAuth Google para sessões duradouras
+
+Após criar/atualizar a stack com `make deploy`, configure o segredo do cliente OAuth Web no Secrets Manager sem colocá-lo no repositório ou nas variáveis `VITE_`:
+
+```sh
+read -rsp 'Google OAuth client secret: ' GOOGLE_OAUTH_CLIENT_SECRET; echo
+export GOOGLE_OAUTH_CLIENT_SECRET
+make configure-google-oauth
+unset GOOGLE_OAUTH_CLIENT_SECRET
+```
+
+O código usa o mesmo OAuth Client ID do frontend. O app externo precisa estar publicado em produção no Google Cloud; no estado Testing, refresh tokens podem expirar em sete dias. Cada aparelho faz uma autorização única para criar sua sessão. A sessão expira após 30 dias e pode ser restabelecida pelo fluxo de conexão. Os arquivos de backup continuam sendo enviados diretamente do navegador ao Drive.
+
 ## Implantação local
 
 Requer Node.js, Rust, AWS CLI com profile `biorotina` e Cargo Lambda. `npm ci` instala também o Zig usado no build da Lambda.
