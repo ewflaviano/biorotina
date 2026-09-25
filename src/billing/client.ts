@@ -33,6 +33,7 @@ async function request(
   if (!googleToken)
     throw new Error("Conecte sua conta Google para usar o plano.");
   let response: Response;
+  const source = operation === "photo_analyze" ? "photo" : "billing";
   try {
     response = await fetch(API + path, {
       ...init,
@@ -44,7 +45,7 @@ async function request(
       cache: "no-store",
     });
   } catch {
-    reportClientError("billing", "network_failed", operation);
+    reportClientError(source, "network_failed", operation);
     throw new Error(
       "Não foi possível conectar ao serviço do plano. Tente novamente mais tarde.",
     );
@@ -52,19 +53,16 @@ async function request(
   if (response.status === 404)
     throw new Error("O plano de IA ainda não está disponível. Volte em breve.");
   const payload: unknown = await response.json().catch(() => {
-    reportClientError(
-      "billing",
-      "response_invalid",
-      operation,
-      response.status,
-    );
+    reportClientError(source, "response_invalid", operation, response.status);
     return {};
   });
   if (!response.ok) {
     if (response.status >= 500)
       reportClientError(
-        "billing",
-        "billing_failed",
+        source,
+        operation === "photo_analyze"
+          ? "photo_analysis_failed"
+          : "billing_failed",
         operation,
         response.status,
       );

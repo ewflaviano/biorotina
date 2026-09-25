@@ -202,18 +202,39 @@ export async function analyzeMealImage(
     clearTimeout(timeout);
   }
 
-  if (response.status === 400)
+  if (response.status === 400) {
+    reportClientError(
+      "photo",
+      "photo_analysis_failed",
+      "photo_analyze",
+      response.status,
+    );
     throw new Error(
       "O Gemini recusou o formato da solicitação. Atualize a Biorotina e tente novamente.",
     );
-  if (response.status === 401 || response.status === 403)
+  }
+  if (response.status === 401 || response.status === 403) {
+    reportClientError(
+      "photo",
+      "photo_analysis_failed",
+      "photo_analyze",
+      response.status,
+    );
     throw new Error(
       "O Gemini não aceitou a chave ou a solicitação. Confira sua chave no Google AI Studio.",
     );
-  if (response.status === 429)
+  }
+  if (response.status === 429) {
+    reportClientError(
+      "photo",
+      "photo_analysis_failed",
+      "photo_analyze",
+      response.status,
+    );
     throw new Error(
       "O limite de uso da sua chave Gemini foi atingido. Tente mais tarde.",
     );
+  }
   if (!response.ok) {
     reportClientError(
       "photo",
