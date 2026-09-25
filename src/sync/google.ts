@@ -12,29 +12,22 @@ const MAX_BACKUP_BYTES = 10_000_000;
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
 const ACCOUNT_STORAGE_KEY = "biorotina:google-account";
+const API = (import.meta.env.VITE_PUSH_API_URL || "").replace(/\/$/, "");
 
-interface TokenResponse {
-  access_token?: string;
-  expires_in?: number;
-  scope?: string;
-  error?: string;
-}
-
-interface TokenClient {
-  requestAccessToken(options: { prompt: string }): void;
+interface CodeClient {
+  requestCode(): void;
 }
 
 interface GoogleIdentity {
   accounts: {
     oauth2: {
-      initTokenClient(options: {
+      initCodeClient(options: {
         client_id: string;
         scope: string;
-        login_hint?: string;
-        callback: (response: TokenResponse) => void;
+        ux_mode: "popup";
+        callback: (response: { code?: string; error?: string }) => void;
         error_callback: () => void;
-      }): TokenClient;
-      revoke(token: string, callback: () => void): void;
+      }): CodeClient;
     };
   };
 }
@@ -100,12 +93,19 @@ function readStoredAccount(): GoogleAccount | null {
       typeof parsed.id === "string" &&
       "email" in parsed &&
       typeof parsed.email === "string" &&
-      "token" in parsed &&
-      typeof parsed.token === "string" &&
       "expiresAt" in parsed &&
       typeof parsed.expiresAt === "number"
-    )
-      return parsed as GoogleAccount;
+    ) {
+      const account = parsed as Omit<GoogleAccount, "token"> & {
+        token?: string;
+      };
+      if (account.token) {
+        const safeAccount = { ...account };
+        delete safeAccount.token;
+        localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(safeAccount));
+      }
+      return { ...account, token: account.token ?? "" };
+    }
   } catch {
     // Sessões privadas podem bloquear o armazenamento; a conexão segue em memória.
   }
@@ -123,7 +123,11 @@ export function forgetGoogleAccount(): void {
 
 export function currentGoogleAccount(): GoogleAccount | null {
   if (!connectedAccount) connectedAccount = readStoredAccount();
-  if (connectedAccount && connectedAccount.expiresAt <= Date.now() + 60_000)
+  if (
+    connectedAccount &&
+    (!connectedAccount.token ||
+      connectedAccount.expiresAt <= Date.now() + 60_000)
+  )
     connectedAccount = null;
   return connectedAccount;
 }
@@ -139,134 +143,123 @@ export function rememberedGoogleAccountId(): string | null {
 export function rememberGoogleAccount(account: GoogleAccount): void {
   connectedAccount = account;
   try {
-    localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(account));
+    const remembered: Partial<GoogleAccount> = { ...account };
+    delete remembered.token;
+    localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(remembered));
   } catch {
     // O login ainda funciona durante esta visita sem armazenamento persistente.
   }
 }
 
-async function requestGoogleAccount(
+export function connectGoogle(clientId: string): Promise<GoogleAccount> {
+  return authorizeCode(clientId, `${IDENTITY_SCOPES}`, null);
+}
+
+async function authorizeCode(
   clientId: string,
-  prompt: "select_account" | "none" | "",
-  requestDrive: boolean,
-  loginHint?: string,
+  scope: string,
+  expected: GoogleAccount | null,
 ): Promise<GoogleAccount> {
   await preloadGoogleIdentity();
   const oauth2 = window.google?.accounts.oauth2;
   if (!oauth2)
     throw new Error("O login Google não está disponível neste navegador.");
-  const token = await new Promise<TokenResponse>((resolve, reject) => {
-    const timeout =
-      prompt === "none"
-        ? window.setTimeout(
-            () =>
-              reject(
-                new Error("Não foi possível renovar o acesso sem interação."),
-              ),
-            10_000,
-          )
-        : undefined;
-    const finish = (action: () => void) => {
-      window.clearTimeout(timeout);
-      action();
-    };
+  const code = await new Promise<string>((resolve, reject) => {
     try {
-      const client = oauth2.initTokenClient({
-        client_id: clientId,
-        scope: requestDrive ? DRIVE_SCOPES : IDENTITY_SCOPES,
-        login_hint: loginHint,
-        callback: (response) =>
-          finish(() =>
-            response.error
-              ? reject(
-                  new Error(
-                    "A conexão com o Google foi cancelada ou recusada.",
-                  ),
-                )
-              : resolve(response),
-          ),
-        error_callback: () =>
-          finish(() =>
+      oauth2
+        .initCodeClient({
+          client_id: clientId,
+          scope,
+          ux_mode: "popup",
+          callback: (response) =>
+            response.code
+              ? resolve(response.code)
+              : reject(new Error("Não foi possível conectar ao Google.")),
+          error_callback: () =>
             reject(
-              new Error(
-                "A janela de login foi fechada. Tente conectar novamente.",
-              ),
+              new Error("A janela do Google foi fechada. Tente novamente."),
             ),
-          ),
-      });
-      client.requestAccessToken({ prompt });
+        })
+        .requestCode();
     } catch (cause) {
-      finish(() => reject(cause));
+      reject(cause);
     }
   });
-  if (!token.access_token) {
-    throw new Error("Não foi possível entrar com a conta Google.");
-  }
-  if (requestDrive && !token.scope?.split(" ").includes(DRIVE_SCOPE)) {
-    throw new Error("Autorize o acesso à área privada de backups do Drive.");
-  }
-  const response = await fetch(
-    "https://openidconnect.googleapis.com/v1/userinfo",
-    {
-      headers: { Authorization: `Bearer ${token.access_token}` },
+  const response = await fetch(`${API}/api/auth/google/exchange`, {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    headers: {
+      "content-type": "application/json",
+      "X-Requested-With": "XMLHttpRequest",
     },
-  );
+    body: JSON.stringify({ code }),
+  });
   if (!response.ok)
-    throw new Error("Não foi possível identificar a conta Google.");
-  const identity: unknown = await response.json();
+    throw new Error(
+      "Não foi possível manter a conexão com o Google. Tente conectar novamente.",
+    );
+  const payload: unknown = await response.json();
   if (
-    !identity ||
-    typeof identity !== "object" ||
-    !("sub" in identity) ||
-    typeof identity.sub !== "string" ||
-    !("email" in identity) ||
-    typeof identity.email !== "string"
-  ) {
-    throw new Error("A conta Google não retornou uma identificação válida.");
-  }
+    !payload ||
+    typeof payload !== "object" ||
+    !("id" in payload) ||
+    typeof payload.id !== "string" ||
+    !("email" in payload) ||
+    typeof payload.email !== "string" ||
+    !("accessToken" in payload) ||
+    typeof payload.accessToken !== "string" ||
+    !("expiresIn" in payload) ||
+    typeof payload.expiresIn !== "number" ||
+    !("driveAuthorized" in payload) ||
+    typeof payload.driveAuthorized !== "boolean"
+  )
+    throw new Error("Resposta de conexão inválida.");
+  if (expected && payload.id !== expected.id)
+    throw new Error("Selecione a mesma conta Google para ativar o Drive.");
   return {
-    id: identity.sub,
-    email: identity.email,
-    token: token.access_token,
-    expiresAt: Date.now() + (token.expires_in ?? 3600) * 1000,
-    driveAuthorized: Boolean(token.scope?.split(" ").includes(DRIVE_SCOPE)),
+    id: payload.id,
+    email: payload.email,
+    token: payload.accessToken,
+    expiresAt: Date.now() + payload.expiresIn * 1000,
+    driveAuthorized: payload.driveAuthorized,
   };
-}
-
-export function connectGoogle(clientId: string): Promise<GoogleAccount> {
-  return requestGoogleAccount(clientId, "select_account", false);
 }
 
 export async function authorizeGoogleDrive(
   clientId: string,
   account: GoogleAccount,
 ): Promise<GoogleAccount> {
-  const authorized = await requestGoogleAccount(
-    clientId,
-    "",
-    true,
-    account.email,
-  );
-  if (authorized.id !== account.id)
-    throw new Error("Selecione a mesma conta Google para ativar o Drive.");
-  return authorized;
+  return authorizeCode(clientId, DRIVE_SCOPES, account);
 }
 
 export async function renewGoogle(
-  clientId: string,
+  _clientId: string,
 ): Promise<GoogleAccount | null> {
+  void _clientId;
   const previous = readStoredAccount();
   if (!previous) return null;
-  if (previous.expiresAt > Date.now() + 60_000) return previous;
-  const renewed = await requestGoogleAccount(
-    clientId,
-    "none",
-    previous.driveAuthorized !== false,
-    previous.email,
-  );
-  if (renewed.id !== previous.id)
-    throw new Error("Confirme sua conta Google para continuar sincronizando.");
-  return renewed;
+  if (previous.driveAuthorized === false) return previous;
+  const response = await fetch(`${API}/api/auth/drive-token`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Conecte novamente sua conta Google.");
+  const result: unknown = await response.json();
+  if (
+    !result ||
+    typeof result !== "object" ||
+    !("accessToken" in result) ||
+    typeof result.accessToken !== "string" ||
+    !("expiresIn" in result) ||
+    typeof result.expiresIn !== "number"
+  )
+    throw new Error("Resposta de sessão inválida.");
+  return {
+    ...previous,
+    token: result.accessToken,
+    expiresAt: Date.now() + result.expiresIn * 1000,
+  };
 }
 
 /** Reuses an existing grant after a user gesture, without asking for it twice. */
@@ -276,20 +269,17 @@ export async function reconnectGoogle(
 ): Promise<GoogleAccount> {
   const previous = currentAccount ?? readStoredAccount();
   if (!previous) throw new Error("Não há uma conta Google para reconectar.");
-  const reconnected = await requestGoogleAccount(
-    clientId,
-    "",
-    previous.driveAuthorized !== false,
-    previous.email,
-  );
-  if (reconnected.id !== previous.id)
-    throw new Error("Selecione a mesma conta Google para continuar.");
-  return reconnected;
+  return authorizeGoogleDrive(clientId, previous);
 }
 
-export function disconnectGoogle(account: GoogleAccount): void {
+export function disconnectGoogle(_account: GoogleAccount): void {
+  void _account;
   forgetGoogleAccount();
-  window.google?.accounts.oauth2.revoke(account.token, () => undefined);
+  void fetch(`${API}/api/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "X-Requested-With": "XMLHttpRequest" },
+  });
 }
 
 export interface DriveSnapshot {

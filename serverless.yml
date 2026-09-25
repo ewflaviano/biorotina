@@ -27,6 +27,8 @@ provider:
     BILLING_EVENTS_QUEUE_URL:
       Ref: BillingEventsQueue
     GOOGLE_CLIENT_ID: ${env:VITE_GOOGLE_CLIENT_ID, ''}
+    GOOGLE_OAUTH_SECRET_ARN:
+      Ref: GoogleOAuthClientSecret
     PUBLIC_APP_URL:
       Fn::If:
         - UseCustomDomain
@@ -44,6 +46,7 @@ provider:
       allowedHeaders:
         - authorization
         - content-type
+        - x-requested-with
       allowedMethods:
         - GET
         - POST
@@ -51,6 +54,7 @@ provider:
         - DELETE
         - OPTIONS
       maxAge: 3600
+      allowCredentials: true
 functions:
   api:
     handler: bootstrap
@@ -114,6 +118,18 @@ functions:
       - httpApi:
           path: /api/ai/trial-config
           method: ANY
+  authApi:
+    handler: bootstrap
+    timeout: 20
+    memorySize: 256
+    role:
+      Fn::GetAtt: [AuthApiExecutionRole, Arn]
+    package:
+      artifact: push/target/lambda/biorotina-auth-api.zip
+    events:
+      - httpApi:
+          path: /api/auth/{proxy+}
+          method: ANY
   billingWorker:
     handler: bootstrap
     timeout: 120
@@ -134,6 +150,7 @@ resources:
         - HttpApiRoutePostApiFeedback
         - HttpApiRoutePostApiPushSubscriptions
         - HttpApiRoutePostApiTelemetryError
+        - HttpApiRouteAnyApiAuthProxy
       Properties:
         RouteSettings:
           'POST /api/feedback':
@@ -145,6 +162,9 @@ resources:
           'POST /api/telemetry/error':
             ThrottlingBurstLimit: 10
             ThrottlingRateLimit: 2
+          'ANY /api/auth/{proxy+}':
+            ThrottlingBurstLimit: 10
+            ThrottlingRateLimit: 5
     HttpApi:
       Properties:
         CorsConfiguration:
@@ -156,8 +176,9 @@ resources:
                 - ''
                 - - 'https://'
                   - Fn::GetAtt: [FrontendDistribution, DomainName]
-          AllowHeaders: [authorization, content-type]
+          AllowHeaders: [authorization, content-type, x-requested-with]
           AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
+          AllowCredentials: true
           MaxAge: 3600
   Conditions:
     UseCustomDomain:
@@ -311,6 +332,28 @@ resources:
                   Action: [sqs:ReceiveMessage, sqs:DeleteMessage, sqs:GetQueueAttributes]
                   Resource:
                     Fn::GetAtt: [BillingEventsQueue, Arn]
+    AuthApiExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: biorotina-${sls:stage}-auth-api-execution
+        PermissionsBoundary: *executionBoundary
+        AssumeRolePolicyDocument: *lambdaTrust
+        Policies:
+          - PolicyName: google-auth-session
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action: [logs:CreateLogStream, logs:PutLogEvents]
+                  Resource:
+                    Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-${sls:stage}-authApi:*
+                - Effect: Allow
+                  Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:DeleteItem]
+                  Resource:
+                    Fn::GetAtt: [BillingTable, Arn]
+                - Effect: Allow
+                  Action: secretsmanager:GetSecretValue
+                  Resource: !Ref GoogleOAuthClientSecret
     PushTable:
       Type: AWS::DynamoDB::Table
       DeletionPolicy: Retain
@@ -390,6 +433,10 @@ resources:
         GenerateSecretString:
           PasswordLength: 64
           ExcludePunctuation: true
+    GoogleOAuthClientSecret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        SecretString: '{"clientSecret":""}'
     BillingEventsDlq:
       Type: AWS::SQS::Queue
       DeletionPolicy: Retain
@@ -598,3 +645,6 @@ resources:
     BillingWebhookTokenArn:
       Value:
         Ref: BillingWebhookToken
+    GoogleOAuthClientSecretArn:
+      Value:
+        Ref: GoogleOAuthClientSecret

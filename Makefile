@@ -31,10 +31,14 @@ deploy:
 	cp push/target/lambda/biorotina-api/bootstrap.zip push/target/lambda/biorotina-api.zip
 	cp push/target/lambda/biorotina-tick/bootstrap.zip push/target/lambda/biorotina-tick.zip
 	cp push/target/lambda/biorotina-billing-api/bootstrap.zip push/target/lambda/biorotina-billing-api.zip
+	cp push/target/lambda/biorotina-auth-api/bootstrap.zip push/target/lambda/biorotina-auth-api.zip
 	npx serverless deploy --aws-profile biorotina
 
 configure-billing:
 	AWS_PROFILE=biorotina AWS_REGION=sa-east-1 node scripts/configure-billing.mjs
+
+configure-google-oauth:
+	AWS_PROFILE=biorotina AWS_REGION=sa-east-1 node scripts/configure-google-oauth.mjs
 
 build:
 	npm run build

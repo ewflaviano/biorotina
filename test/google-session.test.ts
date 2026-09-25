@@ -4,38 +4,47 @@ afterEach(() => {
   localStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.resetModules();
 });
 
-describe("sessão Google ao atualizar a página", () => {
-  it("solicita identidade no login e Drive apenas após ação adicional", async () => {
-    const scopes: string[] = [];
-    const initTokenClient = vi.fn(
-      (options: { scope: string; callback: (response: object) => void }) => {
-        scopes.push(options.scope);
-        return {
-          requestAccessToken: () =>
-            options.callback({
-              access_token: "token",
-              expires_in: 3600,
-              scope: options.scope,
-            }),
-        };
-      },
+function googleCodeClient() {
+  const scopes: string[] = [];
+  const initCodeClient = vi.fn(
+    (options: {
+      scope: string;
+      callback: (response: { code: string }) => void;
+    }) => {
+      scopes.push(options.scope);
+      return {
+        requestCode: () => options.callback({ code: "authorization-code" }),
+      };
+    },
+  );
+  return { scopes, initCodeClient };
+}
+
+describe("sessão Google com renovação no servidor", () => {
+  it("usa autorização por código e nunca persiste access token no navegador", async () => {
+    const { scopes, initCodeClient } = googleCodeClient();
+    vi.stubGlobal("google", { accounts: { oauth2: { initCodeClient } } });
+    const fetcher = vi.fn(async () =>
+      Response.json({
+        id: "person",
+        email: "person@example.com",
+        accessToken: "short-token",
+        expiresIn: 3600,
+        driveAuthorized: scopes.at(-1)?.includes("drive.appdata") ?? false,
+      }),
     );
-    vi.stubGlobal("google", { accounts: { oauth2: { initTokenClient } } });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({
-          sub: "person",
-          email: "person@example.com",
-        }),
-      ),
-    );
+    vi.stubGlobal("fetch", fetcher);
     const google = await import("../src/sync/google");
     const signedIn = await google.connectGoogle("public-client-id");
     expect(signedIn.driveAuthorized).toBe(false);
     expect(scopes[0]).toBe("openid email");
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.stringContaining("/api/auth/google/exchange"),
+      expect.objectContaining({ credentials: "include" }),
+    );
     const connected = await google.authorizeGoogleDrive(
       "public-client-id",
       signedIn,
@@ -44,125 +53,81 @@ describe("sessão Google ao atualizar a página", () => {
     expect(scopes[1]).toContain(
       "https://www.googleapis.com/auth/drive.appdata",
     );
+    google.rememberGoogleAccount(connected);
+    expect(localStorage.getItem("biorotina:google-account")).not.toContain(
+      "short-token",
+    );
   });
 
-  it("restaura uma conexão válida do armazenamento do navegador", async () => {
+  it("renova access token chamando o backend com a sessão HttpOnly", async () => {
+    const fetcher = vi.fn(async () =>
+      Response.json({ accessToken: "renewed-token", expiresIn: 3600 }),
+    );
+    vi.stubGlobal("fetch", fetcher);
     const google = await import("../src/sync/google");
     google.rememberGoogleAccount({
       id: "person",
       email: "person@example.com",
-      token: "temporary",
-      expiresAt: Date.now() + 3_600_000,
-    });
-
-    vi.resetModules(); // Uma nova instância do módulo representa o refresh.
-    const reloaded = await import("../src/sync/google");
-    expect(reloaded.currentGoogleAccount()?.id).toBe("person");
-    expect(reloaded.currentGoogleAccount()?.token).toBe("temporary");
-  });
-
-  it("não reutiliza um token expirado", async () => {
-    const google = await import("../src/sync/google");
-    google.rememberGoogleAccount({
-      id: "person",
-      email: "person@example.com",
-      token: "expired",
-      expiresAt: Date.now() - 1,
-    });
-    vi.resetModules();
-    const reloaded = await import("../src/sync/google");
-    expect(reloaded.currentGoogleAccount()).toBeNull();
-    expect(reloaded.hasRememberedGoogleAccount()).toBe(true);
-  });
-
-  it("desconectar apaga a credencial armazenada", async () => {
-    const google = await import("../src/sync/google");
-    google.rememberGoogleAccount({
-      id: "person",
-      email: "person@example.com",
-      token: "temporary",
-      expiresAt: Date.now() + 3_600_000,
-    });
-    google.forgetGoogleAccount();
-    expect(google.currentGoogleAccount()).toBeNull();
-    expect(localStorage.getItem("biorotina:google-account")).toBeNull();
-  });
-
-  it("tenta renovar sem mostrar a seleção de conta e confere a identidade", async () => {
-    const requestAccessToken = vi.fn();
-    const initTokenClient = vi.fn(
-      (options: { callback: (response: object) => void }) => ({
-        requestAccessToken: (input: { prompt: string }) => {
-          requestAccessToken(input);
-          options.callback({
-            access_token: "renewed",
-            expires_in: 3600,
-            scope: "openid email https://www.googleapis.com/auth/drive.appdata",
-          });
-        },
-      }),
-    );
-    vi.stubGlobal("google", { accounts: { oauth2: { initTokenClient } } });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({ sub: "person", email: "person@example.com" }),
-      ),
-    );
-    const google = await import("../src/sync/google");
-    google.rememberGoogleAccount({
-      id: "person",
-      email: "person@example.com",
-      token: "expired",
-      expiresAt: Date.now() - 1,
-    });
-    const renewed = await google.renewGoogle("public-client-id");
-    expect(renewed?.token).toBe("renewed");
-    expect(initTokenClient).toHaveBeenCalledWith(
-      expect.objectContaining({ login_hint: "person@example.com" }),
-    );
-    expect(requestAccessToken).toHaveBeenCalledWith({ prompt: "none" });
-  });
-
-  it("reconecta por ação da pessoa com o Drive já autorizado", async () => {
-    const requestAccessToken = vi.fn();
-    const initTokenClient = vi.fn(
-      (options: { scope: string; callback: (response: object) => void }) => ({
-        requestAccessToken: (input: { prompt: string }) => {
-          requestAccessToken(input);
-          options.callback({
-            access_token: "fresh-token",
-            expires_in: 3600,
-            scope: options.scope,
-          });
-        },
-      }),
-    );
-    vi.stubGlobal("google", { accounts: { oauth2: { initTokenClient } } });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({ sub: "person", email: "person@example.com" }),
-      ),
-    );
-    const google = await import("../src/sync/google");
-    google.rememberGoogleAccount({
-      id: "person",
-      email: "person@example.com",
-      token: "expired",
+      token: "old-token",
       expiresAt: Date.now() - 1,
       driveAuthorized: true,
     });
+    const renewed = await google.renewGoogle("public-client-id");
+    expect(renewed?.token).toBe("renewed-token");
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.stringContaining("/api/auth/drive-token"),
+      expect.objectContaining({ credentials: "include", cache: "no-store" }),
+    );
+    expect(localStorage.getItem("biorotina:google-account")).not.toContain(
+      "renewed-token",
+    );
+  });
 
-    const reconnected = await google.reconnectGoogle("public-client-id");
+  it("reautoriza com o mesmo Google e restabelece a sessão do aparelho", async () => {
+    const { scopes, initCodeClient } = googleCodeClient();
+    vi.stubGlobal("google", { accounts: { oauth2: { initCodeClient } } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          id: "person",
+          email: "person@example.com",
+          accessToken: "fresh-token",
+          expiresIn: 3600,
+          driveAuthorized: true,
+        }),
+      ),
+    );
+    const google = await import("../src/sync/google");
+    const reconnected = await google.reconnectGoogle("public-client-id", {
+      id: "person",
+      email: "person@example.com",
+      token: "",
+      expiresAt: 0,
+      driveAuthorized: true,
+    });
     expect(reconnected.token).toBe("fresh-token");
-    expect(reconnected.driveAuthorized).toBe(true);
-    expect(initTokenClient).toHaveBeenCalledWith(
-      expect.objectContaining({
-        login_hint: "person@example.com",
-        scope: expect.stringContaining("/auth/drive.appdata"),
+    expect(scopes[0]).toContain(
+      "https://www.googleapis.com/auth/drive.appdata",
+    );
+  });
+
+  it("migra e remove access token antigo do localStorage", async () => {
+    localStorage.setItem(
+      "biorotina:google-account",
+      JSON.stringify({
+        id: "person",
+        email: "person@example.com",
+        token: "legacy-token",
+        expiresAt: Date.now() + 3_600_000,
+        driveAuthorized: true,
       }),
     );
-    expect(requestAccessToken).toHaveBeenCalledWith({ prompt: "" });
+    const google = await import("../src/sync/google");
+    google.currentGoogleAccount();
+    expect(localStorage.getItem("biorotina:google-account")).not.toContain(
+      "legacy-token",
+    );
+    expect(google.currentGoogleAccount()?.token).toBe("legacy-token");
   });
 });

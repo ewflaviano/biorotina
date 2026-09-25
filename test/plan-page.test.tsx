@@ -22,6 +22,14 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
+function mockSessionAndApi(payload: unknown, status = 200) {
+  vi.spyOn(globalThis, "fetch")
+    .mockResolvedValueOnce(
+      Response.json({ accessToken: "fresh-session-token" }),
+    )
+    .mockResolvedValueOnce(new Response(JSON.stringify(payload), { status }));
+}
+
 describe("assinatura sem conta conectada", () => {
   it("pede login Google antes do checkout e deixa a chave pessoal disponível", async () => {
     render(
@@ -42,21 +50,16 @@ describe("assinatura sem conta conectada", () => {
   });
   it("mostra nenhum plano ativo após consulta bem-sucedida, sem datas vazias", async () => {
     account = { token: "google-token", email: "pessoa@example.com" };
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          active: false,
-          cancelled: false,
-          renewalActive: false,
-          paidThrough: null,
-          nextCharge: null,
-          usedToday: 0,
-          dailyLimit: 10,
-          checkoutUrl: null,
-        }),
-        { status: 200 },
-      ),
-    );
+    mockSessionAndApi({
+      active: false,
+      cancelled: false,
+      renewalActive: false,
+      paidThrough: null,
+      nextCharge: null,
+      usedToday: 0,
+      dailyLimit: 10,
+      checkoutUrl: null,
+    });
     render(
       <MemoryRouter>
         <PlanPage />
@@ -72,21 +75,16 @@ describe("assinatura sem conta conectada", () => {
   });
   it("não oferece chave pessoal a quem já tem plano ativo", async () => {
     account = { token: "google-token", email: "pessoa@example.com" };
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          active: true,
-          cancelled: false,
-          renewalActive: true,
-          paidThrough: "2026-10-24",
-          nextCharge: "2026-10-24",
-          usedToday: 2,
-          dailyLimit: 10,
-          checkoutUrl: null,
-        }),
-        { status: 200 },
-      ),
-    );
+    mockSessionAndApi({
+      active: true,
+      cancelled: false,
+      renewalActive: true,
+      paidThrough: "2026-10-24",
+      nextCharge: "2026-10-24",
+      usedToday: 2,
+      dailyLimit: 10,
+      checkoutUrl: null,
+    });
     render(
       <MemoryRouter>
         <PlanPage />
@@ -106,9 +104,7 @@ describe("assinatura sem conta conectada", () => {
   });
   it("explica quando o serviço ainda não foi publicado sem mostrar erro técnico", async () => {
     account = { token: "google-token", email: "pessoa@example.com" };
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ message: "Not Found" }), { status: 404 }),
-    );
+    mockSessionAndApi({ message: "Not Found" }, 404);
     render(
       <MemoryRouter>
         <PlanPage />
