@@ -279,6 +279,8 @@ export function disconnectGoogle(_account: GoogleAccount): void {
     method: "POST",
     credentials: "include",
     headers: { "X-Requested-With": "XMLHttpRequest" },
+  }).catch(() => {
+    // Encerrar a sessão local não depende de a API estar disponível.
   });
 }
 
