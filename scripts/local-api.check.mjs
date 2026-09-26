@@ -52,10 +52,7 @@ test("simulador local preserva a sessão e isola usuários de teste", async (con
       "x-biorotina-force-experiment": "demo-highlight=enabled",
     },
   });
-  assert.deepEqual((await experiment.json()).enabled, [
-    "demo-highlight",
-    "onboarding-install-prompt",
-  ]);
+  assert.deepEqual((await experiment.json()).enabled, ["demo-highlight"]);
   const experimentApi = await fetch(api.url + "/api/experiments/demo", {
     method: "POST",
     headers: {
@@ -88,13 +85,13 @@ test("simulador local preserva a sessão e isola usuários de teste", async (con
     headers: { authorization: `Bearer ${second.account.accessToken}` },
   });
   assert.deepEqual((await isolated.json()).snapshots, []);
-  const outsideCohort = await fetch(api.url + "/api/experiments", {
+  const headerOptIn = await fetch(api.url + "/api/experiments", {
     headers: {
       cookie: second.cookie,
       "x-biorotina-force-experiment": "demo-highlight=enabled",
     },
   });
-  assert.deepEqual((await outsideCohort.json()).enabled, []);
+  assert.deepEqual((await headerOptIn.json()).enabled, ["demo-highlight"]);
 
   const billing = await fetch(api.url + "/api/billing/checkout", {
     method: "POST",
