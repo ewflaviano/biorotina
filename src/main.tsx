@@ -23,6 +23,7 @@ import { PushProvider } from "./state/PushContext";
 import { DriveSyncProvider } from "./sync/DriveSyncContext";
 import { ErrorBoundary } from "./observability/ErrorBoundary";
 import { installGlobalErrorHandlers } from "./observability/client";
+import { ExperimentProvider } from "./experiments/ExperimentContext";
 
 installGlobalErrorHandlers();
 void startVisitAnalytics();
@@ -64,9 +65,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <AppDataProvider>
         <PushProvider>
           <DriveSyncProvider>
-            <HashRouter>
-              <AppRoutes />
-            </HashRouter>
+            <ExperimentProvider>
+              <HashRouter>
+                <AppRoutes />
+              </HashRouter>
+            </ExperimentProvider>
           </DriveSyncProvider>
         </PushProvider>
       </AppDataProvider>

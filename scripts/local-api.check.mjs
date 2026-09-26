@@ -46,6 +46,23 @@ test("simulador local preserva a sessão e isola usuários de teste", async (con
   assert.match(apiToken, /^local-session-/);
   assert.equal((await fetch(api.url + "/api/auth/access-token")).status, 401);
 
+  const experiment = await fetch(api.url + "/api/experiments", {
+    headers: {
+      cookie: first.cookie,
+      "x-biorotina-force-experiment": "demo-highlight=enabled",
+    },
+  });
+  assert.deepEqual((await experiment.json()).enabled, ["demo-highlight"]);
+  const experimentApi = await fetch(api.url + "/api/experiments/demo", {
+    method: "POST",
+    headers: {
+      cookie: first.cookie,
+      "x-biorotina-experiment": "demo-highlight",
+      "x-biorotina-force-experiment": "demo-highlight=enabled",
+    },
+  });
+  assert.equal(experimentApi.status, 200);
+
   const backup = { schemaVersion: 4, profile: { displayName: "Teste" } };
   const saved = await fetch(api.url + "/api/local/drive/snapshots", {
     method: "POST",
@@ -68,6 +85,13 @@ test("simulador local preserva a sessão e isola usuários de teste", async (con
     headers: { authorization: `Bearer ${second.account.accessToken}` },
   });
   assert.deepEqual((await isolated.json()).snapshots, []);
+  const outsideCohort = await fetch(api.url + "/api/experiments", {
+    headers: {
+      cookie: second.cookie,
+      "x-biorotina-force-experiment": "demo-highlight=enabled",
+    },
+  });
+  assert.deepEqual((await outsideCohort.json()).enabled, []);
 
   const billing = await fetch(api.url + "/api/billing/checkout", {
     method: "POST",

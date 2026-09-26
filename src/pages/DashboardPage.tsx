@@ -10,6 +10,7 @@ import {
   Sprout,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import {
   datePt,
   inputDecimal,
@@ -20,9 +21,14 @@ import {
 import { useAppData } from "../state/AppDataContext";
 import { PageHeader } from "../components/Layout";
 import { WeeklyOverviewChart } from "../components/ProgressCharts";
+import { useExperiment } from "../experiments/ExperimentContext";
 
 export function DashboardPage() {
   const { data } = useAppData();
+  const experiment = useExperiment();
+  const [demoConfirmed, setDemoConfirmed] = useState(false);
+  const [demoError, setDemoError] = useState("");
+  const demoEnabled = experiment.enabled("demo-highlight");
   const shortcuts = [
     { to: "/hidratacao", label: "Água", icon: Droplets },
     { to: "/peso", label: "Medidas", icon: Scale },
@@ -110,9 +116,53 @@ export function DashboardPage() {
     <>
       <PageHeader
         eyebrow="Visão geral"
-        title="Seu dia, do seu jeito."
+        title={
+          demoEnabled ? "Seu dia, com um toque novo." : "Seu dia, do seu jeito."
+        }
         description="Escolha uma área para registrar e acompanhar sua rotina. Seus dados ficam neste navegador."
       />
+      {demoEnabled && (
+        <section
+          className="panel experiment-demo"
+          aria-labelledby="experiment-demo-title"
+        >
+          <p className="eyebrow">Experimento ativo</p>
+          <h2 id="experiment-demo-title">Resumo com novo destaque visual</h2>
+          <p className="muted">
+            Este texto e esta cor só aparecem para a coorte autorizada.
+          </p>
+          <button
+            className="button secondary"
+            type="button"
+            onClick={() =>
+              void experiment.confirmDemo().then(
+                () => {
+                  setDemoConfirmed(true);
+                  setDemoError("");
+                },
+                (cause: unknown) =>
+                  setDemoError(
+                    cause instanceof Error
+                      ? cause.message
+                      : "Não foi possível confirmar o experimento.",
+                  ),
+              )
+            }
+          >
+            Confirmar teste
+          </button>
+          {demoConfirmed && (
+            <p className="form-success">
+              A API confirmou que este experimento está ativo.
+            </p>
+          )}
+          {demoError && (
+            <p className="form-error" role="alert">
+              {demoError}
+            </p>
+          )}
+        </section>
+      )}
       <nav className="dashboard-shortcuts" aria-label="Registrar novo dado">
         {shortcuts.map(({ to, label, icon: Icon }) => (
           <Link key={to} to={to} className="dashboard-shortcut">

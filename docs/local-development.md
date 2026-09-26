@@ -35,6 +35,15 @@ Para iniciar o segundo usuário de teste, use
 `BIOROTINA_LOCAL_TEST_USER=2 make local`. Cada execução pode usar uma porta de
 API diferente com `BIOROTINA_LOCAL_API_PORT`, se necessário.
 
+Para validar um gate de experimento com o primeiro testador, use:
+
+```sh
+BIOROTINA_LOCAL_FORCE_EXPERIMENT=demo-highlight=enabled make local
+```
+
+Na página inicial, o texto muda para **Seu dia, com um toque novo**, o painel
+violeta aparece e **Confirmar teste** deve receber confirmação da API local.
+
 ## Roteiro no navegador
 
 1. Confira a faixa **Modo local** no topo.

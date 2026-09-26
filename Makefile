@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := run
 
-.PHONY: run dev local local-api local-reset install test test-watch coverage check build preview lint typecheck format format-check secrets deploy configure-billing help
+.PHONY: run dev local local-api local-reset install test test-watch coverage check build preview lint typecheck format format-check secrets deploy configure-billing configure-experiment help
 
 run:
 	npm run dev
@@ -41,6 +41,7 @@ deploy:
 	cp push/target/lambda/biorotina-tick/bootstrap.zip push/target/lambda/biorotina-tick.zip
 	cp push/target/lambda/biorotina-billing-api/bootstrap.zip push/target/lambda/biorotina-billing-api.zip
 	cp push/target/lambda/biorotina-auth-api/bootstrap.zip push/target/lambda/biorotina-auth-api.zip
+	cp push/target/lambda/biorotina-experiments-api/bootstrap.zip push/target/lambda/biorotina-experiments-api.zip
 	npx serverless deploy --aws-profile biorotina
 
 configure-billing:
@@ -48,6 +49,9 @@ configure-billing:
 
 configure-google-oauth:
 	AWS_PROFILE=biorotina AWS_REGION=sa-east-1 node scripts/configure-google-oauth.mjs
+
+configure-experiment:
+	npm run configure-experiment --
 
 build:
 	npm run build
@@ -76,6 +80,7 @@ help:
 	  'make local         Inicia app e APIs simuladas sem serviços externos' \
 	  'make local-api     Inicia somente as APIs simuladas em http://127.0.0.1:8787/' \
 	  'make local-reset   Remove os dados descartáveis locais' \
+	  'make configure-experiment -- --key demo-highlight --rollout 0 --revision 1  Atualiza um gate remoto' \
 	  'make install      Instala dependências com npm ci' \
 	  'make test         Executa todos os testes uma vez' \
 	  'make test-watch   Executa testes continuamente' \

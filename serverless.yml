@@ -1,5 +1,5 @@
 service: biorotina
-frameworkVersion: '3'
+frameworkVersion: "3"
 
 package:
   individually: true
@@ -26,6 +26,8 @@ provider:
       Ref: BillingWebhookToken
     BILLING_EVENTS_QUEUE_URL:
       Ref: BillingEventsQueue
+    EXPERIMENTS_TABLE_NAME:
+      Ref: ExperimentsTable
     GOOGLE_CLIENT_ID: ${env:VITE_GOOGLE_CLIENT_ID, ''}
     GOOGLE_OAUTH_SECRET_ARN:
       Ref: GoogleOAuthClientSecret
@@ -34,8 +36,8 @@ provider:
         - UseCustomDomain
         - https://biorotina.app.br
         - Fn::Join:
-            - ''
-            - - 'https://'
+            - ""
+            - - "https://"
               - Fn::GetAtt: [FrontendDistribution, DomainName]
   httpApi:
     cors:
@@ -47,6 +49,8 @@ provider:
         - authorization
         - content-type
         - x-requested-with
+        - x-biorotina-experiment
+        - x-biorotina-force-experiment
       allowedMethods:
         - GET
         - POST
@@ -130,6 +134,21 @@ functions:
       - httpApi:
           path: /api/auth/{proxy+}
           method: ANY
+  experimentsApi:
+    handler: bootstrap
+    timeout: 10
+    memorySize: 256
+    role:
+      Fn::GetAtt: [ExperimentsApiExecutionRole, Arn]
+    package:
+      artifact: push/target/lambda/biorotina-experiments-api.zip
+    events:
+      - httpApi:
+          path: /api/experiments
+          method: GET
+      - httpApi:
+          path: /api/experiments/demo
+          method: POST
   billingWorker:
     handler: bootstrap
     timeout: 120
@@ -153,16 +172,16 @@ resources:
         - HttpApiRouteAnyApiAuthProxyVar
       Properties:
         RouteSettings:
-          'POST /api/feedback':
+          "POST /api/feedback":
             ThrottlingBurstLimit: 2
             ThrottlingRateLimit: 1
-          'POST /api/push/subscriptions':
+          "POST /api/push/subscriptions":
             ThrottlingBurstLimit: 10
             ThrottlingRateLimit: 5
-          'POST /api/telemetry/error':
+          "POST /api/telemetry/error":
             ThrottlingBurstLimit: 10
             ThrottlingRateLimit: 2
-          'ANY /api/auth/{proxy+}':
+          "ANY /api/auth/{proxy+}":
             ThrottlingBurstLimit: 10
             ThrottlingRateLimit: 5
     HttpApi:
@@ -173,16 +192,23 @@ resources:
             - http://localhost:5173
             - https://biorotina.app.br
             - Fn::Join:
-                - ''
-                - - 'https://'
+                - ""
+                - - "https://"
                   - Fn::GetAtt: [FrontendDistribution, DomainName]
-          AllowHeaders: [authorization, content-type, x-requested-with]
+          AllowHeaders:
+            [
+              authorization,
+              content-type,
+              x-requested-with,
+              x-biorotina-experiment,
+              x-biorotina-force-experiment,
+            ]
           AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
           AllowCredentials: true
           MaxAge: 3600
   Conditions:
     UseCustomDomain:
-      Fn::Equals: ["${env:ENABLE_CUSTOM_DOMAIN, 'true'}", 'true']
+      Fn::Equals: ["${env:ENABLE_CUSTOM_DOMAIN, 'true'}", "true"]
   Resources:
     PushApiExecutionRole:
       Type: AWS::IAM::Role
@@ -191,7 +217,7 @@ resources:
         PermissionsBoundary: &executionBoundary
           Fn::ImportValue: BiorotinaLambdaExecutionBoundaryArn
         AssumeRolePolicyDocument: &lambdaTrust
-          Version: '2012-10-17'
+          Version: "2012-10-17"
           Statement:
             - Effect: Allow
               Principal:
@@ -200,18 +226,25 @@ resources:
         Policies:
           - PolicyName: push-api-data
             PolicyDocument:
-              Version: '2012-10-17'
+              Version: "2012-10-17"
               Statement:
                 - Effect: Allow
                   Action: [logs:CreateLogStream, logs:PutLogEvents]
                   Resource:
                     Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-${sls:stage}-api:*
                 - Effect: Allow
-                  Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:DeleteItem, dynamodb:Query]
+                  Action:
+                    [
+                      dynamodb:GetItem,
+                      dynamodb:PutItem,
+                      dynamodb:UpdateItem,
+                      dynamodb:DeleteItem,
+                      dynamodb:Query,
+                    ]
                   Resource:
                     - Fn::GetAtt: [PushTable, Arn]
                     - Fn::Join:
-                        - ''
+                        - ""
                         - - Fn::GetAtt: [PushTable, Arn]
                           - /index/DueIndex
                 - Effect: Allow
@@ -225,8 +258,8 @@ resources:
                   Condition:
                     ForAllValues:StringEquals:
                       ses:Recipients: ewanderson.flaviano@gmail.com
-                    'Null':
-                      ses:Recipients: 'false'
+                    "Null":
+                      ses:Recipients: "false"
     TelemetryExecutionRole:
       Type: AWS::IAM::Role
       Properties:
@@ -236,7 +269,7 @@ resources:
         Policies:
           - PolicyName: telemetry-logs
             PolicyDocument:
-              Version: '2012-10-17'
+              Version: "2012-10-17"
               Statement:
                 - Effect: Allow
                   Action: [logs:CreateLogStream, logs:PutLogEvents]
@@ -248,7 +281,7 @@ resources:
         RoleName: biorotina-${sls:stage}-tick-execution
         PermissionsBoundary: *executionBoundary
         AssumeRolePolicyDocument:
-          Version: '2012-10-17'
+          Version: "2012-10-17"
           Statement:
             - Effect: Allow
               Principal:
@@ -257,18 +290,25 @@ resources:
         Policies:
           - PolicyName: tick-data-and-schedule
             PolicyDocument:
-              Version: '2012-10-17'
+              Version: "2012-10-17"
               Statement:
                 - Effect: Allow
                   Action: [logs:CreateLogStream, logs:PutLogEvents]
                   Resource:
                     Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-${sls:stage}-tick:*
                 - Effect: Allow
-                  Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:DeleteItem, dynamodb:Query]
+                  Action:
+                    [
+                      dynamodb:GetItem,
+                      dynamodb:PutItem,
+                      dynamodb:UpdateItem,
+                      dynamodb:DeleteItem,
+                      dynamodb:Query,
+                    ]
                   Resource:
                     - Fn::GetAtt: [PushTable, Arn]
                     - Fn::Join:
-                        - ''
+                        - ""
                         - - Fn::GetAtt: [PushTable, Arn]
                           - /index/DueIndex
                 - Effect: Allow
@@ -289,14 +329,21 @@ resources:
         Policies:
           - PolicyName: billing-api-data
             PolicyDocument:
-              Version: '2012-10-17'
+              Version: "2012-10-17"
               Statement:
                 - Effect: Allow
                   Action: [logs:CreateLogStream, logs:PutLogEvents]
                   Resource:
                     Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-${sls:stage}-billingApi:*
                 - Effect: Allow
-                  Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:DeleteItem, dynamodb:TransactWriteItems]
+                  Action:
+                    [
+                      dynamodb:GetItem,
+                      dynamodb:PutItem,
+                      dynamodb:UpdateItem,
+                      dynamodb:DeleteItem,
+                      dynamodb:TransactWriteItems,
+                    ]
                   Resource:
                     Fn::GetAtt: [BillingTable, Arn]
                 - Effect: Allow
@@ -315,21 +362,32 @@ resources:
         Policies:
           - PolicyName: billing-worker-data
             PolicyDocument:
-              Version: '2012-10-17'
+              Version: "2012-10-17"
               Statement:
                 - Effect: Allow
                   Action: [logs:CreateLogStream, logs:PutLogEvents]
                   Resource:
                     Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-${sls:stage}-billingWorker:*
                 - Effect: Allow
-                  Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:DeleteItem]
+                  Action:
+                    [
+                      dynamodb:GetItem,
+                      dynamodb:PutItem,
+                      dynamodb:UpdateItem,
+                      dynamodb:DeleteItem,
+                    ]
                   Resource:
                     Fn::GetAtt: [BillingTable, Arn]
                 - Effect: Allow
                   Action: secretsmanager:GetSecretValue
                   Resource: [!Ref BillingKeys, !Ref BillingWebhookToken]
                 - Effect: Allow
-                  Action: [sqs:ReceiveMessage, sqs:DeleteMessage, sqs:GetQueueAttributes]
+                  Action:
+                    [
+                      sqs:ReceiveMessage,
+                      sqs:DeleteMessage,
+                      sqs:GetQueueAttributes,
+                    ]
                   Resource:
                     Fn::GetAtt: [BillingEventsQueue, Arn]
     AuthApiExecutionRole:
@@ -341,19 +399,40 @@ resources:
         Policies:
           - PolicyName: google-auth-session
             PolicyDocument:
-              Version: '2012-10-17'
+              Version: "2012-10-17"
               Statement:
                 - Effect: Allow
                   Action: [logs:CreateLogStream, logs:PutLogEvents]
                   Resource:
                     Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-${sls:stage}-authApi:*
                 - Effect: Allow
-                  Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:DeleteItem]
+                  Action:
+                    [dynamodb:GetItem, dynamodb:PutItem, dynamodb:DeleteItem]
                   Resource:
                     Fn::GetAtt: [BillingTable, Arn]
                 - Effect: Allow
                   Action: secretsmanager:GetSecretValue
                   Resource: !Ref GoogleOAuthClientSecret
+    ExperimentsApiExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: biorotina-${sls:stage}-experiments-api-execution
+        PermissionsBoundary: *executionBoundary
+        AssumeRolePolicyDocument: *lambdaTrust
+        Policies:
+          - PolicyName: experiments-api-data
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action: [logs:CreateLogStream, logs:PutLogEvents]
+                  Resource:
+                    Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biorotina-${sls:stage}-experimentsApi:*
+                - Effect: Allow
+                  Action: [dynamodb:GetItem]
+                  Resource:
+                    - Fn::GetAtt: [BillingTable, Arn]
+                    - Fn::GetAtt: [ExperimentsTable, Arn]
     PushTable:
       Type: AWS::DynamoDB::Table
       DeletionPolicy: Retain
@@ -418,6 +497,24 @@ resources:
         TimeToLiveSpecification:
           AttributeName: ttl
           Enabled: true
+        SSESpecification:
+          SSEEnabled: true
+    ExperimentsTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        BillingMode: PAY_PER_REQUEST
+        DeletionProtectionEnabled: true
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+          RecoveryPeriodInDays: 35
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
         SSESpecification:
           SSEEnabled: true
     BillingKeys:
@@ -520,7 +617,7 @@ resources:
               DomainName:
                 Fn::GetAtt: [FrontendBucket, RegionalDomainName]
               S3OriginConfig:
-                OriginAccessIdentity: ''
+                OriginAccessIdentity: ""
               OriginAccessControlId:
                 Fn::GetAtt: [FrontendOac, Id]
           DefaultCacheBehavior:
@@ -543,7 +640,7 @@ resources:
         Bucket:
           Ref: FrontendBucket
         PolicyDocument:
-          Version: '2012-10-17'
+          Version: "2012-10-17"
           Statement:
             - Sid: AllowCloudFrontRead
               Effect: Allow
@@ -552,17 +649,17 @@ resources:
               Action: s3:GetObject
               Resource:
                 Fn::Join:
-                  - ''
+                  - ""
                   - - Fn::GetAtt: [FrontendBucket, Arn]
-                    - '/*'
+                    - "/*"
               Condition:
                 StringEquals:
                   AWS:SourceArn:
                     Fn::Join:
-                      - ''
-                      - - 'arn:aws:cloudfront::'
+                      - ""
+                      - - "arn:aws:cloudfront::"
                         - Ref: AWS::AccountId
-                        - ':distribution/'
+                        - ":distribution/"
                         - Ref: FrontendDistribution
     ApiCustomDomain:
       Condition: UseCustomDomain
@@ -630,8 +727,8 @@ resources:
           - UseCustomDomain
           - https://biorotina.app.br
           - Fn::Join:
-              - ''
-              - - 'https://'
+              - ""
+              - - "https://"
                 - Fn::GetAtt: [FrontendDistribution, DomainName]
     PushApiUrl:
       Value:

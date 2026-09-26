@@ -376,7 +376,9 @@ async fn exchange(
             None,
         );
     }
-    let cookie = format!("{COOKIE}={session}; Path=/api/auth; Max-Age={SESSION_SECONDS}; HttpOnly; Secure; SameSite=Lax");
+    let cookie = format!(
+        "{COOKIE}={session}; Path=/api; Max-Age={SESSION_SECONDS}; HttpOnly; Secure; SameSite=Lax"
+    );
     response(
         StatusCode::OK,
         json!({"id":identity.sub,"email":identity.email,"accessToken":tokens.access_token,"expiresIn":tokens.expires_in,"driveAuthorized":scopes.split_whitespace().any(|s| s == DRIVE_SCOPE)}),
