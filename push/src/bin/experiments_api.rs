@@ -6,7 +6,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -35,13 +35,35 @@ struct App {
     cache: Arc<Mutex<HashMap<String, (Instant, ExperimentConfig)>>>,
 }
 
-#[derive(Clone, Default, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ExperimentConfig {
     enabled: bool,
     kill_switch: bool,
     rollout_percent: u8,
     revision: u64,
+}
+
+impl Default for ExperimentConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            kill_switch: false,
+            rollout_percent: 0,
+            revision: 1,
+        }
+    }
+}
+
+fn valid_config(config: &ExperimentConfig) -> bool {
+    config.rollout_percent <= 100 && (1..=2_147_483_647).contains(&config.revision)
+}
+
+fn unavailable() -> ExperimentConfig {
+    ExperimentConfig {
+        kill_switch: true,
+        ..ExperimentConfig::default()
+    }
 }
 
 #[tokio::main]
@@ -114,23 +136,25 @@ async fn config(app: &App, feature: &str) -> ExperimentConfig {
             return config;
         }
     }
-    let loaded = app
+    let loaded = match app
         .db
         .get_item()
         .table_name(&app.experiments_table)
         .key("pk", A::S(format!("EXPERIMENT#{feature}")))
         .send()
         .await
-        .ok()
-        .and_then(|item| item.item)
-        .and_then(|item| {
-            item.get("config")
+    {
+        Ok(output) => match output.item {
+            None => ExperimentConfig::default(),
+            Some(item) => item
+                .get("config")
                 .and_then(|value| value.as_s().ok())
-                .cloned()
-        })
-        .and_then(|value| serde_json::from_str::<ExperimentConfig>(&value).ok())
-        .filter(|config| config.rollout_percent <= 100)
-        .unwrap_or_default();
+                .and_then(|value| serde_json::from_str::<ExperimentConfig>(value).ok())
+                .filter(valid_config)
+                .unwrap_or_else(unavailable),
+        },
+        Err(_) => unavailable(),
+    };
     app.cache
         .lock()
         .await
@@ -181,30 +205,41 @@ async fn assignments(
     headers: HeaderMap,
 ) -> (StatusCode, [(HeaderName, &'static str); 2], Json<Value>) {
     let account = account_key(&app, &headers).await;
-    if account.is_none() {
-        return response(
-            StatusCode::UNAUTHORIZED,
-            json!({"error":"Conecte sua conta Google para participar de testes."}),
-        );
-    }
-    let mut active = Vec::new();
-    let mut revisions = serde_json::Map::new();
+    let mut configs = Vec::new();
     for feature in FEATURES {
-        let config = config(&app, feature).await;
-        if enabled(
-            &config,
-            feature,
-            account.as_deref(),
-            forced(&headers, feature),
-        ) {
-            active.push(*feature);
-            revisions.insert((*feature).to_owned(), json!(config.revision));
-        }
+        configs.push((*feature, config(&app, feature).await));
     }
     response(
         StatusCode::OK,
-        json!({"enabled": active, "revisions": revisions}),
+        decisions(&configs, account.as_deref(), &headers),
     )
+}
+
+fn decisions(
+    configs: &[(&str, ExperimentConfig)],
+    account: Option<&str>,
+    headers: &HeaderMap,
+) -> Value {
+    let mut active = Vec::new();
+    let mut revisions = serde_json::Map::new();
+    let mut browser = serde_json::Map::new();
+    let mut forced_keys = Vec::new();
+    for (feature, config) in configs {
+        let force = account.is_some() && forced(headers, feature) && !config.kill_switch;
+        if force {
+            forced_keys.push(*feature);
+        }
+        // Keep legacy assignments during rolling frontend deployment. Protected
+        // operations still evaluate their account-based gate on the server.
+        if enabled(config, feature, account, force) {
+            active.push(*feature);
+            revisions.insert((*feature).to_owned(), json!(config.revision));
+        }
+        if *feature != DEMO_FEATURE {
+            browser.insert((*feature).to_owned(), json!(config));
+        }
+    }
+    json!({"enabled": active, "revisions": revisions, "browser": browser, "forced": forced_keys})
 }
 
 async fn demo(
@@ -248,6 +283,64 @@ mod tests {
             revision: 1,
         }
     }
+    #[test]
+    fn public_configuration_does_not_authorize_anonymous_requests_or_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-biorotina-force-experiment",
+            "demo-highlight=enabled,hydration-form-confirmation=enabled"
+                .parse()
+                .unwrap(),
+        );
+        let configs: Vec<_> = FEATURES
+            .iter()
+            .map(|key| (*key, ExperimentConfig::default()))
+            .collect();
+        let anonymous = decisions(&configs, None, &headers);
+        assert_eq!(anonymous["enabled"], json!([]));
+        assert_eq!(anonymous["forced"], json!([]));
+        assert!(anonymous["browser"].get(DEMO_FEATURE).is_none());
+        assert_eq!(
+            anonymous["browser"]["hydration-form-confirmation"]["enabled"],
+            false
+        );
+        let authenticated = decisions(&configs, Some("test"), &headers);
+        assert_eq!(
+            authenticated["forced"],
+            json!([DEMO_FEATURE, "hydration-form-confirmation"])
+        );
+        let stopped = decisions(
+            &[("hydration-form-confirmation", unavailable())],
+            Some("test"),
+            &headers,
+        );
+        assert_eq!(stopped["forced"], json!([]));
+        assert_eq!(
+            stopped["browser"]["hydration-form-confirmation"]["killSwitch"],
+            true
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_revisions_and_percentages() {
+        for value in [
+            ExperimentConfig {
+                revision: 0,
+                ..config()
+            },
+            ExperimentConfig {
+                revision: 2_147_483_648,
+                ..config()
+            },
+            ExperimentConfig {
+                rollout_percent: 101,
+                ..config()
+            },
+        ] {
+            assert!(!valid_config(&value));
+        }
+    }
+
     #[test]
     fn every_registered_feature_defaults_off_and_respects_kill_switch() {
         for feature in FEATURES {

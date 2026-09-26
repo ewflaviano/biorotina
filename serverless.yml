@@ -92,6 +92,9 @@ functions:
       - httpApi:
           path: /api/telemetry/error
           method: POST
+      - httpApi:
+          path: /api/telemetry/experiment
+          method: POST
   tick:
     handler: bootstrap
     timeout: 120
@@ -169,6 +172,8 @@ resources:
         - HttpApiRoutePostApiFeedback
         - HttpApiRoutePostApiPushSubscriptions
         - HttpApiRoutePostApiTelemetryError
+        - HttpApiRoutePostApiTelemetryExperiment
+        - HttpApiRouteGetApiExperiments
         - HttpApiRouteAnyApiAuthProxyVar
       Properties:
         RouteSettings:
@@ -181,6 +186,12 @@ resources:
           "POST /api/telemetry/error":
             ThrottlingBurstLimit: 10
             ThrottlingRateLimit: 2
+          "POST /api/telemetry/experiment":
+            ThrottlingBurstLimit: 20
+            ThrottlingRateLimit: 5
+          "GET /api/experiments":
+            ThrottlingBurstLimit: 20
+            ThrottlingRateLimit: 10
           "ANY /api/auth/{proxy+}":
             ThrottlingBurstLimit: 10
             ThrottlingRateLimit: 5

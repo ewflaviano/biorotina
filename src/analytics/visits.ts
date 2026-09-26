@@ -1,5 +1,3 @@
-import type { ExperimentKey } from "../experiments/registry";
-
 /** Site visit measurement. This module never receives app records or account data. */
 
 const PREFERENCE_KEY = "biorotina.analytics.consent.v1";
@@ -12,26 +10,6 @@ let analyticsPromise: Promise<boolean> | null = null;
 let disableCollection: (() => void) | null = null;
 let enableCollection: (() => void) | null = null;
 let visitSent = false;
-let trackExperiment:
-  ((event: string, params: Record<string, string>) => void) | null = null;
-
-/** Records only a registered experiment key and outcome after diagnostic consent. */
-export function recordExperimentEvent(
-  outcome: "exposure" | "use" | "error" | "rollback",
-  experiment: ExperimentKey,
-  revision = "unknown",
-): void {
-  if (
-    getAnalyticsPreference() !== "accepted" ||
-    window.location.hostname !== PRODUCTION_HOST
-  )
-    return;
-  void startVisitAnalytics().then((active) => {
-    if (active)
-      trackExperiment?.(`experiment_${outcome}`, { experiment, revision });
-  });
-}
-
 export function getAnalyticsPreference(): AnalyticsPreference {
   try {
     const saved = localStorage.getItem(PREFERENCE_KEY);
@@ -169,8 +147,6 @@ async function initializeVisitAnalytics(): Promise<boolean> {
     return false;
   }
   enableCollection();
-  trackExperiment = (event, params) =>
-    analyticsSdk.logEvent(analytics, event, params);
   if (!visitSent) {
     analyticsSdk.logEvent(analytics, "app_visit", {
       page_location: canonicalUrl,

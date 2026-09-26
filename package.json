@@ -21,7 +21,8 @@
     "check:secrets": "node scripts/check-secrets.mjs",
     "format": "prettier --write src test scripts index.html package.json vite.config.ts vitest.config.ts eslint.config.mjs",
     "format:check": "prettier --check src test scripts index.html package.json vite.config.ts vitest.config.ts eslint.config.mjs",
-    "check": "npm run format:check && npm run lint && npm run check:secrets && npm run test && npm run build"
+    "check": "npm run format:check && npm run lint && npm run check:secrets && npm run test && npm run build",
+    "report-experiments": "node scripts/report-experiments.mjs"
   },
   "dependencies": {
     "firebase": "^12.19.0",

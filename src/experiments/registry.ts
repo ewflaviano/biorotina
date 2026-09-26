@@ -1,5 +1,6 @@
 export const experimentRegistry = {
   "demo-highlight": {
+    assignment: "account",
     description:
       "Destaque visual usado para validar o ciclo completo de gates.",
     owner: "Biorotina",
@@ -8,6 +9,7 @@ export const experimentRegistry = {
     removeWhen: "O primeiro experimento de produto estiver disponível.",
   },
   "onboarding-install-prompt": {
+    assignment: "browser",
     description:
       "Adia o convite de instalação até a pessoa concluir a decisão sobre registros locais.",
     owner: "Biorotina",
@@ -17,21 +19,23 @@ export const experimentRegistry = {
       "O convite de instalação tiver a sequência aprovada e não houver regressões no onboarding.",
   },
   "hydration-quick-confirmation": {
+    assignment: "browser",
     description:
       "Confirma de forma acessível o registro de água pelos atalhos.",
     owner: "Biorotina",
     issue: 69,
-    revision: 1,
+    revision: 2,
     reviewBy: "2026-10-02",
     removeWhen:
       "Promover ou remover após sete dias; interromper se confirmar uma gravação que falhou ou prejudicar a acessibilidade.",
   },
   "hydration-form-confirmation": {
+    assignment: "browser",
     description:
       "Confirma de forma acessível a persistência pelo formulário de água.",
     owner: "Biorotina",
     issue: 71,
-    revision: 1,
+    revision: 2,
     reviewBy: "2026-10-03",
     removeWhen:
       "Promover ou remover após sete dias; interromper se confirmar uma gravação que falhou ou prejudicar a acessibilidade.",

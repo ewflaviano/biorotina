@@ -29,7 +29,10 @@ import { useAppData } from "../state/AppDataContext";
 import { useDriveSync } from "../sync/DriveSyncContext";
 import { AnalyticsConsentBanner } from "../analytics/AnalyticsConsentBanner";
 import { useAnalyticsPreference } from "../analytics/useAnalyticsPreference";
-import { useExperiment } from "../experiments/ExperimentContext";
+import {
+  useExperiment,
+  useExperimentExposure,
+} from "../experiments/ExperimentContext";
 
 const localMode = import.meta.env.VITE_BIOROTINA_LOCAL_MODE === "true";
 
@@ -82,6 +85,10 @@ export function Layout() {
   const analyticsPreference = useAnalyticsPreference();
   const experiment = useExperiment();
   const location = useLocation();
+  useExperimentExposure(
+    "onboarding-install-prompt",
+    location.pathname === "/" && analyticsPreference !== "unselected",
+  );
   const [undoFailure, setUndoFailure] = useState<{
     label: string;
     count: number;
@@ -315,11 +322,7 @@ export function Layout() {
           enabled={analyticsPreference !== "unselected"}
           delayMs={onboardingInstallExperiment ? 10_000 : 1800}
           blocked={onboardingInstallExperiment && mergePromptVisible}
-          onUse={
-            onboardingInstallExperiment
-              ? () => experiment.recordUse("onboarding-install-prompt")
-              : undefined
-          }
+          onUse={() => experiment.recordUse("onboarding-install-prompt")}
         />
       )}
       <GuestLoginPrompt />

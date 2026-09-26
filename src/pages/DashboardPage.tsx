@@ -21,11 +21,15 @@ import {
 import { useAppData } from "../state/AppDataContext";
 import { PageHeader } from "../components/Layout";
 import { WeeklyOverviewChart } from "../components/ProgressCharts";
-import { useExperiment } from "../experiments/ExperimentContext";
+import {
+  useExperiment,
+  useExperimentExposure,
+} from "../experiments/ExperimentContext";
 
 export function DashboardPage() {
   const { data } = useAppData();
   const experiment = useExperiment();
+  useExperimentExposure("demo-highlight");
   const [demoConfirmed, setDemoConfirmed] = useState(false);
   const [demoError, setDemoError] = useState("");
   const demoEnabled = experiment.enabled("demo-highlight");

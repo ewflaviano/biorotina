@@ -107,6 +107,52 @@ struct ClientError {
     status: Option<u16>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum Experiment {
+    DemoHighlight,
+    OnboardingInstallPrompt,
+    HydrationQuickConfirmation,
+    HydrationFormConfirmation,
+}
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum Arm {
+    Control,
+    Experiment,
+}
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum Outcome {
+    Exposure,
+    Success,
+    Error,
+    Use,
+    Rollback,
+}
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExperimentMetric {
+    experiment: Experiment,
+    revision: u32,
+    arm: Arm,
+    outcome: Outcome,
+    environment: Environment,
+}
+async fn record_experiment(Json(event): Json<ExperimentMetric>) -> StatusCode {
+    if !(1..=2_147_483_647).contains(&event.revision) {
+        return StatusCode::BAD_REQUEST;
+    }
+    // No cookies, IPs, IDs, buckets, free text or original request body are logged.
+    eprintln!(
+        "{}",
+        json!({ "kind": "experiment_metric", "service": "frontend",
+        "experiment": event.experiment, "revision": event.revision, "arm": event.arm,
+        "outcome": event.outcome, "environment": event.environment })
+    );
+    StatusCode::NO_CONTENT
+}
+
 #[tokio::main]
 async fn main() -> Result<(), lambda_http::Error> {
     lambda_http::run(router()).await
@@ -115,6 +161,7 @@ async fn main() -> Result<(), lambda_http::Error> {
 fn router() -> Router {
     Router::new()
         .route("/api/telemetry/error", post(record))
+        .route("/api/telemetry/experiment", post(record_experiment))
         .layer(DefaultBodyLimit::max(512))
 }
 
@@ -146,6 +193,89 @@ async fn record(Json(event): Json<ClientError>) -> StatusCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn experiment_route_enforces_schema_and_body_limit_over_http() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!(
+            "http://{}/api/telemetry/experiment",
+            listener.local_addr().unwrap()
+        );
+        let server = tokio::spawn(async move {
+            axum::serve(listener, router()).await.unwrap();
+        });
+        let client = reqwest::Client::new();
+        let valid = json!({"experiment":"hydration-form-confirmation", "revision":2, "arm":"control", "outcome":"success", "environment":"development"});
+        assert_eq!(
+            client
+                .post(&url)
+                .json(&valid)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::NO_CONTENT
+        );
+        let mut extra = valid.clone();
+        extra["account"] = json!("forbidden");
+        assert_eq!(
+            client
+                .post(&url)
+                .json(&extra)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::UNPROCESSABLE_ENTITY
+        );
+        extra["account"] = json!("x".repeat(512));
+        assert_eq!(
+            client
+                .post(&url)
+                .json(&extra)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::PAYLOAD_TOO_LARGE
+        );
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn experiment_metrics_accept_both_arms_and_reject_unbounded_dimensions() {
+        let base = json!({"experiment":"hydration-form-confirmation", "revision":2,
+            "arm":"control", "outcome":"success", "environment":"development"});
+        for arm in ["control", "experiment"] {
+            for outcome in ["exposure", "success", "error", "use", "rollback"] {
+                let mut value = base.clone();
+                value["arm"] = json!(arm);
+                value["outcome"] = json!(outcome);
+                assert_eq!(
+                    record_experiment(Json(serde_json::from_value(value).unwrap())).await,
+                    StatusCode::NO_CONTENT
+                );
+            }
+        }
+        for field in ["account", "bucket", "token", "amount", "url", "message"] {
+            let mut value = base.clone();
+            value[field] = json!("forbidden");
+            assert!(serde_json::from_value::<ExperimentMetric>(value).is_err());
+        }
+        for field in ["experiment", "arm", "outcome", "environment", "revision"] {
+            let mut value = base.clone();
+            value[field] = json!("unknown");
+            assert!(serde_json::from_value::<ExperimentMetric>(value).is_err());
+        }
+        for revision in [0, 2_147_483_648_u32] {
+            let mut value = base.clone();
+            value["revision"] = json!(revision);
+            assert_eq!(
+                record_experiment(Json(serde_json::from_value(value).unwrap())).await,
+                StatusCode::BAD_REQUEST
+            );
+        }
+    }
 
     #[test]
     fn rejects_unapproved_fields_and_values() {

@@ -8,115 +8,214 @@ import {
   type ReactNode,
 } from "react";
 import { useDriveSync } from "../sync/DriveSyncContext";
-import { recordExperimentEvent } from "../analytics/visits";
-import { experimentKeys, type ExperimentKey } from "./registry";
+import { useAnalyticsPreference } from "../analytics/useAnalyticsPreference";
+import {
+  experimentKeys,
+  experimentRegistry,
+  type ExperimentKey,
+} from "./registry";
+import {
+  resolveAssignments,
+  type Assignment,
+  type Assignments,
+} from "./assignment";
+import { metricsAllowed, recordExperimentMetric } from "./metrics";
 
 const API = (import.meta.env.VITE_PUSH_API_URL || "").replace(/\/$/, "");
 const LOCAL_MODE = import.meta.env.VITE_BIOROTINA_LOCAL_MODE === "true";
 const LOCAL_FORCE = import.meta.env.VITE_BIOROTINA_LOCAL_FORCE_EXPERIMENT;
-
+type FinishAttempt = (outcome: "success" | "error") => void;
 interface ExperimentValue {
   enabled: (key: ExperimentKey) => boolean;
   recordUse: (key: ExperimentKey) => void;
+  recordExposure: (key: ExperimentKey) => boolean;
+  startAttempt: (key: ExperimentKey) => FinishAttempt;
   confirmDemo: () => Promise<void>;
 }
-
 const Context = createContext<ExperimentValue | null>(null);
 const disabledExperiments: ExperimentValue = {
   enabled: () => false,
   recordUse: () => undefined,
+  recordExposure: () => false,
+  startAttempt: () => () => undefined,
   confirmDemo: async () => {
     throw new Error("Experimentos indisponíveis.");
   },
 };
-
-function isExperimentKey(value: unknown): value is ExperimentKey {
-  return (
-    typeof value === "string" && experimentKeys.includes(value as ExperimentKey)
-  );
-}
-
-async function loadExperiments(): Promise<ExperimentKey[]> {
-  const headers = new Headers();
-  // Only the local runner can add a force value itself. In production, a
-  // test browser extension adds the header to Biorotina API requests.
+const exposureId = (key: ExperimentKey, a: Assignment) =>
+  `${key}:${a.revision}:${a.arm}`;
+function headers() {
+  const result = new Headers();
   if (LOCAL_MODE && LOCAL_FORCE)
-    headers.set("X-Biorotina-Force-Experiment", LOCAL_FORCE);
-  const response = await fetch(`${API}/api/experiments`, {
-    credentials: "include",
-    cache: "no-store",
-    headers,
-  });
-  if (!response.ok) return [];
-  const payload: unknown = await response.json().catch(() => null);
-  if (!payload || typeof payload !== "object" || !("enabled" in payload))
-    return [];
-  const enabled = (payload as { enabled?: unknown }).enabled;
-  return Array.isArray(enabled) ? enabled.filter(isExperimentKey) : [];
+    result.set("X-Biorotina-Force-Experiment", LOCAL_FORCE);
+  return result;
 }
 
 export function ExperimentProvider({ children }: { children: ReactNode }) {
   const { account } = useDriveSync();
-  const [active, setActive] = useState<ExperimentKey[]>([]);
-  const previous = useRef<ExperimentKey[]>([]);
+  const accountId = account?.id ?? null;
+  const [state, setState] = useState<{
+    assignments: Assignments;
+    accountId: string | null;
+  }>({ assignments: {}, accountId: null });
+  const previous = useRef<Assignments>({});
+  const exposed = useRef(new Set<string>());
 
   useEffect(() => {
+    if (!API) return;
     let cancelled = false;
-    if (!account || !API) return;
-    const refresh = () =>
-      void loadExperiments().then((enabled) => {
-        if (!cancelled) {
-          for (const key of experimentKeys) {
-            const wasEnabled = previous.current.includes(key);
-            const isEnabled = enabled.includes(key);
-            if (wasEnabled && !isEnabled)
-              recordExperimentEvent("rollback", key);
-            if (!wasEnabled && isEnabled)
-              recordExperimentEvent("exposure", key);
-          }
-          previous.current = enabled;
-          setActive(enabled);
+    let pending = false;
+    const controller = new AbortController();
+    const refresh = async () => {
+      if (pending) return;
+      pending = true;
+      let assignments: Assignments = {};
+      try {
+        const response = await fetch(`${API}/api/experiments`, {
+          credentials: "include",
+          cache: "no-store",
+          headers: headers(),
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(10_000),
+          ]),
+        });
+        if (response.ok)
+          assignments = await resolveAssignments(
+            await response.json(),
+            accountId !== null,
+          );
+      } catch {
+        /* Failed refresh disables experiments, without unhandled rejections. */
+      }
+      if (!cancelled) {
+        for (const key of experimentKeys) {
+          const old = previous.current[key];
+          if (
+            old?.arm === "experiment" &&
+            assignments[key]?.arm !== "experiment" &&
+            exposed.current.has(exposureId(key, old))
+          )
+            recordExperimentMetric(key, old, "rollback");
         }
-      });
-    refresh();
-    const timer = window.setInterval(refresh, 60_000);
+        previous.current = assignments;
+        setState({ assignments, accountId });
+      }
+      pending = false;
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 60_000);
     return () => {
       cancelled = true;
+      controller.abort();
       window.clearInterval(timer);
     };
-  }, [account]);
+  }, [accountId]);
 
-  const enabled = useCallback(
-    (key: ExperimentKey) => Boolean(account) && active.includes(key),
-    [account, active],
+  const assignmentFor = useCallback(
+    (key: ExperimentKey) => {
+      const assignment = state.assignments[key];
+      if (
+        (assignment?.forced ||
+          experimentRegistry[key].assignment === "account") &&
+        state.accountId !== accountId
+      )
+        return undefined;
+      return assignment;
+    },
+    [state, accountId],
   );
-  const recordUse = useCallback((key: ExperimentKey) => {
-    recordExperimentEvent("use", key);
-  }, []);
+  const enabled = useCallback(
+    (key: ExperimentKey) => assignmentFor(key)?.arm === "experiment",
+    [assignmentFor],
+  );
+  const recordExposure = useCallback(
+    (key: ExperimentKey) => {
+      const assignment = assignmentFor(key);
+      if (
+        !assignment ||
+        assignment.forced ||
+        !metricsAllowed() ||
+        document.visibilityState === "hidden"
+      )
+        return false;
+      const id = exposureId(key, assignment);
+      if (exposed.current.has(id)) return true;
+      if (!recordExperimentMetric(key, assignment, "exposure")) return false;
+      exposed.current.add(id);
+      return true;
+    },
+    [assignmentFor],
+  );
+  const recordUse = useCallback(
+    (key: ExperimentKey) => {
+      const assignment = assignmentFor(key);
+      if (assignment && recordExposure(key))
+        recordExperimentMetric(key, assignment, "use");
+    },
+    [assignmentFor, recordExposure],
+  );
+  const startAttempt = useCallback(
+    (key: ExperimentKey): FinishAttempt => {
+      const assignment = assignmentFor(key);
+      const measured = recordExposure(key);
+      let completed = false;
+      // Attribute completion to the decision at the start, even across a remote refresh.
+      return (outcome) => {
+        if (completed) return;
+        completed = true;
+        if (assignment && measured)
+          recordExperimentMetric(key, assignment, outcome);
+      };
+    },
+    [assignmentFor, recordExposure],
+  );
   const confirmDemo = useCallback(async () => {
-    const headers = new Headers({ "X-Biorotina-Experiment": "demo-highlight" });
-    if (LOCAL_MODE && LOCAL_FORCE)
-      headers.set("X-Biorotina-Force-Experiment", LOCAL_FORCE);
-    const response = await fetch(`${API}/api/experiments/demo`, {
-      method: "POST",
-      credentials: "include",
-      cache: "no-store",
-      headers,
-    });
-    if (!response.ok) {
-      recordExperimentEvent("error", "demo-highlight");
-      throw new Error("O experimento não está disponível para esta conta.");
+    const requestHeaders = headers();
+    requestHeaders.set("X-Biorotina-Experiment", "demo-highlight");
+    const finish = startAttempt("demo-highlight");
+    try {
+      const response = await fetch(`${API}/api/experiments/demo`, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: requestHeaders,
+      });
+      if (!response.ok)
+        throw new Error("O experimento não está disponível para esta conta.");
+      finish("success");
+    } catch (cause) {
+      finish("error");
+      throw cause;
     }
-    recordExperimentEvent("use", "demo-highlight");
-  }, []);
+  }, [startAttempt]);
 
   return (
-    <Context.Provider value={{ enabled, recordUse, confirmDemo }}>
+    <Context.Provider
+      value={{ enabled, recordUse, recordExposure, startAttempt, confirmDemo }}
+    >
       {children}
     </Context.Provider>
   );
 }
-
 export function useExperiment(): ExperimentValue {
   return useContext(Context) || disabledExperiments;
+}
+
+/** Call only where the relevant interface is rendered, for both arms. */
+export function useExperimentExposure(
+  key: ExperimentKey,
+  visible = true,
+): void {
+  const { recordExposure } = useExperiment();
+  const preference = useAnalyticsPreference();
+  useEffect(() => {
+    if (!visible) return;
+    const record = () => {
+      recordExposure(key);
+    };
+    record();
+    document.addEventListener("visibilitychange", record);
+    return () => document.removeEventListener("visibilitychange", record);
+  }, [key, visible, recordExposure, preference]);
 }
