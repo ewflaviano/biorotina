@@ -23,7 +23,7 @@ function applyCors(request, response) {
   response.setHeader("access-control-allow-credentials", "true");
   response.setHeader(
     "access-control-allow-headers",
-    "authorization, content-type, x-requested-with",
+    "authorization, content-type, x-requested-with, x-biorotina-experiment, x-biorotina-force-experiment",
   );
   response.setHeader(
     "access-control-allow-methods",
@@ -82,11 +82,15 @@ async function loadState(path) {
           : [],
         plans:
           parsed.plans && typeof parsed.plans === "object" ? parsed.plans : {},
+        experiments:
+          parsed.experiments && typeof parsed.experiments === "object"
+            ? parsed.experiments
+            : {},
       };
   } catch {
     // O primeiro uso começa vazio.
   }
-  return { snapshots: [], subscriptions: [], plans: {} };
+  return { snapshots: [], subscriptions: [], plans: {}, experiments: {} };
 }
 
 function publicSnapshot(snapshot) {
@@ -159,6 +163,25 @@ export async function createLocalApi({ dataDir, port = 0 } = {}) {
       checkoutUrl: null,
     };
   const billingStatus = (accountId) => planFor(accountId);
+  const experimentConfig = {
+    enabled: true,
+    killSwitch: false,
+    rolloutPercent: 0,
+    testers: [TEST_ACCOUNTS[1].id],
+    revision: 1,
+  };
+  const forceEnabled = (request, key) =>
+    request.headers["x-biorotina-force-experiment"]
+      ?.split(",")
+      .map((value) => value.trim())
+      .includes(`${key}=enabled`) === true;
+  const experimentEnabled = (request, session, key) => {
+    const config = state.experiments[key] || experimentConfig;
+    if (!config.enabled || config.killSwitch || !session) return false;
+    if (config.testers?.includes(session.account.id)) return true;
+    if (!forceEnabled(request, key)) return false;
+    return false;
+  };
 
   const server = createServer(async (request, response) => {
     applyCors(request, response);
@@ -169,6 +192,27 @@ export async function createLocalApi({ dataDir, port = 0 } = {}) {
     try {
       if (path === "/health" && method === "GET")
         return json(response, 200, { mode: "local", status: "ok" });
+      if (path === "/api/experiments" && method === "GET") {
+        const session = requireSession(request, response);
+        if (!session) return;
+        const enabled = experimentEnabled(request, session, "demo-highlight")
+          ? ["demo-highlight"]
+          : [];
+        return json(response, 200, {
+          enabled,
+          revision: experimentConfig.revision,
+        });
+      }
+      if (path === "/api/experiments/demo" && method === "POST") {
+        const session = requireSession(request, response);
+        if (!session) return;
+        if (
+          request.headers["x-biorotina-experiment"] !== "demo-highlight" ||
+          !experimentEnabled(request, session, "demo-highlight")
+        )
+          return json(response, 403, { error: "Experimento indisponível." });
+        return json(response, 200, { enabled: true });
+      }
       if (path === "/local/checkout" && method === "GET") {
         const sessionId = url.searchParams.get("session");
         const activated = url.searchParams.get("activated") === "1";

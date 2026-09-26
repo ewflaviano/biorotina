@@ -37,6 +37,9 @@ uma faixa visível no app. Ele não chama Google, Asaas, Gemini, Firebase, AWS o
 Web Push. Veja o [guia do ambiente local](docs/local-development.md) para o
 roteiro de navegador e a inspeção dos eventos de telemetria.
 
+O [guia de experimentos](docs/experiments.md) descreve como liberar recursos
+gradualmente e desligá-los sem publicar uma nova versão.
+
 Requer Node.js recente compatível com Vite 8. Para testar o serviço de lembretes, configure `VITE_PUSH_API_URL` em `.env.local` com a URL pública da API. Para conectar o Drive, configure `VITE_GOOGLE_CLIENT_ID` com o identificador público de um cliente OAuth Web cujas origens incluam `http://127.0.0.1:5173` e `http://localhost:5173`. O cliente de produção deve autorizar `https://biorotina.app.br`; não use client secret no frontend.
 
 ```sh

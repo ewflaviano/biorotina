@@ -91,6 +91,14 @@ h3 {
   font-weight: 700;
   text-align: center;
 }
+.experiment-demo {
+  border-color: #8e6ad7;
+  background: linear-gradient(135deg, #f7f1ff, #fff 70%);
+}
+.experiment-demo .eyebrow,
+.experiment-demo h2 {
+  color: #6243a4;
+}
 .mobile-brand,
 .brand {
   display: flex;

@@ -10,6 +10,25 @@ let analyticsPromise: Promise<boolean> | null = null;
 let disableCollection: (() => void) | null = null;
 let enableCollection: (() => void) | null = null;
 let visitSent = false;
+let trackExperiment:
+  ((event: string, params: Record<string, string>) => void) | null = null;
+
+/** Records only a fixed experiment key and outcome after diagnostic consent. */
+export function recordExperimentEvent(
+  outcome: "exposure" | "use" | "error" | "rollback",
+  experiment: "demo-highlight",
+  revision = "unknown",
+): void {
+  if (
+    getAnalyticsPreference() !== "accepted" ||
+    window.location.hostname !== PRODUCTION_HOST
+  )
+    return;
+  void startVisitAnalytics().then((active) => {
+    if (active)
+      trackExperiment?.(`experiment_${outcome}`, { experiment, revision });
+  });
+}
 
 export function getAnalyticsPreference(): AnalyticsPreference {
   try {
@@ -148,6 +167,8 @@ async function initializeVisitAnalytics(): Promise<boolean> {
     return false;
   }
   enableCollection();
+  trackExperiment = (event, params) =>
+    analyticsSdk.logEvent(analytics, event, params);
   if (!visitSent) {
     analyticsSdk.logEvent(analytics, "app_visit", {
       page_location: canonicalUrl,

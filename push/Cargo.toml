@@ -18,6 +18,10 @@ name = "biorotina-auth-api"
 path = "src/bin/auth_api.rs"
 
 [[bin]]
+name = "biorotina-experiments-api"
+path = "src/bin/experiments_api.rs"
+
+[[bin]]
 name = "biorotina-billing-worker"
 path = "src/bin/billing_worker.rs"
 
