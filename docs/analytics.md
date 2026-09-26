@@ -29,3 +29,14 @@ Fontes: [Firebase Analytics Web](https://firebase.google.com/docs/analytics/web/
 ## Base de tratamento e revisão de privacidade
 
 A [ANPD recomenda](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/materiais-educativos-e-publicacoes/guia-orientativo-cookies-e-protecao-de-dados-pessoais.pdf/@@display-file/file) que a rejeição de cookies não necessários seja tão acessível quanto o aceite e que permaneçam desligados até uma escolha válida. Esta implementação exige ativação voluntária no banner ou em Configurações e desliga sinais e personalização de anúncios. O Firebase ainda usa identificadores do navegador; a base de tratamento, os textos públicos e a operação do consentimento precisam de revisão jurídica periódica. A implementação técnica não é uma declaração de conformidade legal.
+
+## Métricas de experimentos (#73)
+
+A partir da infraestrutura por navegador, eventos `experiment_*` deixam de
+ser enviados ao Firebase. A Biorotina recebe dimensões técnicas fechadas pela
+rota AWS `/api/telemetry/experiment`, sempre sob a mesma escolha explícita de
+métricas. Chave, revisão, braço, resultado e ambiente permitem comparar
+contagens de ambos os grupos, sem IDs ou dados de registros. O número funcional
+sorteado fica somente no IndexedDB separado e não identifica a pessoa.
+A implementação e consulta agregada estão em [experiments.md](experiments.md).
+`app_visit` continua sendo o evento personalizado do módulo Firebase.

@@ -17,12 +17,17 @@ import { TimeSelect } from "../components/TimeSelect";
 import { PushActivationPrompt } from "../components/PushActivationPrompt";
 import { InfoDisclosure } from "../components/InfoDisclosure";
 import { removeEntry, restoreEntry } from "../domain/recordActions";
-import { useExperiment } from "../experiments/ExperimentContext";
+import {
+  useExperiment,
+  useExperimentExposure,
+} from "../experiments/ExperimentContext";
 import type { HydrationEntry } from "../domain/data";
 
 export function HydrationPage() {
   const { data, mutate, removeWithUndo } = useAppData();
-  const { enabled, recordUse } = useExperiment();
+  const { enabled, startAttempt } = useExperiment();
+  useExperimentExposure("hydration-quick-confirmation");
+  useExperimentExposure("hydration-form-confirmation");
   const confirmQuickAdd = enabled("hydration-quick-confirmation");
   const confirmForm = enabled("hydration-form-confirmation");
   const [formConfirmed, setFormConfirmed] = useState(false);
@@ -61,6 +66,7 @@ export function HydrationPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    const finish = startAttempt("hydration-form-confirmation");
     setWaterError("");
     setFormConfirmed(false);
     setSaving(true);
@@ -73,9 +79,10 @@ export function HydrationPage() {
       setWhen(toLocalDateTime(new Date().toISOString()));
       if (confirmForm) {
         setFormConfirmed(true);
-        recordUse("hydration-form-confirmation");
       }
+      finish("success");
     } catch (cause) {
+      finish("error");
       setWaterError(
         cause instanceof Error
           ? cause.message
@@ -90,6 +97,7 @@ export function HydrationPage() {
     amountMl: number,
     source: "hero" | "history" = "hero",
   ) {
+    const finish = startAttempt("hydration-quick-confirmation");
     setQuickConfirmation(null);
     setFormConfirmed(false);
     if (source === "hero") setQuickError("");
@@ -99,9 +107,10 @@ export function HydrationPage() {
       await addWater(amountMl, new Date().toISOString());
       if (confirmQuickAdd) {
         setQuickConfirmation(source);
-        recordUse("hydration-quick-confirmation");
       }
+      finish("success");
     } catch {
+      finish("error");
       const message = "Não foi possível salvar o registro.";
       if (source === "hero") setQuickError(message);
       else setActionError(message);

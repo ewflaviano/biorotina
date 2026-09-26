@@ -164,3 +164,100 @@ test("simulador local preserva a sessão e isola usuários de teste", async (con
     401,
   );
 });
+
+test("configuração pública, adesão autenticada e métricas fechadas dos dois braços", async (context) => {
+  const dataDir = await mkdtemp(join(tmpdir(), "biorotina-experiment-"));
+  const { writeFile } = await import("node:fs/promises");
+  await writeFile(
+    join(dataDir, "state.json"),
+    JSON.stringify({
+      snapshots: [],
+      experiments: {
+        "hydration-form-confirmation": {
+          enabled: true,
+          killSwitch: false,
+          rolloutPercent: 10,
+          revision: 2,
+        },
+        "hydration-quick-confirmation": {
+          enabled: true,
+          killSwitch: true,
+          rolloutPercent: 100,
+          revision: 3,
+        },
+        "onboarding-install-prompt": {
+          enabled: true,
+          killSwitch: false,
+          rolloutPercent: 101,
+          revision: 0,
+        },
+      },
+    }),
+  );
+  const api = await createLocalApi({ dataDir });
+  context.after(async () => {
+    await api.close();
+    await rm(dataDir, { recursive: true, force: true });
+  });
+  const headers = {
+    "x-biorotina-force-experiment":
+      "hydration-form-confirmation=enabled,hydration-quick-confirmation=enabled",
+  };
+  const anonymous = await (
+    await fetch(api.url + "/api/experiments", { headers })
+  ).json();
+  assert.deepEqual(anonymous.forced, []);
+  assert.deepEqual(anonymous.enabled, []);
+  assert.equal(
+    anonymous.browser["hydration-form-confirmation"].rolloutPercent,
+    10,
+  );
+  assert.equal(anonymous.browser["onboarding-install-prompt"].killSwitch, true);
+  assert.equal(anonymous.browser["demo-highlight"], undefined);
+  const session = await login(api);
+  const authenticated = await (
+    await fetch(api.url + "/api/experiments", {
+      headers: { ...headers, cookie: session.cookie },
+    })
+  ).json();
+  assert.deepEqual(authenticated.forced, ["hydration-form-confirmation"]);
+  assert.equal(
+    (
+      await fetch(api.url + "/api/experiments/demo", {
+        method: "POST",
+        headers,
+      })
+    ).status,
+    401,
+  );
+  const metric = {
+    experiment: "hydration-form-confirmation",
+    revision: 2,
+    arm: "control",
+    outcome: "success",
+    environment: "development",
+  };
+  const post = (body) =>
+    fetch(api.url + "/api/telemetry/experiment", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  assert.equal((await post(metric)).status, 204);
+  assert.equal(
+    (await post({ ...metric, arm: "experiment", outcome: "error" })).status,
+    204,
+  );
+  assert.equal((await post({ ...metric, amount: 300 })).status, 400);
+  assert.equal((await post({ ...metric, revision: 0 })).status, 400);
+  assert.equal((await post({ ...metric, extra: "x".repeat(512) })).status, 413);
+  const recorded = (await readFile(join(dataDir, "telemetry.jsonl"), "utf8"))
+    .trim()
+    .split("\n")
+    .map(JSON.parse);
+  assert.equal(recorded.length, 2);
+  assert.deepEqual(
+    Object.keys(recorded[0]).sort(),
+    ["kind", "service", ...Object.keys(metric)].sort(),
+  );
+});

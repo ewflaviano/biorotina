@@ -7,16 +7,18 @@ import { HydrationPage } from "./HydrationPage";
 const experiment = vi.hoisted(() => ({
   enabled: false,
   formEnabled: false,
-  recordUse: vi.fn(),
+  startAttempt: vi.fn(),
+  finish: vi.fn(),
 }));
 const storage = vi.hoisted(() => ({ mutate: vi.fn() }));
 vi.mock("../experiments/ExperimentContext", () => ({
+  useExperimentExposure: vi.fn(),
   useExperiment: () => ({
     enabled: (key: string) =>
       key === "hydration-form-confirmation"
         ? experiment.formEnabled
         : experiment.enabled,
-    recordUse: experiment.recordUse,
+    startAttempt: experiment.startAttempt,
   }),
 }));
 vi.mock("../state/AppDataContext", () => ({
@@ -42,6 +44,7 @@ vi.mock("../components/PushActivationPrompt", () => ({
 beforeEach(() => {
   experiment.enabled = false;
   experiment.formEnabled = false;
+  experiment.startAttempt.mockImplementation(() => experiment.finish);
   storage.mutate.mockReset().mockResolvedValue(undefined);
 });
 
@@ -52,7 +55,7 @@ describe("confirmação experimental dos atalhos de água", () => {
     await user.click(screen.getByRole("button", { name: "200 ml" }));
     expect(storage.mutate).toHaveBeenCalledOnce();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(experiment.recordUse).not.toHaveBeenCalled();
+    expect(experiment.finish).toHaveBeenCalledWith("success");
   });
 
   it("só confirma após persistir e mantém o foco no atalho", async () => {
@@ -76,7 +79,7 @@ describe("confirmação experimental dos atalhos de água", () => {
       await screen.findByText("Água registrada. Seu total foi atualizado."),
     ).toHaveAttribute("role", "status");
     expect(button).toHaveFocus();
-    expect(experiment.recordUse).toHaveBeenCalledWith(
+    expect(experiment.startAttempt).toHaveBeenCalledWith(
       "hydration-quick-confirmation",
     );
   });
@@ -101,7 +104,7 @@ describe("confirmação experimental dos atalhos de água", () => {
       ),
     );
     expect(screen.queryByText(/Água registrada/)).not.toBeInTheDocument();
-    expect(experiment.recordUse).toHaveBeenCalledTimes(1);
+    expect(experiment.finish.mock.calls).toEqual([["success"], ["error"]]);
   });
 });
 
@@ -116,7 +119,7 @@ describe("confirmação experimental do formulário de água", () => {
     expect(
       screen.queryByText("Água salva no histórico."),
     ).not.toBeInTheDocument();
-    expect(experiment.recordUse).not.toHaveBeenCalled();
+    expect(experiment.finish).toHaveBeenCalledWith("success");
   });
 
   it("confirma somente após persistir, mantém o foco e limpa ao editar", async () => {
@@ -135,7 +138,7 @@ describe("confirmação experimental do formulário de água", () => {
     await user.click(save);
     expect(save).toBeDisabled();
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
-    expect(experiment.recordUse).not.toHaveBeenCalled();
+    expect(experiment.finish).not.toHaveBeenCalled();
     finish();
     expect(await screen.findByText("Água salva no histórico.")).toHaveAttribute(
       "role",
@@ -143,7 +146,7 @@ describe("confirmação experimental do formulário de água", () => {
     );
     expect(save).toHaveFocus();
     expect(amount).toHaveValue("");
-    expect(experiment.recordUse).toHaveBeenCalledWith(
+    expect(experiment.startAttempt).toHaveBeenCalledWith(
       "hydration-form-confirmation",
     );
     await user.type(amount, "250");
@@ -155,7 +158,7 @@ describe("confirmação experimental do formulário de água", () => {
     );
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
     expect(amount).toHaveValue("250");
-    expect(experiment.recordUse).toHaveBeenCalledTimes(1);
+    expect(experiment.finish.mock.calls).toEqual([["success"], ["error"]]);
   });
 
   it("não confirma quantidade inválida nem habilita a confirmação dos atalhos", async () => {
@@ -166,10 +169,10 @@ describe("confirmação experimental do formulário de água", () => {
     await user.click(screen.getByRole("button", { name: "Salvar água" }));
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(storage.mutate).not.toHaveBeenCalled();
-    expect(experiment.recordUse).not.toHaveBeenCalled();
+    expect(experiment.finish).toHaveBeenCalledWith("error");
     await user.click(screen.getByRole("button", { name: "200 ml" }));
     expect(storage.mutate).toHaveBeenCalledOnce();
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
-    expect(experiment.recordUse).not.toHaveBeenCalled();
+    expect(experiment.finish.mock.calls).toEqual([["error"], ["success"]]);
   });
 });

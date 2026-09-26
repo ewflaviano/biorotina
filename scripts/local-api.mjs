@@ -1,3 +1,8 @@
+import {
+  experimentKeys,
+  validExperimentConfig,
+  validExperimentMetric,
+} from "./experiment-contract.mjs";
 import { createServer } from "node:http";
 import { mkdir, readFile, writeFile, appendFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -48,12 +53,15 @@ function text(response, status, body) {
   response.end(body);
 }
 
-async function readJson(request) {
+async function readJson(request, maxBytes = MAX_BODY_BYTES) {
   const chunks = [];
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > MAX_BODY_BYTES) throw new Error("Payload local muito grande.");
+    if (size > maxBytes)
+      throw Object.assign(new Error("Payload local muito grande."), {
+        status: 413,
+      });
     chunks.push(chunk);
   }
   return chunks.length
@@ -182,8 +190,16 @@ export async function createLocalApi({ dataDir, port = 0 } = {}) {
         .slice(0, 8),
       16,
     ) % 100;
+  const configFor = (key) => {
+    const value = state.experiments[key];
+    return value === undefined
+      ? experimentConfig
+      : validExperimentConfig(value)
+        ? value
+        : { ...experimentConfig, killSwitch: true };
+  };
   const experimentEnabled = (request, session, key) => {
-    const config = state.experiments[key] || experimentConfig;
+    const config = configFor(key);
     if (config.killSwitch || !session) return false;
     if (forceEnabled(request, key)) return true;
     return (
@@ -202,18 +218,41 @@ export async function createLocalApi({ dataDir, port = 0 } = {}) {
       if (path === "/health" && method === "GET")
         return json(response, 200, { mode: "local", status: "ok" });
       if (path === "/api/experiments" && method === "GET") {
-        const session = requireSession(request, response);
-        if (!session) return;
-        const enabled = [
-          "demo-highlight",
-          "onboarding-install-prompt",
-          "hydration-quick-confirmation",
-          "hydration-form-confirmation",
-        ].filter((key) => experimentEnabled(request, session, key));
+        const session = sessionFor(request);
+        const enabled = experimentKeys.filter((key) =>
+          experimentEnabled(request, session, key),
+        );
         return json(response, 200, {
           enabled,
-          revision: experimentConfig.revision,
+          revisions: Object.fromEntries(
+            enabled.map((key) => [key, configFor(key).revision]),
+          ),
+          browser: Object.fromEntries(
+            experimentKeys
+              .filter((key) => key !== "demo-highlight")
+              .map((key) => [key, configFor(key)]),
+          ),
+          forced: experimentKeys.filter(
+            (key) =>
+              session &&
+              forceEnabled(request, key) &&
+              !configFor(key).killSwitch,
+          ),
         });
+      }
+      if (path === "/api/telemetry/experiment" && method === "POST") {
+        const event = await readJson(request, 512);
+        if (!validExperimentMetric(event))
+          return json(response, 400, { error: "Métrica inválida." });
+        await appendFile(
+          telemetryPath,
+          JSON.stringify({
+            kind: "experiment_metric",
+            service: "frontend",
+            ...event,
+          }) + "\n",
+        );
+        return json(response, 204);
       }
       if (path === "/api/experiments/demo" && method === "POST") {
         const session = requireSession(request, response);
@@ -447,7 +486,7 @@ export async function createLocalApi({ dataDir, port = 0 } = {}) {
         });
       return json(response, 404, { error: "Rota local não encontrada." });
     } catch (cause) {
-      return json(response, 400, {
+      return json(response, cause?.status === 413 ? 413 : 400, {
         error:
           cause instanceof Error ? cause.message : "Falha no simulador local.",
       });

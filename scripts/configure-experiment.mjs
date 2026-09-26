@@ -21,7 +21,8 @@ if (
   rolloutPercent < 0 ||
   rolloutPercent > 100 ||
   !Number.isInteger(revision) ||
-  revision < 1
+  revision < 1 ||
+  revision > 2_147_483_647
 ) {
   throw new Error(
     "Uso: node scripts/configure-experiment.mjs --key <demo-highlight|onboarding-install-prompt|hydration-quick-confirmation|hydration-form-confirmation> --rollout 0..100 --revision 1 [--enabled] [--kill-switch]",

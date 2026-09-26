@@ -82,3 +82,29 @@ Execute com sessão escolhida e dados de teste identificáveis, **após** B/C, o
 2. Restaurar preferências que foram alteradas para testar, incluindo telemetria, avisos, viewport e movimento reduzido.
 3. Anotar cada falha com ID, comportamento esperado/observado, hora aproximada e impacto. Para fotos, incluir modo (grátis/plano/chave), código HTTP e mudança de cota, **sem imagem ou resposta completa**.
 4. Separar limitações de ambiente (permissão do navegador, instalação, cota já gasta) de defeitos do produto. Abrir tarefa de correção para defeitos confirmados.
+
+## Coortes por navegador e métricas AWS (#73)
+
+No simulador, configurar os experimentos em `.local/biorotina/state.json` antes
+de iniciar a API (ou reiniciá-la depois de alterar o arquivo). Usar só dados
+sintéticos. Em largura móvel:
+
+1. Configurar enabled=true, percentual 0, revisão 2. Sem conta, salvar água:
+   registro persiste, sem confirmação experimental. Com consentimento,
+   telemetry.jsonl contém exposição e resultado control/revisão 2.
+2. Recarregar e abrir outra aba: o número no banco de coortes continua igual.
+   Entrar/sair da conta não altera o número. Armazenamento de coortes não está
+   no backup ou no banco dos registros de saúde.
+3. Aumentar percentual para incluir o número salvo e incrementar revisão:
+   confirmação aparece após persistir, número não muda. Percentual 100 inclui
+   todos; reduzir para zero desliga a confirmação com controle mensurável.
+4. Ativar kill switch: nenhuma confirmação, nem header autenticado o vence.
+   Sem configuração ou com falha/entrada inválida, manter desligado. API demo
+   permanece protegida; header anônimo não força nada.
+5. Antes de consentir e após recusar, não há novas métricas. Aceitar não envia
+   ações passadas. Header forçado autenticado não gera métricas comparativas.
+6. Inspecionar a rota local de métricas: só dimensões enumeradas e revisão,
+   sem número sorteado, contas, campos da tela ou cookies. Confirmar resultados
+   success/error e denominator success+error nos dois braços.
+
+O simulador não substitui OAuth real, servidor de produção ou leitor de tela.
