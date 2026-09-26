@@ -1,7 +1,8 @@
 # Diagnóstico de erros
 
-As quatro funções Lambda (`api`, `billingApi`, `tick` e `telemetry`) escrevem
-eventos JSON de erro em stderr/CloudWatch. A retenção configurada é de 14 dias.
+Os serviços escrevem eventos JSON de erro em stderr/CloudWatch. Consulte os
+grupos das funções `api`, `authApi`, `billingApi`, `billingWorker`,
+`experimentsApi`, `tick` e `telemetry`, conforme os serviços envolvidos. A retenção configurada é de 14 dias.
 Os campos estáveis (`kind`, `service`, `operation` ou `source`, `code`, `screen`,
 `environment`, `status`) permitem filtros, métricas e integração posterior por
 assinatura dos log groups. Não registrar payloads, mensagens de exceção, stack traces, URLs,
@@ -70,8 +71,11 @@ Para assinantes, um segundo 503 do Flash pode iniciar uma única tentativa com
 `gemini_fallback_pro_recovered` indicam início e recuperação; `gemini_pro_status`,
 `gemini_pro_timeout` e `gemini_pro_network` identificam falhas nesse modelo.
 Os demais grupos são
-`biorotina-dev-api`, `biorotina-dev-tick` e `biorotina-dev-telemetry` com o
-prefixo `/aws/lambda/`.
+`biorotina-dev-api`, `biorotina-dev-authApi`, `biorotina-dev-billingWorker`,
+`biorotina-dev-experimentsApi`, `biorotina-dev-tick` e
+`biorotina-dev-telemetry` com o prefixo `/aws/lambda/`. Ao comparar janelas,
+exclua da janela anterior os grupos criados depois dela e registre essa
+limitação; o CloudWatch pode recusar uma consulta que inclua esses grupos.
 
 Antes de integrar uma plataforma de observabilidade, aplicar nela a mesma
 lista de campos permitidos e evitar exportar logs brutos da plataforma AWS.
