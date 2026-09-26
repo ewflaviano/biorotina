@@ -3,6 +3,8 @@ import { reportClientError } from "../observability/client";
 
 export const GEMINI_MODEL = "gemini-3.8-flash";
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const LOCAL_MODE = import.meta.env.VITE_BIOROTINA_LOCAL_MODE === "true";
+const LOCAL_API = (import.meta.env.VITE_PUSH_API_URL || "").replace(/\/$/, "");
 const MAX_FILE_BYTES = 15_000_000;
 const MAX_IMAGE_SIDE = 768;
 const TARGET_IMAGE_BYTES = 350_000;
@@ -158,6 +160,21 @@ export async function analyzeMealImage(
   image: PreparedImage,
   fetcher: typeof fetch = fetch,
 ): Promise<MealAnalysis> {
+  if (LOCAL_MODE) {
+    const response = await fetcher(`${LOCAL_API}/api/local/ai/meal`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ image: image.base64 }),
+    });
+    const parsed = analysisSchema.safeParse(
+      await response.json().catch(() => null),
+    );
+    if (!response.ok || !parsed.success)
+      throw new Error(
+        "A análise local não respondeu. Reinicie o ambiente local.",
+      );
+    return parsed.data;
+  }
   if (!apiKey.trim())
     throw new Error("Adicione sua chave Gemini nas Configurações.");
   const controller = new AbortController();

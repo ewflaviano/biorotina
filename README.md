@@ -25,6 +25,18 @@ O [catálogo de atividades e a fórmula de estimativa](docs/activity-reference.m
 
 ## Executar localmente
 
+Para exercitar o app completo com APIs e integrações simuladas, use:
+
+```sh
+make local
+```
+
+O modo local cria as contas `teste.local@biorotina.test` e
+`teste.dois@biorotina.test`, dados descartáveis e
+uma faixa visível no app. Ele não chama Google, Asaas, Gemini, Firebase, AWS ou
+Web Push. Veja o [guia do ambiente local](docs/local-development.md) para o
+roteiro de navegador e a inspeção dos eventos de telemetria.
+
 Requer Node.js recente compatível com Vite 8. Para testar o serviço de lembretes, configure `VITE_PUSH_API_URL` em `.env.local` com a URL pública da API. Para conectar o Drive, configure `VITE_GOOGLE_CLIENT_ID` com o identificador público de um cliente OAuth Web cujas origens incluam `http://127.0.0.1:5173` e `http://localhost:5173`. O cliente de produção deve autorizar `https://biorotina.app.br`; não use client secret no frontend.
 
 ```sh
@@ -74,4 +86,3 @@ Para manutenção, `make check` executa a checagem do frontend, Clippy e testes 
 O código-fonte e a documentação original da Biorotina estão sob [MIT](LICENSE). Dependências e materiais de terceiros mantêm suas próprias licenças; a fonte DM Sans distribuída no projeto inclui seu aviso [OFL](docs/assets/OFL.txt). O campo `private: true` do npm apenas impede publicação acidental do pacote, sem limitar a licença do código.
 
 Integrações com Apple Health e Health Connect estão fora do escopo inicial.
-

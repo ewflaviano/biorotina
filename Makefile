@@ -1,11 +1,20 @@
 .DEFAULT_GOAL := run
 
-.PHONY: run dev install test test-watch coverage check build preview lint typecheck format format-check secrets deploy configure-billing help
+.PHONY: run dev local local-api local-reset install test test-watch coverage check build preview lint typecheck format format-check secrets deploy configure-billing help
 
 run:
 	npm run dev
 
 dev: run
+
+local:
+	npm run local
+
+local-api:
+	npm run local:api
+
+local-reset:
+	npm run local:reset
 
 install:
 	npm ci
@@ -64,6 +73,9 @@ secrets:
 help:
 	@printf '%s\n' \
 	  'make / make run    Inicia o app em http://127.0.0.1:5173/' \
+	  'make local         Inicia app e APIs simuladas sem serviços externos' \
+	  'make local-api     Inicia somente as APIs simuladas em http://127.0.0.1:8787/' \
+	  'make local-reset   Remove os dados descartáveis locais' \
 	  'make install      Instala dependências com npm ci' \
 	  'make test         Executa todos os testes uma vez' \
 	  'make test-watch   Executa testes continuamente' \

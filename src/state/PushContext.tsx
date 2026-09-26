@@ -50,6 +50,7 @@ interface PushContextValue {
 const storageKey = "biorotina:push-device";
 const pendingRevokeKey = "biorotina:push-pending-revoke";
 const apiBase = (import.meta.env.VITE_PUSH_API_URL || "").replace(/\/$/, "");
+const localMode = import.meta.env.VITE_BIOROTINA_LOCAL_MODE === "true";
 const Context = createContext<PushContextValue | null>(null);
 
 class PushApiError extends Error {
@@ -62,6 +63,7 @@ class PushApiError extends Error {
 }
 
 function supported(): boolean {
+  if (localMode) return true;
   return (
     typeof window !== "undefined" &&
     window.isSecureContext &&
@@ -173,15 +175,19 @@ export function PushProvider({ children }: { children: ReactNode }) {
     readSession(storageKey),
   );
   const [status, setStatus] = useState<PushStatus>(() =>
-    currentDeviceNeedsHomeScreen()
-      ? "install_required"
-      : !supported()
-        ? "unavailable"
-        : Notification.permission === "denied"
-          ? "denied"
-          : Notification.permission === "granted" && readSession(storageKey)
-            ? "connecting"
-            : "off",
+    localMode
+      ? readSession(storageKey)
+        ? "active"
+        : "off"
+      : currentDeviceNeedsHomeScreen()
+        ? "install_required"
+        : !supported()
+          ? "unavailable"
+          : Notification.permission === "denied"
+            ? "denied"
+            : Notification.permission === "granted" && readSession(storageKey)
+              ? "connecting"
+              : "off",
   );
   const [message, setMessage] = useState("");
   const busy = useRef(false);
@@ -225,6 +231,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
   const scheduleKey = timeZone + "|" + JSON.stringify(reminders);
 
   useEffect(() => {
+    if (localMode) return;
     if (!session || loading || !supported()) return;
     if (Notification.permission !== "granted") return;
     if (lastSynced.current === scheduleKey) return;
@@ -276,6 +283,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
   }, [loading, reminders, scheduleKey, session, timeZone]);
 
   useEffect(() => {
+    if (localMode) return;
     const pending = readSession(pendingRevokeKey);
     if (!pending) return;
     void request("/subscriptions/" + pending.id, "push_remove", {
@@ -291,6 +299,41 @@ export function PushProvider({ children }: { children: ReactNode }) {
 
   async function enable() {
     if (busy.current) return;
+    if (localMode) {
+      busy.current = true;
+      setStatus("connecting");
+      setMessage("Ativando avisos simulados…");
+      try {
+        const next = await request<DeviceSession>(
+          "/subscriptions",
+          "push_register",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              subscription: { endpoint: "local://biorotina/push", keys: {} },
+              reminders,
+              timeZone,
+              simulated: true,
+            }),
+          },
+        );
+        saveSession(storageKey, next);
+        setSession(next);
+        lastSynced.current = scheduleKey;
+        setStatus("active");
+        setMessage("Avisos simulados estão ativos neste navegador local.");
+      } catch (cause) {
+        setStatus("error");
+        setMessage(
+          cause instanceof Error
+            ? cause.message
+            : "Não foi possível ativar os avisos simulados.",
+        );
+      } finally {
+        busy.current = false;
+      }
+      return;
+    }
     if (currentDeviceNeedsHomeScreen()) {
       setStatus("install_required");
       return;
@@ -384,6 +427,28 @@ export function PushProvider({ children }: { children: ReactNode }) {
   async function disable() {
     if (busy.current) return false;
     if (!session) return true;
+    if (localMode) {
+      busy.current = true;
+      setStatus("connecting");
+      try {
+        await request("/subscriptions/" + session.id, "push_remove", {
+          method: "DELETE",
+          headers: authHeader(session),
+        });
+        saveSession(storageKey, null);
+        setSession(null);
+        lastSynced.current = "";
+        setStatus("off");
+        setMessage("Avisos simulados foram desativados.");
+        return true;
+      } catch {
+        setStatus("error");
+        setMessage("Não foi possível desativar os avisos simulados.");
+        return false;
+      } finally {
+        busy.current = false;
+      }
+    }
     busy.current = true;
     setStatus("connecting");
     try {
@@ -428,7 +493,11 @@ export function PushProvider({ children }: { children: ReactNode }) {
         method: "POST",
         headers: authHeader(session),
       });
-      setMessage("Teste enviado. Confira as notificações deste dispositivo.");
+      setMessage(
+        localMode
+          ? "Teste de aviso simulado com sucesso. Nenhuma notificação real foi enviada."
+          : "Teste enviado. Confira as notificações deste dispositivo.",
+      );
     } catch (cause) {
       if (!(cause instanceof PushApiError))
         reportClientError("push", "push_failed", "push_test");
