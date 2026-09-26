@@ -13,10 +13,10 @@ let visitSent = false;
 let trackExperiment:
   ((event: string, params: Record<string, string>) => void) | null = null;
 
-/** Records only a fixed experiment key and outcome after diagnostic consent. */
+/** Records only a registered experiment key and outcome after diagnostic consent. */
 export function recordExperimentEvent(
   outcome: "exposure" | "use" | "error" | "rollback",
-  experiment: "demo-highlight",
+  experiment: "demo-highlight" | "onboarding-install-prompt",
   revision = "unknown",
 ): void {
   if (

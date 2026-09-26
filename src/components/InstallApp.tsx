@@ -11,7 +11,7 @@ import {
   wasInstallPromptDismissed,
 } from "../install/install";
 
-export function InstallButton() {
+export function InstallButton({ onUse }: { onUse?: () => void }) {
   const canInstall = useSyncExternalStore(
     subscribeToInstall,
     canInstallDirectly,
@@ -28,6 +28,7 @@ export function InstallButton() {
           type="button"
           disabled={busy}
           onClick={async () => {
+            onUse?.();
             setBusy(true);
             const installed = await installDirectly();
             setMessage(
@@ -53,23 +54,29 @@ export function InstallButton() {
 export function InstallPrompt({
   enabled,
   delayMs,
+  blocked = false,
+  onUse,
 }: {
   enabled: boolean;
   delayMs: number;
+  blocked?: boolean;
+  onUse?: () => void;
 }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     if (
       !enabled ||
+      blocked ||
       !isMobileViewport() ||
       isInstalled() ||
       wasInstallPromptDismissed()
-    )
+    ) {
       return;
+    }
     const timer = window.setTimeout(() => setVisible(true), delayMs);
     return () => window.clearTimeout(timer);
-  }, [enabled, delayMs]);
+  }, [enabled, blocked, delayMs]);
 
   useEffect(() => {
     const hide = () => setVisible(false);
@@ -86,10 +93,11 @@ export function InstallPrompt({
       <div className="install-prompt-copy">
         <strong>Biorotina na sua tela inicial</strong>
         <span>Acesse sua rotina com um toque, como um app.</span>
-        <InstallButton />
+        <InstallButton onUse={onUse} />
         <Link
           to="/instalar"
           onClick={() => {
+            onUse?.();
             dismissInstallPrompt();
             setVisible(false);
           }}
@@ -102,6 +110,7 @@ export function InstallPrompt({
         type="button"
         aria-label="Dispensar convite para instalar"
         onClick={() => {
+          onUse?.();
           dismissInstallPrompt();
           setVisible(false);
         }}

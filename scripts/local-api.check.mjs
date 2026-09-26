@@ -52,7 +52,10 @@ test("simulador local preserva a sessão e isola usuários de teste", async (con
       "x-biorotina-force-experiment": "demo-highlight=enabled",
     },
   });
-  assert.deepEqual((await experiment.json()).enabled, ["demo-highlight"]);
+  assert.deepEqual((await experiment.json()).enabled, [
+    "demo-highlight",
+    "onboarding-install-prompt",
+  ]);
   const experimentApi = await fetch(api.url + "/api/experiments/demo", {
     method: "POST",
     headers: {

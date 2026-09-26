@@ -13,7 +13,7 @@ const revision = Number(value("--revision") ?? "1");
 const testerSub = value("--tester-google-sub");
 const stage = process.env.BIOROTINA_STAGE || "dev";
 if (
-  key !== "demo-highlight" ||
+  !["demo-highlight", "onboarding-install-prompt"].includes(key) ||
   !Number.isInteger(rolloutPercent) ||
   rolloutPercent < 0 ||
   rolloutPercent > 100 ||
@@ -21,7 +21,7 @@ if (
   revision < 1
 ) {
   throw new Error(
-    "Uso: node scripts/configure-experiment.mjs --key demo-highlight --rollout 0..100 --revision 1 [--tester-google-sub valor] [--enabled] [--kill-switch]",
+    "Uso: node scripts/configure-experiment.mjs --key <demo-highlight|onboarding-install-prompt> --rollout 0..100 --revision 1 [--tester-google-sub valor] [--enabled] [--kill-switch]",
   );
 }
 

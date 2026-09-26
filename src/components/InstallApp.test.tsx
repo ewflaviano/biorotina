@@ -64,4 +64,33 @@ describe("mobile install invitation", () => {
       screen.queryByLabelText("Instalar Biorotina"),
     ).not.toBeInTheDocument();
   });
+
+  it("waits for a priority onboarding decision before starting its delay", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({ matches: query === "(max-width: 700px)" })),
+    );
+    const { rerender } = render(
+      <MemoryRouter>
+        <InstallPrompt enabled delayMs={10_000} blocked />
+      </MemoryRouter>,
+    );
+    act(() => vi.advanceTimersByTime(20_000));
+    expect(
+      screen.queryByLabelText("Instalar Biorotina"),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <MemoryRouter>
+        <InstallPrompt enabled delayMs={10_000} blocked={false} />
+      </MemoryRouter>,
+    );
+    act(() => vi.advanceTimersByTime(9_999));
+    expect(
+      screen.queryByLabelText("Instalar Biorotina"),
+    ).not.toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.getByLabelText("Instalar Biorotina")).toBeInTheDocument();
+  });
 });
