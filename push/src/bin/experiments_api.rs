@@ -23,6 +23,7 @@ const FEATURES: &[&str] = &[
     DEMO_FEATURE,
     "onboarding-install-prompt",
     "hydration-quick-confirmation",
+    "hydration-form-confirmation",
 ];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 

@@ -4,11 +4,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyData } from "../domain/data";
 import { HydrationPage } from "./HydrationPage";
 
-const experiment = vi.hoisted(() => ({ enabled: false, recordUse: vi.fn() }));
+const experiment = vi.hoisted(() => ({
+  enabled: false,
+  formEnabled: false,
+  recordUse: vi.fn(),
+}));
 const storage = vi.hoisted(() => ({ mutate: vi.fn() }));
 vi.mock("../experiments/ExperimentContext", () => ({
   useExperiment: () => ({
-    enabled: () => experiment.enabled,
+    enabled: (key: string) =>
+      key === "hydration-form-confirmation"
+        ? experiment.formEnabled
+        : experiment.enabled,
     recordUse: experiment.recordUse,
   }),
 }));
@@ -34,6 +41,7 @@ vi.mock("../components/PushActivationPrompt", () => ({
 
 beforeEach(() => {
   experiment.enabled = false;
+  experiment.formEnabled = false;
   storage.mutate.mockReset().mockResolvedValue(undefined);
 });
 
@@ -94,5 +102,74 @@ describe("confirmação experimental dos atalhos de água", () => {
     );
     expect(screen.queryByText(/Água registrada/)).not.toBeInTheDocument();
     expect(experiment.recordUse).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("confirmação experimental do formulário de água", () => {
+  it("mantém o formulário sem confirmação quando só o experimento dos atalhos está ativo", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    render(<HydrationPage />);
+    await user.type(screen.getByLabelText("Quantidade em ml"), "300");
+    await user.click(screen.getByRole("button", { name: "Salvar água" }));
+    expect(storage.mutate).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByText("Água salva no histórico."),
+    ).not.toBeInTheDocument();
+    expect(experiment.recordUse).not.toHaveBeenCalled();
+  });
+
+  it("confirma somente após persistir, mantém o foco e limpa ao editar", async () => {
+    experiment.formEnabled = true;
+    let finish!: () => void;
+    storage.mutate.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    render(<HydrationPage />);
+    const amount = screen.getByLabelText("Quantidade em ml");
+    await user.type(amount, "300");
+    const save = screen.getByRole("button", { name: "Salvar água" });
+    await user.click(save);
+    expect(save).toBeDisabled();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(experiment.recordUse).not.toHaveBeenCalled();
+    finish();
+    expect(await screen.findByText("Água salva no histórico.")).toHaveAttribute(
+      "role",
+      "status",
+    );
+    expect(save).toHaveFocus();
+    expect(amount).toHaveValue("");
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "hydration-form-confirmation",
+    );
+    await user.type(amount, "250");
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    storage.mutate.mockRejectedValueOnce(new Error("Falha simulada"));
+    await user.click(save);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Falha simulada",
+    );
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(amount).toHaveValue("250");
+    expect(experiment.recordUse).toHaveBeenCalledTimes(1);
+  });
+
+  it("não confirma quantidade inválida nem habilita a confirmação dos atalhos", async () => {
+    experiment.formEnabled = true;
+    const user = userEvent.setup();
+    render(<HydrationPage />);
+    await user.type(screen.getByLabelText("Quantidade em ml"), "-1");
+    await user.click(screen.getByRole("button", { name: "Salvar água" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(storage.mutate).not.toHaveBeenCalled();
+    expect(experiment.recordUse).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "200 ml" }));
+    expect(storage.mutate).toHaveBeenCalledOnce();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(experiment.recordUse).not.toHaveBeenCalled();
   });
 });
