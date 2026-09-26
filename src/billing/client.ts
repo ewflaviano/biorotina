@@ -10,6 +10,7 @@ import {
 } from "../observability/client";
 
 const API = (import.meta.env.VITE_PUSH_API_URL || "").replace(/\/$/, "");
+const LOCAL_MODE = import.meta.env.VITE_BIOROTINA_LOCAL_MODE === "true";
 async function sessionAccessToken(): Promise<string> {
   const response = await fetch(API + "/api/auth/access-token", {
     credentials: "include",
@@ -154,10 +155,11 @@ export async function createPlanCheckout(googleToken: string): Promise<string> {
   }
   const value = parsed.data;
   const url = new URL(value.url);
-  if (!(
+  const isAsaasCheckout =
     ["asaas.com", "sandbox.asaas.com"].includes(url.hostname) &&
-    url.protocol === "https:"
-  )) {
+    url.protocol === "https:";
+  const isLocalCheckout = LOCAL_MODE && url.origin === API;
+  if (!isAsaasCheckout && !isLocalCheckout) {
     reportClientError("billing", "response_invalid", "billing_checkout", 200);
     throw new Error("Endereço de pagamento inválido.");
   }

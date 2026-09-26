@@ -13,6 +13,8 @@ const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
 const ACCOUNT_STORAGE_KEY = "biorotina:google-account";
 const API = (import.meta.env.VITE_PUSH_API_URL || "").replace(/\/$/, "");
+const LOCAL_MODE = import.meta.env.VITE_BIOROTINA_LOCAL_MODE === "true";
+const LOCAL_TEST_USER = import.meta.env.VITE_BIOROTINA_LOCAL_TEST_USER || "1";
 
 interface CodeClient {
   requestCode(): void;
@@ -160,31 +162,9 @@ async function authorizeCode(
   scope: string,
   expected: GoogleAccount | null,
 ): Promise<GoogleAccount> {
-  await preloadGoogleIdentity();
-  const oauth2 = window.google?.accounts.oauth2;
-  if (!oauth2)
-    throw new Error("O login Google não está disponível neste navegador.");
-  const code = await new Promise<string>((resolve, reject) => {
-    try {
-      oauth2
-        .initCodeClient({
-          client_id: clientId,
-          scope,
-          ux_mode: "popup",
-          callback: (response) =>
-            response.code
-              ? resolve(response.code)
-              : reject(new Error("Não foi possível conectar ao Google.")),
-          error_callback: () =>
-            reject(
-              new Error("A janela do Google foi fechada. Tente novamente."),
-            ),
-        })
-        .requestCode();
-    } catch (cause) {
-      reject(cause);
-    }
-  });
+  const code = LOCAL_MODE
+    ? `local-test-user-${LOCAL_TEST_USER}`
+    : await requestGoogleCode(clientId, scope);
   const response = await fetch(`${API}/api/auth/google/exchange`, {
     method: "POST",
     credentials: "include",
@@ -231,6 +211,37 @@ async function authorizeCode(
     expiresAt: Date.now() + payload.expiresIn * 1000,
     driveAuthorized: payload.driveAuthorized,
   };
+}
+
+async function requestGoogleCode(
+  clientId: string,
+  scope: string,
+): Promise<string> {
+  await preloadGoogleIdentity();
+  const oauth2 = window.google?.accounts.oauth2;
+  if (!oauth2)
+    throw new Error("O login Google não está disponível neste navegador.");
+  return new Promise<string>((resolve, reject) => {
+    try {
+      oauth2
+        .initCodeClient({
+          client_id: clientId,
+          scope,
+          ux_mode: "popup",
+          callback: (response) =>
+            response.code
+              ? resolve(response.code)
+              : reject(new Error("Não foi possível conectar ao Google.")),
+          error_callback: () =>
+            reject(
+              new Error("A janela do Google foi fechada. Tente novamente."),
+            ),
+        })
+        .requestCode();
+    } catch (cause) {
+      reject(cause);
+    }
+  });
 }
 
 export async function authorizeGoogleDrive(
@@ -327,6 +338,23 @@ export async function listDriveSnapshots(
   token: string,
   fetcher: typeof fetch = fetch,
 ): Promise<DriveSnapshot[]> {
+  if (LOCAL_MODE) {
+    const response = await authorizedFetch(
+      token,
+      `${API}/api/local/drive/snapshots`,
+      {},
+      fetcher,
+    );
+    const payload: unknown = await response.json();
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      !("snapshots" in payload) ||
+      !Array.isArray(payload.snapshots)
+    )
+      throw new Error("Resposta do Drive local inválida.");
+    return payload.snapshots as DriveSnapshot[];
+  }
   const snapshots: DriveSnapshot[] = [];
   let pageToken: string | undefined;
   do {
@@ -371,6 +399,17 @@ export async function downloadDriveSnapshot(
     throw new Error(
       "O backup no Drive ultrapassa o limite de importação de 10 MB.",
     );
+  if (LOCAL_MODE) {
+    const response = await authorizedFetch(
+      token,
+      `${API}/api/local/drive/snapshots/${encodeURIComponent(snapshot.id)}`,
+      {},
+      fetcher,
+    );
+    const data = parseBackup(await response.json());
+    validateAnthropometrics(data);
+    return data;
+  }
   const response = await authorizedFetch(
     token,
     `${DRIVE_API}/files/${encodeURIComponent(snapshot.id)}?alt=media`,
@@ -399,6 +438,22 @@ export async function uploadDriveSnapshot(
     throw new Error(
       "O backup do Drive não foi enviado porque excede 10 MB. Seus registros continuam neste navegador.",
     );
+  if (LOCAL_MODE) {
+    const response = await authorizedFetch(
+      token,
+      `${API}/api/local/drive/snapshots`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: content,
+      },
+      fetcher,
+    );
+    const saved: DriveSnapshot = await response.json();
+    if (!saved.id || !saved.createdTime)
+      throw new Error("Resposta do Drive local inválida.");
+    return saved;
+  }
   let response: Response;
   if (size <= 5_000_000) {
     const boundary = `biorotina-${crypto.randomUUID()}`;

@@ -30,6 +30,8 @@ import { useDriveSync } from "../sync/DriveSyncContext";
 import { AnalyticsConsentBanner } from "../analytics/AnalyticsConsentBanner";
 import { useAnalyticsPreference } from "../analytics/useAnalyticsPreference";
 
+const localMode = import.meta.env.VITE_BIOROTINA_LOCAL_MODE === "true";
+
 const desktopNav = [
   { to: "/", label: "Hoje", mobileLabel: "Hoje", icon: House },
   { to: "/peso", label: "Medidas", mobileLabel: "Medidas", icon: Scale },
@@ -226,6 +228,12 @@ export function Layout() {
             </NavLink>
           </div>
         </header>
+        {localMode && (
+          <div className="local-mode-banner" role="status">
+            Modo local: Google, Drive, avisos, IA e cobrança são simulados.
+            Nenhum dado é enviado para serviços externos.
+          </div>
+        )}
         <AnalyticsConsentBanner />
         {location.pathname !== "/configuracoes" &&
           (drive.error || drive.status === "conflict") && (
