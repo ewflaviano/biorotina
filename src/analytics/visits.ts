@@ -1,3 +1,5 @@
+import type { ExperimentKey } from "../experiments/registry";
+
 /** Site visit measurement. This module never receives app records or account data. */
 
 const PREFERENCE_KEY = "biorotina.analytics.consent.v1";
@@ -16,7 +18,7 @@ let trackExperiment:
 /** Records only a registered experiment key and outcome after diagnostic consent. */
 export function recordExperimentEvent(
   outcome: "exposure" | "use" | "error" | "rollback",
-  experiment: "demo-highlight" | "onboarding-install-prompt",
+  experiment: ExperimentKey,
   revision = "unknown",
 ): void {
   if (

@@ -53,6 +53,19 @@ test("simulador local preserva a sessão e isola usuários de teste", async (con
     },
   });
   assert.deepEqual((await experiment.json()).enabled, ["demo-highlight"]);
+  const hydrationExperiment = await fetch(api.url + "/api/experiments", {
+    headers: {
+      cookie: first.cookie,
+      "x-biorotina-force-experiment": "hydration-quick-confirmation=enabled",
+    },
+  });
+  assert.deepEqual((await hydrationExperiment.json()).enabled, [
+    "hydration-quick-confirmation",
+  ]);
+  const ordinaryExperiments = await fetch(api.url + "/api/experiments", {
+    headers: { cookie: first.cookie },
+  });
+  assert.deepEqual((await ordinaryExperiments.json()).enabled, []);
   const experimentApi = await fetch(api.url + "/api/experiments/demo", {
     method: "POST",
     headers: {

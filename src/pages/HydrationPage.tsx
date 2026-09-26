@@ -17,10 +17,16 @@ import { TimeSelect } from "../components/TimeSelect";
 import { PushActivationPrompt } from "../components/PushActivationPrompt";
 import { InfoDisclosure } from "../components/InfoDisclosure";
 import { removeEntry, restoreEntry } from "../domain/recordActions";
+import { useExperiment } from "../experiments/ExperimentContext";
 import type { HydrationEntry } from "../domain/data";
 
 export function HydrationPage() {
   const { data, mutate, removeWithUndo } = useAppData();
+  const { enabled, recordUse } = useExperiment();
+  const confirmQuickAdd = enabled("hydration-quick-confirmation");
+  const [quickConfirmation, setQuickConfirmation] = useState<
+    "hero" | "history" | null
+  >(null);
   const [amount, setAmount] = useState("");
   const [when, setWhen] = useState(toLocalDateTime(new Date().toISOString()));
   const [reminderTime, setReminderTime] = useState("");
@@ -77,11 +83,16 @@ export function HydrationPage() {
     amountMl: number,
     source: "hero" | "history" = "hero",
   ) {
+    setQuickConfirmation(null);
     if (source === "hero") setQuickError("");
     else setActionError("");
     setSaving(true);
     try {
       await addWater(amountMl, new Date().toISOString());
+      if (confirmQuickAdd) {
+        setQuickConfirmation(source);
+        recordUse("hydration-quick-confirmation");
+      }
     } catch {
       const message = "Não foi possível salvar o registro.";
       if (source === "hero") setQuickError(message);
@@ -184,6 +195,13 @@ export function HydrationPage() {
                 </button>
               ))}
             </div>
+            {confirmQuickAdd && (
+              <p role="status" aria-atomic="true" className="small muted">
+                {quickConfirmation === "hero"
+                  ? "Água registrada. Seu total foi atualizado."
+                  : ""}
+              </p>
+            )}
             {quickError && (
               <p className="form-error" role="alert">
                 {quickError}
@@ -217,6 +235,13 @@ export function HydrationPage() {
           </section>
           <section className="panel" aria-labelledby="historico-agua">
             <h2 id="historico-agua">Histórico</h2>
+            {confirmQuickAdd && (
+              <p role="status" aria-atomic="true" className="small muted">
+                {quickConfirmation === "history"
+                  ? "Água registrada novamente com o horário atual."
+                  : ""}
+              </p>
+            )}
             {actionError && (
               <p className="form-error" role="alert">
                 {actionError}

@@ -16,6 +16,16 @@ export const experimentRegistry = {
     removeWhen:
       "O convite de instalação tiver a sequência aprovada e não houver regressões no onboarding.",
   },
+  "hydration-quick-confirmation": {
+    description:
+      "Confirma de forma acessível o registro de água pelos atalhos.",
+    owner: "Biorotina",
+    issue: 69,
+    revision: 1,
+    reviewBy: "2026-10-02",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper se confirmar uma gravação que falhou ou prejudicar a acessibilidade.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;

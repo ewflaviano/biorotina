@@ -11,7 +11,11 @@ const rolloutPercent = Number(value("--rollout") ?? "0");
 const revision = Number(value("--revision") ?? "1");
 const stage = process.env.BIOROTINA_STAGE || "dev";
 if (
-  !["demo-highlight", "onboarding-install-prompt"].includes(key) ||
+  ![
+    "demo-highlight",
+    "onboarding-install-prompt",
+    "hydration-quick-confirmation",
+  ].includes(key) ||
   !Number.isInteger(rolloutPercent) ||
   rolloutPercent < 0 ||
   rolloutPercent > 100 ||
@@ -19,7 +23,7 @@ if (
   revision < 1
 ) {
   throw new Error(
-    "Uso: node scripts/configure-experiment.mjs --key <demo-highlight|onboarding-install-prompt> --rollout 0..100 --revision 1 [--enabled] [--kill-switch]",
+    "Uso: node scripts/configure-experiment.mjs --key <demo-highlight|onboarding-install-prompt|hydration-quick-confirmation> --rollout 0..100 --revision 1 [--enabled] [--kill-switch]",
   );
 }
 

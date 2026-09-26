@@ -19,7 +19,11 @@ use tokio::sync::Mutex;
 const COOKIE: &str = "biorotina_session";
 const SESSION_PREFIX: &str = "DRIVE_SESSION#";
 const DEMO_FEATURE: &str = "demo-highlight";
-const FEATURES: &[&str] = &[DEMO_FEATURE, "onboarding-install-prompt"];
+const FEATURES: &[&str] = &[
+    DEMO_FEATURE,
+    "onboarding-install-prompt",
+    "hydration-quick-confirmation",
+];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 
 #[derive(Clone)]
@@ -241,6 +245,17 @@ mod tests {
             kill_switch: false,
             rollout_percent: 0,
             revision: 1,
+        }
+    }
+    #[test]
+    fn every_registered_feature_defaults_off_and_respects_kill_switch() {
+        for feature in FEATURES {
+            let mut value = ExperimentConfig::default();
+            assert!(!enabled(&value, feature, Some("test-account"), false));
+            assert!(!enabled(&value, feature, None, true));
+            assert!(enabled(&value, feature, Some("test-account"), true));
+            value.kill_switch = true;
+            assert!(!enabled(&value, feature, Some("test-account"), true));
         }
     }
     #[test]
