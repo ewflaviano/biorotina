@@ -208,6 +208,7 @@ export async function createLocalApi({ dataDir, port = 0 } = {}) {
           "demo-highlight",
           "onboarding-install-prompt",
           "hydration-quick-confirmation",
+          "hydration-form-confirmation",
         ].filter((key) => experimentEnabled(request, session, key));
         return json(response, 200, {
           enabled,

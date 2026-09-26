@@ -15,6 +15,7 @@ if (
     "demo-highlight",
     "onboarding-install-prompt",
     "hydration-quick-confirmation",
+    "hydration-form-confirmation",
   ].includes(key) ||
   !Number.isInteger(rolloutPercent) ||
   rolloutPercent < 0 ||
@@ -23,7 +24,7 @@ if (
   revision < 1
 ) {
   throw new Error(
-    "Uso: node scripts/configure-experiment.mjs --key <demo-highlight|onboarding-install-prompt|hydration-quick-confirmation> --rollout 0..100 --revision 1 [--enabled] [--kill-switch]",
+    "Uso: node scripts/configure-experiment.mjs --key <demo-highlight|onboarding-install-prompt|hydration-quick-confirmation|hydration-form-confirmation> --rollout 0..100 --revision 1 [--enabled] [--kill-switch]",
   );
 }
 

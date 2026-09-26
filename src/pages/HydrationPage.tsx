@@ -24,6 +24,8 @@ export function HydrationPage() {
   const { data, mutate, removeWithUndo } = useAppData();
   const { enabled, recordUse } = useExperiment();
   const confirmQuickAdd = enabled("hydration-quick-confirmation");
+  const confirmForm = enabled("hydration-form-confirmation");
+  const [formConfirmed, setFormConfirmed] = useState(false);
   const [quickConfirmation, setQuickConfirmation] = useState<
     "hero" | "history" | null
   >(null);
@@ -60,6 +62,7 @@ export function HydrationPage() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setWaterError("");
+    setFormConfirmed(false);
     setSaving(true);
     try {
       await addWater(
@@ -68,6 +71,10 @@ export function HydrationPage() {
       );
       setAmount("");
       setWhen(toLocalDateTime(new Date().toISOString()));
+      if (confirmForm) {
+        setFormConfirmed(true);
+        recordUse("hydration-form-confirmation");
+      }
     } catch (cause) {
       setWaterError(
         cause instanceof Error
@@ -84,6 +91,7 @@ export function HydrationPage() {
     source: "hero" | "history" = "hero",
   ) {
     setQuickConfirmation(null);
+    setFormConfirmed(false);
     if (source === "hero") setQuickError("");
     else setActionError("");
     setSaving(true);
@@ -218,11 +226,26 @@ export function HydrationPage() {
                   inputMode="decimal"
                   placeholder="Ex.: 300"
                   value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
+                  onChange={(event) => {
+                    setAmount(event.target.value);
+                    setFormConfirmed(false);
+                  }}
                   required
                 />
               </div>
-              <DateTimeField id="water-date" value={when} onChange={setWhen} />
+              <DateTimeField
+                id="water-date"
+                value={when}
+                onChange={(value) => {
+                  setWhen(value);
+                  setFormConfirmed(false);
+                }}
+              />
+              {confirmForm && (
+                <p role="status" aria-atomic="true" className="small muted">
+                  {formConfirmed ? "Água salva no histórico." : ""}
+                </p>
+              )}
               {waterError && (
                 <p className="form-error" role="alert">
                   {waterError}

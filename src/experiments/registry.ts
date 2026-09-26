@@ -26,6 +26,16 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper se confirmar uma gravação que falhou ou prejudicar a acessibilidade.",
   },
+  "hydration-form-confirmation": {
+    description:
+      "Confirma de forma acessível a persistência pelo formulário de água.",
+    owner: "Biorotina",
+    issue: 71,
+    revision: 1,
+    reviewBy: "2026-10-03",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper se confirmar uma gravação que falhou ou prejudicar a acessibilidade.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;
