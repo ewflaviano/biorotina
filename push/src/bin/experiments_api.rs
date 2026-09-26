@@ -10,6 +10,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
+    collections::HashMap,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -17,8 +18,8 @@ use tokio::sync::Mutex;
 
 const COOKIE: &str = "biorotina_session";
 const SESSION_PREFIX: &str = "DRIVE_SESSION#";
-const FEATURE: &str = "demo-highlight";
-const CONFIG_KEY: &str = "EXPERIMENT#demo-highlight";
+const DEMO_FEATURE: &str = "demo-highlight";
+const FEATURES: &[&str] = &[DEMO_FEATURE, "onboarding-install-prompt"];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 
 #[derive(Clone)]
@@ -26,7 +27,7 @@ struct App {
     db: Db,
     billing_table: String,
     experiments_table: String,
-    cache: Arc<Mutex<Option<(Instant, ExperimentConfig)>>>,
+    cache: Arc<Mutex<HashMap<String, (Instant, ExperimentConfig)>>>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -58,7 +59,7 @@ async fn main() -> Result<(), lambda_http::Error> {
         db: Db::new(&config),
         billing_table: std::env::var("BILLING_TABLE_NAME")?,
         experiments_table: std::env::var("EXPERIMENTS_TABLE_NAME")?,
-        cache: Arc::new(Mutex::new(None)),
+        cache: Arc::new(Mutex::new(HashMap::new())),
     }))
     .await
 }
@@ -90,14 +91,14 @@ fn cookie(headers: &HeaderMap) -> Option<&str> {
         .map(str::trim)
         .find_map(|item| item.strip_prefix(&format!("{COOKIE}=")))
 }
-fn forced(headers: &HeaderMap) -> bool {
+fn forced(headers: &HeaderMap, feature: &str) -> bool {
     headers
         .get("x-biorotina-force-experiment")
         .and_then(|v| v.to_str().ok())
         .is_some_and(|value| {
             value
                 .split(',')
-                .any(|item| item.trim() == "demo-highlight=enabled")
+                .any(|item| item.trim() == format!("{feature}=enabled"))
         })
 }
 
@@ -115,8 +116,8 @@ async fn account_key(app: &App, headers: &HeaderMap) -> Option<String> {
     item.get("accountKey")?.as_s().ok().cloned()
 }
 
-async fn config(app: &App) -> ExperimentConfig {
-    if let Some((loaded, config)) = app.cache.lock().await.clone() {
+async fn config(app: &App, feature: &str) -> ExperimentConfig {
+    if let Some((loaded, config)) = app.cache.lock().await.get(feature).cloned() {
         if loaded.elapsed() < CACHE_FOR {
             return config;
         }
@@ -125,7 +126,7 @@ async fn config(app: &App) -> ExperimentConfig {
         .db
         .get_item()
         .table_name(&app.experiments_table)
-        .key("pk", A::S(CONFIG_KEY.into()))
+        .key("pk", A::S(format!("EXPERIMENT#{feature}")))
         .send()
         .await
         .ok()
@@ -138,16 +139,19 @@ async fn config(app: &App) -> ExperimentConfig {
         .and_then(|value| serde_json::from_str::<ExperimentConfig>(&value).ok())
         .filter(|config| config.rollout_percent <= 100)
         .unwrap_or_default();
-    *app.cache.lock().await = Some((Instant::now(), loaded.clone()));
+    app.cache
+        .lock()
+        .await
+        .insert(feature.to_owned(), (Instant::now(), loaded.clone()));
     loaded
 }
 
-fn bucket(account: &str) -> u8 {
-    let bytes = Sha256::digest(format!("{FEATURE}:{account}").as_bytes());
+fn bucket(feature: &str, account: &str) -> u8 {
+    let bytes = Sha256::digest(format!("{feature}:{account}").as_bytes());
     u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]).rem_euclid(100) as u8
 }
 
-fn enabled(config: &ExperimentConfig, account: Option<&str>, force: bool) -> bool {
+fn enabled(config: &ExperimentConfig, feature: &str, account: Option<&str>, force: bool) -> bool {
     if !config.enabled || config.kill_switch {
         return false;
     }
@@ -161,7 +165,7 @@ fn enabled(config: &ExperimentConfig, account: Option<&str>, force: bool) -> boo
     if force {
         return false;
     }
-    bucket(account) < config.rollout_percent
+    bucket(feature, account) < config.rollout_percent
 }
 
 fn response(
@@ -190,11 +194,23 @@ async fn assignments(
             json!({"error":"Conecte sua conta Google para participar de testes."}),
         );
     }
-    let config = config(&app).await;
-    let active = enabled(&config, account.as_deref(), forced(&headers));
+    let mut active = Vec::new();
+    let mut revisions = serde_json::Map::new();
+    for feature in FEATURES {
+        let config = config(&app, feature).await;
+        if enabled(
+            &config,
+            feature,
+            account.as_deref(),
+            forced(&headers, feature),
+        ) {
+            active.push(*feature);
+            revisions.insert((*feature).to_owned(), json!(config.revision));
+        }
+    }
     response(
         StatusCode::OK,
-        json!({"enabled": if active { vec![FEATURE] } else { vec![] }, "revision": config.revision}),
+        json!({"enabled": active, "revisions": revisions}),
     )
 }
 
@@ -205,7 +221,7 @@ async fn demo(
     if headers
         .get("x-biorotina-experiment")
         .and_then(|v| v.to_str().ok())
-        != Some(FEATURE)
+        != Some(DEMO_FEATURE)
     {
         return response(
             StatusCode::FORBIDDEN,
@@ -213,8 +229,13 @@ async fn demo(
         );
     }
     let account = account_key(&app, &headers).await;
-    let config = config(&app).await;
-    if !enabled(&config, account.as_deref(), forced(&headers)) {
+    let config = config(&app, DEMO_FEATURE).await;
+    if !enabled(
+        &config,
+        DEMO_FEATURE,
+        account.as_deref(),
+        forced(&headers, DEMO_FEATURE),
+    ) {
         return response(
             StatusCode::FORBIDDEN,
             json!({"error":"Experimento indisponível."}),
@@ -237,17 +258,20 @@ mod tests {
     }
     #[test]
     fn tester_is_enabled_and_other_account_is_not() {
-        assert!(enabled(&config(), Some("tester"), true));
-        assert!(!enabled(&config(), Some("other"), true));
+        assert!(enabled(&config(), DEMO_FEATURE, Some("tester"), true));
+        assert!(!enabled(&config(), DEMO_FEATURE, Some("other"), true));
     }
     #[test]
     fn rollout_is_deterministic_and_kill_switch_wins() {
         let mut value = config();
         value.testers.clear();
         value.rollout_percent = 100;
-        assert!(enabled(&value, Some("account"), false));
-        assert_eq!(bucket("account"), bucket("account"));
+        assert!(enabled(&value, DEMO_FEATURE, Some("account"), false));
+        assert_eq!(
+            bucket(DEMO_FEATURE, "account"),
+            bucket(DEMO_FEATURE, "account")
+        );
         value.kill_switch = true;
-        assert!(!enabled(&value, Some("account"), false));
+        assert!(!enabled(&value, DEMO_FEATURE, Some("account"), false));
     }
 }

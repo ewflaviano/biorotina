@@ -1,18 +1,25 @@
 import { Merge, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDriveSync } from "../sync/DriveSyncContext";
 
-export function GuestMergePrompt() {
+export function GuestMergePrompt({
+  onVisibilityChange,
+}: {
+  onVisibilityChange?: (visible: boolean) => void;
+}) {
   const drive = useDriveSync();
   const [dismissedAccount, setDismissedAccount] = useState("");
   const account = drive.account;
-  if (
-    !account ||
-    !drive.canCopyGuest ||
-    drive.busy ||
-    dismissedAccount === account.id
-  )
-    return null;
+  const visible = Boolean(
+    account &&
+    drive.canCopyGuest &&
+    !drive.busy &&
+    dismissedAccount !== account.id,
+  );
+
+  useEffect(() => onVisibilityChange?.(visible), [onVisibilityChange, visible]);
+
+  if (!account || !visible) return null;
 
   return (
     <div className="push-prompt-backdrop" role="presentation">

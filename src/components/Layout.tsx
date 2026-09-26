@@ -29,6 +29,7 @@ import { useAppData } from "../state/AppDataContext";
 import { useDriveSync } from "../sync/DriveSyncContext";
 import { AnalyticsConsentBanner } from "../analytics/AnalyticsConsentBanner";
 import { useAnalyticsPreference } from "../analytics/useAnalyticsPreference";
+import { useExperiment } from "../experiments/ExperimentContext";
 
 const localMode = import.meta.env.VITE_BIOROTINA_LOCAL_MODE === "true";
 
@@ -79,17 +80,22 @@ export function Layout() {
   const { data, undoLabel, undoCount, undoLast, dismissUndo } = useAppData();
   const drive = useDriveSync();
   const analyticsPreference = useAnalyticsPreference();
+  const experiment = useExperiment();
   const location = useLocation();
   const [undoFailure, setUndoFailure] = useState<{
     label: string;
     count: number;
     message: string;
   } | null>(null);
+  const [mergePromptVisible, setMergePromptVisible] = useState(false);
   const name = data.profile.displayName.trim();
   const undoError =
     undoFailure?.label === undoLabel && undoFailure.count === undoCount
       ? undoFailure.message
       : "";
+  const onboardingInstallExperiment = experiment.enabled(
+    "onboarding-install-prompt",
+  );
 
   async function handleUndo() {
     setUndoFailure(null);
@@ -301,14 +307,25 @@ export function Layout() {
       </div>
       {location.pathname === "/" && (
         <InstallPrompt
+          key={
+            onboardingInstallExperiment && mergePromptVisible
+              ? "install-prompt-blocked"
+              : "install-prompt-ready"
+          }
           enabled={analyticsPreference !== "unselected"}
-          delayMs={1800}
+          delayMs={onboardingInstallExperiment ? 10_000 : 1800}
+          blocked={onboardingInstallExperiment && mergePromptVisible}
+          onUse={
+            onboardingInstallExperiment
+              ? () => experiment.recordUse("onboarding-install-prompt")
+              : undefined
+          }
         />
       )}
       <GuestLoginPrompt />
       <DrivePermissionPrompt />
       <SyncConflictPrompt />
-      <GuestMergePrompt />
+      <GuestMergePrompt onVisibilityChange={setMergePromptVisible} />
     </div>
   );
 }

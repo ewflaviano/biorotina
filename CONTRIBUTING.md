@@ -41,6 +41,31 @@ cargo test --manifest-path push/Cargo.toml
 
 `make check` executa tudo de uma vez. `make test` executa os testes de frontend e Rust. Consulte [README.md](README.md) e [docs/architecture.md](docs/architecture.md) para entender o projeto.
 
+### Mudanças de produto entram como experimento
+
+Toda contribuição que altere a experiência, a regra ou o comportamento
+percebido por quem usa a Biorotina deve entrar sob um experimento, mesmo que
+seja um ajuste pequeno de texto, ordem, cor ou animação. A issue precisa dizer
+qual problema será avaliado, qual métrica indica melhora, por quanto tempo será
+observada e quando o código será removido.
+
+Antes de abrir o PR:
+
+1. Registre uma chave tipada em `src/experiments/registry.ts` com issue,
+   responsável, data de revisão e condição de remoção.
+2. Proteja a mudança com `useExperiment()`. O comportamento precisa ficar
+   desligado quando não houver configuração remota, conta autenticada ou se o
+   kill switch estiver ativo.
+3. Valide localmente com uma conta de teste e
+   `BIOROTINA_LOCAL_FORCE_EXPERIMENT=<chave>=enabled npm run local`.
+4. Inclua no PR como medir exposição, uso, erros e rollback. Depois da
+   liberação gradual, promova ou remova o experimento na issue.
+
+Mudanças exclusivamente internas, documentação e correções que apenas
+restauram o comportamento já contratado não precisam de gate, mas o PR deve
+explicar por que não há impacto de produto. Uma correção de segurança ou de
+indisponibilidade pode ser publicada primeiro e registrada em seguida.
+
 ## Abrir um pull request
 
 1. Envie sua branch ao GitHub e abra um PR para `master` usando o modelo do repositório.

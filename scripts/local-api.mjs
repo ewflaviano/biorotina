@@ -195,9 +195,9 @@ export async function createLocalApi({ dataDir, port = 0 } = {}) {
       if (path === "/api/experiments" && method === "GET") {
         const session = requireSession(request, response);
         if (!session) return;
-        const enabled = experimentEnabled(request, session, "demo-highlight")
-          ? ["demo-highlight"]
-          : [];
+        const enabled = ["demo-highlight", "onboarding-install-prompt"].filter(
+          (key) => experimentEnabled(request, session, key),
+        );
         return json(response, 200, {
           enabled,
           revision: experimentConfig.revision,

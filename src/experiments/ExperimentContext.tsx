@@ -17,12 +17,14 @@ const LOCAL_FORCE = import.meta.env.VITE_BIOROTINA_LOCAL_FORCE_EXPERIMENT;
 
 interface ExperimentValue {
   enabled: (key: ExperimentKey) => boolean;
+  recordUse: (key: ExperimentKey) => void;
   confirmDemo: () => Promise<void>;
 }
 
 const Context = createContext<ExperimentValue | null>(null);
 const disabledExperiments: ExperimentValue = {
   enabled: () => false,
+  recordUse: () => undefined,
   confirmDemo: async () => {
     throw new Error("Experimentos indisponíveis.");
   },
@@ -64,14 +66,16 @@ export function ExperimentProvider({ children }: { children: ReactNode }) {
     const refresh = () =>
       void loadExperiments().then((enabled) => {
         if (!cancelled) {
-          const wasEnabled = previous.current.includes("demo-highlight");
-          const isEnabled = enabled.includes("demo-highlight");
-          if (wasEnabled && !isEnabled)
-            recordExperimentEvent("rollback", "demo-highlight");
+          for (const key of experimentKeys) {
+            const wasEnabled = previous.current.includes(key);
+            const isEnabled = enabled.includes(key);
+            if (wasEnabled && !isEnabled)
+              recordExperimentEvent("rollback", key);
+            if (!wasEnabled && isEnabled)
+              recordExperimentEvent("exposure", key);
+          }
           previous.current = enabled;
           setActive(enabled);
-          if (!wasEnabled && isEnabled)
-            recordExperimentEvent("exposure", "demo-highlight");
         }
       });
     refresh();
@@ -86,6 +90,9 @@ export function ExperimentProvider({ children }: { children: ReactNode }) {
     (key: ExperimentKey) => Boolean(account) && active.includes(key),
     [account, active],
   );
+  const recordUse = useCallback((key: ExperimentKey) => {
+    recordExperimentEvent("use", key);
+  }, []);
   const confirmDemo = useCallback(async () => {
     const headers = new Headers({ "X-Biorotina-Experiment": "demo-highlight" });
     if (LOCAL_MODE && LOCAL_FORCE)
@@ -104,7 +111,7 @@ export function ExperimentProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Context.Provider value={{ enabled, confirmDemo }}>
+    <Context.Provider value={{ enabled, recordUse, confirmDemo }}>
       {children}
     </Context.Provider>
   );

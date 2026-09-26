@@ -13,7 +13,7 @@ conta já guardado para a sessão, sem dados de saúde, e mantém a mesma pessoa
 mesma coorte. Falha de leitura, configuração inválida ou ausência de sessão
 desliga o recurso.
 
-O cabeçalho `X-Biorotina-Force-Experiment: demo-highlight=enabled` serve para
+O cabeçalho `X-Biorotina-Force-Experiment: <chave>=enabled` serve para
 testadores autorizados. Ele é lido somente nas APIs da Biorotina e nunca é
 salvo em backup, Drive, dados de saúde, telemetria ou logs. O frontend só recebe
 a lista final de chaves habilitadas por `GET /api/experiments`.
@@ -26,7 +26,7 @@ gate antes de executar a operação.
 ## Configuração remota
 
 A tabela `ExperimentsTable` armazena uma linha por chave com `pk` igual a
-`EXPERIMENT#demo-highlight` e o atributo `config` em JSON:
+`EXPERIMENT#<chave>` e o atributo `config` em JSON:
 
 ```json
 {
@@ -47,7 +47,7 @@ publicar código:
 
 ```sh
 AWS_PROFILE=biorotina AWS_REGION=sa-east-1 npm run configure-experiment -- \
-  --key demo-highlight --enabled --rollout 5 --revision 1
+  --key onboarding-install-prompt --enabled --rollout 5 --revision 1
 ```
 
 Para adicionar um testador específico, inclua `--tester-google-sub <valor>`.
