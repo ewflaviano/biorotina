@@ -48,6 +48,19 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run check
 
+  validate_schemas:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:schemas
+
   validate_backend:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
@@ -74,7 +87,8 @@ jobs:
       needs.changes.outputs.backend == 'true' &&
       needs.validate_backend.result == 'success' &&
       (needs.validate_frontend.result == 'success' || needs.validate_frontend.result == 'skipped')
-    needs: [changes, validate_backend, validate_frontend]
+      && (needs.validate_schemas.result == 'success' || needs.validate_schemas.result == 'skipped')
+    needs: [changes, validate_backend, validate_frontend, validate_schemas]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -151,8 +165,9 @@ jobs:
       needs.changes.result == 'success' &&
       needs.changes.outputs.frontend == 'true' &&
       needs.validate_frontend.result == 'success' &&
+      (needs.validate_schemas.result == 'success' || needs.validate_schemas.result == 'skipped') &&
       (needs.deploy_backend.result == 'success' || needs.deploy_backend.result == 'skipped')
-    needs: [changes, validate_frontend, deploy_backend]
+    needs: [changes, validate_frontend, validate_schemas, deploy_backend]
     runs-on: ubuntu-latest
     permissions:
       contents: read
