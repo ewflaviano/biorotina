@@ -30,26 +30,13 @@ struct App {
     cache: Arc<Mutex<HashMap<String, (Instant, ExperimentConfig)>>>,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ExperimentConfig {
     enabled: bool,
     kill_switch: bool,
     rollout_percent: u8,
-    testers: Vec<String>,
     revision: u64,
-}
-
-impl Default for ExperimentConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            kill_switch: true,
-            rollout_percent: 0,
-            testers: vec![],
-            revision: 0,
-        }
-    }
 }
 
 #[tokio::main]
@@ -152,17 +139,18 @@ fn bucket(feature: &str, account: &str) -> u8 {
 }
 
 fn enabled(config: &ExperimentConfig, feature: &str, account: Option<&str>, force: bool) -> bool {
-    if !config.enabled || config.kill_switch {
+    if config.kill_switch {
         return false;
     }
     let Some(account) = account else {
         return false;
     };
-    // A force header only has effect for an account already authorized as tester.
-    if config.testers.iter().any(|tester| tester == account) {
+    // Any signed-in contributor can opt in with the browser header. A remote
+    // kill switch still takes priority, even over an explicit opt-in.
+    if force {
         return true;
     }
-    if force {
+    if !config.enabled {
         return false;
     }
     bucket(feature, account) < config.rollout_percent
@@ -252,19 +240,18 @@ mod tests {
             enabled: true,
             kill_switch: false,
             rollout_percent: 0,
-            testers: vec!["tester".into()],
             revision: 1,
         }
     }
     #[test]
-    fn tester_is_enabled_and_other_account_is_not() {
-        assert!(enabled(&config(), DEMO_FEATURE, Some("tester"), true));
-        assert!(!enabled(&config(), DEMO_FEATURE, Some("other"), true));
+    fn force_header_enables_any_authenticated_account() {
+        let disabled = ExperimentConfig::default();
+        assert!(enabled(&disabled, DEMO_FEATURE, Some("account"), true));
+        assert!(!enabled(&disabled, DEMO_FEATURE, Some("account"), false));
     }
     #[test]
     fn rollout_is_deterministic_and_kill_switch_wins() {
         let mut value = config();
-        value.testers.clear();
         value.rollout_percent = 100;
         assert!(enabled(&value, DEMO_FEATURE, Some("account"), false));
         assert_eq!(

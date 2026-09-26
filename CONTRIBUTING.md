@@ -54,8 +54,9 @@ Antes de abrir o PR:
 1. Registre uma chave tipada em `src/experiments/registry.ts` com issue,
    responsável, data de revisão e condição de remoção.
 2. Proteja a mudança com `useExperiment()`. O comportamento precisa ficar
-   desligado quando não houver configuração remota, conta autenticada ou se o
-   kill switch estiver ativo.
+   desligado na navegação comum quando não houver configuração remota ou se o
+   kill switch estiver ativo. O header de adesão é destinado a contribuintes
+   conectados que desejam testar a mudança.
 3. Valide localmente com uma conta de teste e
    `BIOROTINA_LOCAL_FORCE_EXPERIMENT=<chave>=enabled npm run local`.
 4. Inclua no PR como medir exposição, uso, erros e rollback. Depois da

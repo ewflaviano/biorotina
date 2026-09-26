@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { mkdir, readFile, writeFile, appendFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 const DEFAULT_PORT = 8787;
 const MAX_BODY_BYTES = 10_000_000;
@@ -164,10 +164,9 @@ export async function createLocalApi({ dataDir, port = 0 } = {}) {
     };
   const billingStatus = (accountId) => planFor(accountId);
   const experimentConfig = {
-    enabled: true,
+    enabled: false,
     killSwitch: false,
     rolloutPercent: 0,
-    testers: [TEST_ACCOUNTS[1].id],
     revision: 1,
   };
   const forceEnabled = (request, key) =>
@@ -175,12 +174,22 @@ export async function createLocalApi({ dataDir, port = 0 } = {}) {
       ?.split(",")
       .map((value) => value.trim())
       .includes(`${key}=enabled`) === true;
+  const experimentBucket = (key, accountId) =>
+    Number.parseInt(
+      createHash("sha256")
+        .update(`${key}:${accountId}`)
+        .digest("hex")
+        .slice(0, 8),
+      16,
+    ) % 100;
   const experimentEnabled = (request, session, key) => {
     const config = state.experiments[key] || experimentConfig;
-    if (!config.enabled || config.killSwitch || !session) return false;
-    if (config.testers?.includes(session.account.id)) return true;
-    if (!forceEnabled(request, key)) return false;
-    return false;
+    if (config.killSwitch || !session) return false;
+    if (forceEnabled(request, key)) return true;
+    return (
+      config.enabled &&
+      experimentBucket(key, session.account.id) < config.rolloutPercent
+    );
   };
 
   const server = createServer(async (request, response) => {

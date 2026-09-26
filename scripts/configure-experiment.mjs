@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 
 const args = process.argv.slice(2);
@@ -10,7 +9,6 @@ function value(flag) {
 const key = value("--key");
 const rolloutPercent = Number(value("--rollout") ?? "0");
 const revision = Number(value("--revision") ?? "1");
-const testerSub = value("--tester-google-sub");
 const stage = process.env.BIOROTINA_STAGE || "dev";
 if (
   !["demo-highlight", "onboarding-install-prompt"].includes(key) ||
@@ -21,18 +19,14 @@ if (
   revision < 1
 ) {
   throw new Error(
-    "Uso: node scripts/configure-experiment.mjs --key <demo-highlight|onboarding-install-prompt> --rollout 0..100 --revision 1 [--tester-google-sub valor] [--enabled] [--kill-switch]",
+    "Uso: node scripts/configure-experiment.mjs --key <demo-highlight|onboarding-install-prompt> --rollout 0..100 --revision 1 [--enabled] [--kill-switch]",
   );
 }
 
-const tester = testerSub
-  ? `DRIVE_ACCOUNT#${createHash("sha256").update(testerSub).digest("hex")}`
-  : null;
 const config = {
   enabled: args.includes("--enabled"),
   killSwitch: args.includes("--kill-switch"),
   rolloutPercent,
-  testers: tester ? [tester] : [],
   revision,
 };
 const aws = (command) =>
