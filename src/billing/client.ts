@@ -26,7 +26,7 @@ async function sessionAccessToken(): Promise<string> {
     throw new Error("Não foi possível renovar a sessão Google.");
   return parsed.data.accessToken;
 }
-const statusSchema = z.object({
+export const planStatusSchema = z.object({
   active: z.boolean(),
   cancelled: z.boolean(),
   renewalActive: z.boolean(),
@@ -39,7 +39,7 @@ const statusSchema = z.object({
   trialUsed: z.number().int().min(0).default(0),
   trialLimit: z.number().int().positive().default(5),
 });
-export type PlanStatus = z.infer<typeof statusSchema>;
+export type PlanStatus = z.infer<typeof planStatusSchema>;
 async function request(
   path: string,
   googleToken: string,
@@ -103,7 +103,7 @@ async function request(
 }
 
 export async function getPlanStatus(googleToken: string): Promise<PlanStatus> {
-  const parsed = statusSchema.safeParse(
+  const parsed = planStatusSchema.safeParse(
     await request("/api/billing/status", googleToken, "billing_status"),
   );
   if (!parsed.success) {
@@ -182,7 +182,7 @@ export async function analyzeWithPlan(
   return parsed.data;
 }
 export async function cancelPlan(googleToken: string): Promise<PlanStatus> {
-  const result = statusSchema.safeParse(
+  const result = planStatusSchema.safeParse(
     await request("/api/billing/cancel", googleToken, "billing_cancel", {
       method: "POST",
     }),
