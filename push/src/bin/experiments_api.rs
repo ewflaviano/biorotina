@@ -24,6 +24,7 @@ const FEATURES: &[&str] = &[
     "onboarding-install-prompt",
     "hydration-quick-confirmation",
     "hydration-form-confirmation",
+    "weight-form-confirmation",
 ];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 

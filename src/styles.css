@@ -368,7 +368,8 @@ h3 {
 .button.compact {
   min-height: 40px;
 }
-.button:disabled {
+.button:disabled,
+.button[aria-disabled="true"] {
   background: var(--color-disabled-bg);
   color: var(--color-disabled-text);
   border-color: var(--color-border);
