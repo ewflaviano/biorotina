@@ -40,6 +40,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper se confirmar uma gravação que falhou ou prejudicar a acessibilidade.",
   },
+  "weight-form-confirmation": {
+    assignment: "browser",
+    description:
+      "Confirma de forma acessível a persistência pelo formulário de peso.",
+    owner: "Biorotina",
+    issue: 75,
+    revision: 1,
+    reviewBy: "2026-10-04",
+    removeWhen:
+      "Promover ou remover após sete dias; sem evidência suficiente, desligar. Interromper se confirmar gravação que falhou ou prejudicar a acessibilidade.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;

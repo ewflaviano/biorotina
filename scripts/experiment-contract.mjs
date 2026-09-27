@@ -3,6 +3,7 @@ export const experimentKeys = [
   "onboarding-install-prompt",
   "hydration-quick-confirmation",
   "hydration-form-confirmation",
+  "weight-form-confirmation",
 ];
 export const outcomes = ["exposure", "success", "error", "use", "rollback"];
 export function validExperimentMetric(value) {

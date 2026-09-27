@@ -19,10 +19,18 @@ import { DateTimeField } from "../components/DateTimeField";
 import { InfoDisclosure } from "../components/InfoDisclosure";
 import { useAppData } from "../state/AppDataContext";
 import { removeEntry, restoreEntry } from "../domain/recordActions";
+import {
+  useExperiment,
+  useExperimentExposure,
+} from "../experiments/ExperimentContext";
 import type { WeightEntry } from "../domain/data";
 
 export function WeightPage() {
   const { data, mutate, removeWithUndo } = useAppData();
+  const { enabled, startAttempt } = useExperiment();
+  useExperimentExposure("weight-form-confirmation");
+  const confirmWeight = enabled("weight-form-confirmation");
+  const [weightConfirmed, setWeightConfirmed] = useState(false);
   const [value, setValue] = useState("");
   const [height, setHeight] = useState(
     data.profile.heightCm?.toString().replace(".", ",") ?? "",
@@ -46,6 +54,9 @@ export function WeightPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (saving) return;
+    const finish = startAttempt("weight-form-confirmation");
+    setWeightConfirmed(false);
     setError("");
     setSaving(true);
     try {
@@ -73,7 +84,10 @@ export function WeightPage() {
       setNote("");
       setWhen(toLocalDateTime(new Date().toISOString()));
       setPrefilled(false);
+      if (confirmWeight) setWeightConfirmed(true);
+      finish("success");
     } catch (cause) {
+      finish("error");
       setError(
         cause instanceof Error
           ? cause.message
@@ -113,6 +127,7 @@ export function WeightPage() {
   }
 
   function repeatWeight(item: WeightEntry) {
+    setWeightConfirmed(false);
     setValue(inputDecimal(item.weightKg));
     setNote("");
     setWhen(toLocalDateTime(new Date().toISOString()));
@@ -122,6 +137,7 @@ export function WeightPage() {
   }
 
   async function deleteWeight(item: WeightEntry) {
+    setWeightConfirmed(false);
     setActionError("");
     try {
       await removeWithUndo(
@@ -202,7 +218,10 @@ export function WeightPage() {
                     inputMode="decimal"
                     placeholder="Ex.: 72,4"
                     value={value}
-                    onChange={(event) => setValue(event.target.value)}
+                    onChange={(event) => {
+                      setValue(event.target.value);
+                      setWeightConfirmed(false);
+                    }}
                     required
                   />
                   <span aria-hidden="true">kg</span>
@@ -211,7 +230,10 @@ export function WeightPage() {
               <DateTimeField
                 id="weight-date"
                 value={when}
-                onChange={setWhen}
+                onChange={(value) => {
+                  setWhen(value);
+                  setWeightConfirmed(false);
+                }}
                 className="full"
               />
               <div className="field full">
@@ -223,15 +245,31 @@ export function WeightPage() {
                   maxLength={500}
                   placeholder="Como foi feita a medida?"
                   value={note}
-                  onChange={(event) => setNote(event.target.value)}
+                  onChange={(event) => {
+                    setNote(event.target.value);
+                    setWeightConfirmed(false);
+                  }}
                 />
               </div>
+              {confirmWeight && (
+                <p
+                  role="status"
+                  aria-atomic="true"
+                  className="small muted full"
+                >
+                  {weightConfirmed ? "Medida salva no histórico." : ""}
+                </p>
+              )}
               {error && (
                 <p className="form-error" role="alert">
                   {error}
                 </p>
               )}
-              <button className="button primary" disabled={saving}>
+              <button
+                className="button primary"
+                disabled={!confirmWeight && saving}
+                aria-disabled={confirmWeight && saving ? true : undefined}
+              >
                 {saving ? "Salvando…" : "Salvar medida"}
               </button>
             </form>

@@ -34,8 +34,8 @@ Recursos protegidos continuam autorizados no servidor. `demo-highlight` mantém
 `assignment: account` e gate autenticado na operação de demonstração; a
 configuração pública não libera endpoints de conta nem autoriza operações.
 Os campos `enabled`/`revisions` mantêm compatibilidade com frontends anteriores
-durante deploy. A medição comparável desta entrega cobre as duas chaves de
-hidratação por navegador, sem misturar os eventos antigos do Firebase.
+durante deploy. A medição comparável desta entrega cobre as chaves de
+hidratação e de confirmação de peso por navegador, sem misturar os eventos antigos do Firebase.
 
 ## Adesão de teste
 
@@ -92,10 +92,10 @@ de melhor esforço, não um ledger confiável de operações.
 
 - `exposure`: uma vez por chave/revisão/braço a cada carregamento, quando a
   página relevante está montada e visível. Hidratação cobre formulário e
-  atalhos; onboarding usa a página inicial elegível à decisão de instalação.
+  atalhos; peso cobre o formulário de Medidas; onboarding usa a página inicial elegível à decisão de instalação.
   Atribuir uma configuração em outra página não conta como exposição.
 - `success`/`error`: resultado de cada tentativa concluída de salvar pelo
-  formulário ou atalho/repetição, em ambos os braços. Erro inclui validação e
+  formulário de água/peso ou atalho/repetição de água, em ambos os braços. Erro inclui validação e
   persistência; sucesso significa gravação local, não sincronização no Drive.
   Tentativas em andamento ficam fora do denominador. A atribuição é congelada
   no início, mesmo se percentual/revisão mudar enquanto a gravação está pendente.
@@ -134,3 +134,14 @@ consumir esses agregados posteriormente.
 Avaliar ambos os braços, erros e rollback antes de ampliar. Ao promover ou
 remover, retirar configuração, gate, código, registro e armazenamento da chave
 na mesma entrega. Uma nova hipótese deve usar outra chave e outro sorteio.
+
+## Confirmação de peso — #75
+
+`weight-form-confirmation`, revisão 1, responsável Biorotina, revisão até
+04/10/2026: confirma a gravação local no formulário de Medidas sem anunciar
+valores ou mover foco. Adesão autenticada e kill switch seguem as regras acima;
+liberação inicial de 5% somente após deploy. Medir exposição e tentativas
+concluídas dos dois braços; taxa de sucesso é guardrail, não medida direta de
+clareza. Validar compreensão e leitor de tela antes de promover. Promover ou
+retirar após sete dias; sem evidência suficiente, desligar. Interromper por
+confirmação falsa, regressão de persistência ou acessibilidade.
