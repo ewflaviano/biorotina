@@ -34,8 +34,8 @@ Recursos protegidos continuam autorizados no servidor. `demo-highlight` mantém
 `assignment: account` e gate autenticado na operação de demonstração; a
 configuração pública não libera endpoints de conta nem autoriza operações.
 Os campos `enabled`/`revisions` mantêm compatibilidade com frontends anteriores
-durante deploy. A medição comparável desta entrega cobre as chaves de
-hidratação e de confirmação de peso por navegador, sem misturar os eventos antigos do Firebase.
+durante deploy. A medição comparável cobre as chaves de hidratação, peso e
+atividades por navegador, sem misturar os eventos antigos do Firebase.
 
 ## Adesão de teste
 
@@ -92,10 +92,11 @@ de melhor esforço, não um ledger confiável de operações.
 
 - `exposure`: uma vez por chave/revisão/braço a cada carregamento, quando a
   página relevante está montada e visível. Hidratação cobre formulário e
-  atalhos; peso cobre o formulário de Medidas; onboarding usa a página inicial elegível à decisão de instalação.
+  atalhos; peso cobre o formulário de Medidas; atividades cobre o formulário de
+  Atividades; onboarding usa a página inicial elegível à decisão de instalação.
   Atribuir uma configuração em outra página não conta como exposição.
 - `success`/`error`: resultado de cada tentativa concluída de salvar pelo
-  formulário de água/peso ou atalho/repetição de água, em ambos os braços. Erro inclui validação e
+  formulário de água/peso/atividades ou atalho/repetição de água, em ambos os braços. Erro inclui validação e
   persistência; sucesso significa gravação local, não sincronização no Drive.
   Tentativas em andamento ficam fora do denominador. A atribuição é congelada
   no início, mesmo se percentual/revisão mudar enquanto a gravação está pendente.
@@ -145,3 +146,14 @@ concluídas dos dois braços; taxa de sucesso é guardrail, não medida direta d
 clareza. Validar compreensão e leitor de tela antes de promover. Promover ou
 retirar após sete dias; sem evidência suficiente, desligar. Interromper por
 confirmação falsa, regressão de persistência ou acessibilidade.
+
+## Confirmação de atividade — #77
+
+`activity-form-confirmation`, revisão 1, responsável Biorotina, revisão até
+05/10/2026: confirma a gravação local no formulário de Atividades sem anunciar
+valores ou mover foco. Sem configuração remota, permanece desligado; adesão
+autenticada e kill switch seguem as regras acima. Após deploy, iniciar em 5%.
+Comparar exposição e tentativas concluídas dos dois braços como guardrail de
+persistência; validar clareza e leitor de tela antes de promover. Promover ou
+retirar após sete dias; sem evidência suficiente, desligar. Interromper por
+confirmação falsa ou regressão de persistência ou acessibilidade.
