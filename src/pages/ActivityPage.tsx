@@ -24,11 +24,19 @@ import {
   findCatalogActivity,
 } from "../domain/activityCatalog";
 import { activityShortcuts } from "../domain/activityShortcuts";
+import {
+  useExperiment,
+  useExperimentExposure,
+} from "../experiments/ExperimentContext";
 
 const referenceWeightKg = 70;
 
 export function ActivityPage() {
   const { data, mutate, removeWithUndo } = useAppData();
+  const { enabled, startAttempt } = useExperiment();
+  useExperimentExposure("activity-form-confirmation");
+  const confirmActivity = enabled("activity-form-confirmation");
+  const [activityConfirmed, setActivityConfirmed] = useState(false);
   const [name, setName] = useState("");
   const [duration, setDuration] = useState("");
   const [manualCalories, setManualCalories] = useState("");
@@ -71,6 +79,9 @@ export function ActivityPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (saving) return;
+    const finish = startAttempt("activity-form-confirmation");
+    setActivityConfirmed(false);
     setError("");
     setSaving(true);
     try {
@@ -101,7 +112,10 @@ export function ActivityPage() {
       setCaloriesMode("estimated");
       setWhen(toLocalDateTime(new Date().toISOString()));
       setPrefilled(false);
+      if (confirmActivity) setActivityConfirmed(true);
+      finish("success");
     } catch (cause) {
+      finish("error");
       setError(
         cause instanceof Error
           ? cause.message
@@ -113,6 +127,7 @@ export function ActivityPage() {
   }
 
   function repeatActivity(item: ActivityEntry, focusName = true) {
+    setActivityConfirmed(false);
     setName(item.name);
     setDuration(inputDecimal(item.durationMinutes));
     setManualCalories(
@@ -128,6 +143,7 @@ export function ActivityPage() {
   }
 
   function chooseSuggestedActivity(activityName: string) {
+    setActivityConfirmed(false);
     setName(activityName);
     setCaloriesMode("estimated");
     setManualCalories("");
@@ -136,6 +152,7 @@ export function ActivityPage() {
   }
 
   async function deleteActivity(item: ActivityEntry) {
+    setActivityConfirmed(false);
     setActionError("");
     try {
       await removeWithUndo(
@@ -178,7 +195,10 @@ export function ActivityPage() {
                   maxLength={100}
                   list="activity-options"
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    setActivityConfirmed(false);
+                  }}
                   required
                 />
                 <datalist id="activity-options">
@@ -220,7 +240,10 @@ export function ActivityPage() {
                   inputMode="decimal"
                   placeholder="Ex.: 35"
                   value={duration}
-                  onChange={(event) => setDuration(event.target.value)}
+                  onChange={(event) => {
+                    setDuration(event.target.value);
+                    setActivityConfirmed(false);
+                  }}
                   required
                 />
               </div>
@@ -236,6 +259,7 @@ export function ActivityPage() {
                   onChange={(event) => {
                     setManualCalories(event.target.value);
                     setCaloriesMode("manual");
+                    setActivityConfirmed(false);
                   }}
                 />
                 {catalogActivity && (
@@ -283,7 +307,10 @@ export function ActivityPage() {
                   <button
                     type="button"
                     className="estimate-reset"
-                    onClick={() => setCaloriesMode("estimated")}
+                    onClick={() => {
+                      setCaloriesMode("estimated");
+                      setActivityConfirmed(false);
+                    }}
                   >
                     Usar estimativa de {estimatedCalories} kcal
                   </button>
@@ -292,15 +319,31 @@ export function ActivityPage() {
               <DateTimeField
                 id="activity-date"
                 value={when}
-                onChange={setWhen}
+                onChange={(value) => {
+                  setWhen(value);
+                  setActivityConfirmed(false);
+                }}
                 className="full"
               />
+              {confirmActivity && (
+                <p
+                  role="status"
+                  aria-atomic="true"
+                  className="small muted full"
+                >
+                  {activityConfirmed ? "Atividade salva no histórico." : ""}
+                </p>
+              )}
               {error && (
                 <p className="form-error" role="alert">
                   {error}
                 </p>
               )}
-              <button className="button primary" disabled={saving}>
+              <button
+                className="button primary"
+                disabled={!confirmActivity && saving}
+                aria-disabled={confirmActivity && saving ? true : undefined}
+              >
                 {saving ? "Salvando…" : "Salvar atividade"}
               </button>
             </form>

@@ -115,6 +115,7 @@ enum Experiment {
     HydrationQuickConfirmation,
     HydrationFormConfirmation,
     WeightFormConfirmation,
+    ActivityFormConfirmation,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -223,6 +224,18 @@ mod tests {
             client
                 .post(&url)
                 .json(&weight)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::NO_CONTENT
+        );
+        let mut activity = valid.clone();
+        activity["experiment"] = json!("activity-form-confirmation");
+        assert_eq!(
+            client
+                .post(&url)
+                .json(&activity)
                 .send()
                 .await
                 .unwrap()
