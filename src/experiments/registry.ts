@@ -62,6 +62,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; sem evidência suficiente, desligar. Interromper se confirmar gravação que falhou ou prejudicar a persistência ou a acessibilidade.",
   },
+  "habit-form-confirmation": {
+    assignment: "browser",
+    description:
+      "Confirma de forma acessível a persistência pelo formulário de hábitos.",
+    owner: "Biorotina",
+    issue: 79,
+    revision: 1,
+    reviewBy: "2026-10-06",
+    removeWhen:
+      "Promover ou remover após sete dias; sem evidência suficiente, desligar. Interromper por confirmação falsa ou regressão de persistência ou acessibilidade.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;
