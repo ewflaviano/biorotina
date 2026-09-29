@@ -17,6 +17,10 @@ import { TimeSelect } from "../components/TimeSelect";
 import { PushActivationPrompt } from "../components/PushActivationPrompt";
 import { EmptyState, PageHeader } from "../components/Layout";
 import { useAppData } from "../state/AppDataContext";
+import {
+  useExperiment,
+  useExperimentExposure,
+} from "../experiments/ExperimentContext";
 
 const weekdays = [
   [0, "Dom"],
@@ -31,6 +35,10 @@ const everyDay = weekdays.map(([day]) => day);
 
 export function HabitsPage() {
   const { data, mutate, removeWithUndo } = useAppData();
+  const { enabled, startAttempt } = useExperiment();
+  useExperimentExposure("habit-form-confirmation");
+  const confirmHabit = enabled("habit-form-confirmation");
+  const [habitConfirmed, setHabitConfirmed] = useState("");
   const [name, setName] = useState("");
   const [reminderTimes, setReminderTimes] = useState<string[]>([]);
   const [newTime, setNewTime] = useState("");
@@ -50,6 +58,7 @@ export function HabitsPage() {
   );
 
   function clearForm() {
+    setHabitConfirmed("");
     setName("");
     setReminderTimes([]);
     setNewTime("");
@@ -60,6 +69,10 @@ export function HabitsPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (saving) return;
+    const finish = startAttempt("habit-form-confirmation");
+    const wasEditing = editingId !== null;
+    setHabitConfirmed("");
     setError("");
     setSaving(true);
     try {
@@ -104,7 +117,15 @@ export function HabitsPage() {
       );
       if (times.length) setShowPushPrompt(true);
       clearForm();
+      if (confirmHabit)
+        setHabitConfirmed(
+          wasEditing
+            ? "Alterações do hábito salvas."
+            : "Hábito salvo na lista.",
+        );
+      finish("success");
     } catch (cause) {
+      finish("error");
       setError(
         cause instanceof Error
           ? cause.message
@@ -116,6 +137,7 @@ export function HabitsPage() {
   }
 
   function addReminderTime() {
+    setHabitConfirmed("");
     if (!reminderTimeSchema.safeParse(newTime).success) {
       setError("Escolha um horário válido.");
       return;
@@ -130,6 +152,7 @@ export function HabitsPage() {
   }
 
   function editHabit(habit: Habit) {
+    setHabitConfirmed("");
     setEditingId(habit.id);
     setName(habit.name);
     setReminderTimes(habit.reminderTimes);
@@ -140,6 +163,7 @@ export function HabitsPage() {
   }
 
   async function logHabit(habitId: string) {
+    setHabitConfirmed("");
     if (pendingLogIds.current.has(habitId)) return;
     pendingLogIds.current.add(habitId);
     setLoggingIds(new Set(pendingLogIds.current));
@@ -167,6 +191,7 @@ export function HabitsPage() {
   }
 
   async function deleteLog(log: HabitLog) {
+    setHabitConfirmed("");
     setActionError("");
     try {
       await removeWithUndo(
@@ -180,6 +205,7 @@ export function HabitsPage() {
   }
 
   async function deleteHabit(habit: Habit) {
+    setHabitConfirmed("");
     setActionError("");
     const relatedLogs = logs.filter((log) => log.habitId === habit.id);
     try {
@@ -213,7 +239,10 @@ export function HabitsPage() {
                   maxLength={120}
                   placeholder="Ex.: Ler, meditar ou caminhar"
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    setHabitConfirmed("");
+                  }}
                   required
                 />
               </div>
@@ -226,7 +255,10 @@ export function HabitsPage() {
                   <TimeSelect
                     id="habit-time"
                     value={newTime}
-                    onChange={setNewTime}
+                    onChange={(value) => {
+                      setNewTime(value);
+                      setHabitConfirmed("");
+                    }}
                   />
                   <button
                     className="button secondary"
@@ -244,11 +276,12 @@ export function HabitsPage() {
                         <button
                           type="button"
                           aria-label={`Remover horário ${time}`}
-                          onClick={() =>
+                          onClick={() => {
                             setReminderTimes((current) =>
                               current.filter((item) => item !== time),
-                            )
-                          }
+                            );
+                            setHabitConfirmed("");
+                          }}
                         >
                           <Trash2 size={16} aria-hidden="true" />
                         </button>
@@ -265,13 +298,14 @@ export function HabitsPage() {
                       <input
                         type="checkbox"
                         checked={reminderWeekdays.includes(day)}
-                        onChange={() =>
+                        onChange={() => {
+                          setHabitConfirmed("");
                           setReminderWeekdays((current) =>
                             current.includes(day)
                               ? current.filter((item) => item !== day)
                               : [...current, day].sort(),
-                          )
-                        }
+                          );
+                        }}
                       />{" "}
                       {label}
                     </label>
@@ -279,12 +313,25 @@ export function HabitsPage() {
                 </div>
                 <small>Escolha em quais dias estes horários se repetem.</small>
               </fieldset>
+              {confirmHabit && (
+                <p
+                  role="status"
+                  aria-atomic="true"
+                  className="small muted full"
+                >
+                  {habitConfirmed}
+                </p>
+              )}
               {error && (
                 <p className="form-error" role="alert">
                   {error}
                 </p>
               )}
-              <button className="button primary" disabled={saving}>
+              <button
+                className="button primary"
+                disabled={!confirmHabit && saving}
+                aria-disabled={confirmHabit && saving ? true : undefined}
+              >
                 {saving
                   ? "Salvando…"
                   : editingId
