@@ -6,6 +6,7 @@ export const experimentKeys = [
   "weight-form-confirmation",
   "activity-form-confirmation",
   "habit-form-confirmation",
+  "medication-form-confirmation",
 ];
 export const outcomes = ["exposure", "success", "error", "use", "rollback"];
 export function validExperimentMetric(value) {

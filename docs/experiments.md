@@ -169,3 +169,15 @@ guardrail de persistência; validar compreensão e leitor de tela antes de
 promover. Promover ou remover após sete dias; sem evidência suficiente,
 desligar. Interromper por confirmação falsa ou regressão de persistência ou
 acessibilidade.
+
+## Confirmação de medicamento — #81
+
+`medication-form-confirmation`, revisão 1, responsável Biorotina, revisão até
+07/10/2026: confirma a gravação local após criar ou editar um medicamento, sem
+anunciar nome, dose ou horários nem mover o foco. Sem configuração remota,
+permanece desligado; adesão autenticada e kill switch seguem as regras acima.
+Após deploy, iniciar em 5%. Comparar exposição e tentativas concluídas dos dois
+braços como guardrail de persistência; validar compreensão e leitor de tela
+antes de promover. Promover ou remover após sete dias; sem evidência suficiente,
+desligar. Interromper por confirmação falsa ou regressão de persistência ou
+acessibilidade.

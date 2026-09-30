@@ -21,9 +21,17 @@ import {
   restoreMedication,
 } from "../domain/recordActions";
 import type { Medication, MedicationLog } from "../domain/data";
+import {
+  useExperiment,
+  useExperimentExposure,
+} from "../experiments/ExperimentContext";
 
 export function MedicationPage() {
   const { data, mutate, removeWithUndo } = useAppData();
+  const { enabled, startAttempt } = useExperiment();
+  useExperimentExposure("medication-form-confirmation");
+  const confirmMedication = enabled("medication-form-confirmation");
+  const [medicationConfirmed, setMedicationConfirmed] = useState("");
   const [name, setName] = useState("");
   const [dose, setDose] = useState("");
   const [unit, setUnit] = useState("mg");
@@ -52,6 +60,10 @@ export function MedicationPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (saving) return;
+    const finish = startAttempt("medication-form-confirmation");
+    const wasEditing = editingId !== null;
+    setMedicationConfirmed("");
     setError("");
     setSaving(true);
     try {
@@ -98,7 +110,15 @@ export function MedicationPage() {
       );
       if (times.length) setShowPushPrompt(true);
       clearForm();
+      if (confirmMedication)
+        setMedicationConfirmed(
+          wasEditing
+            ? "Alterações do medicamento salvas."
+            : "Medicamento salvo na lista.",
+        );
+      finish("success");
     } catch (cause) {
+      finish("error");
       setError(
         cause instanceof Error
           ? cause.message
@@ -110,6 +130,7 @@ export function MedicationPage() {
   }
 
   function clearForm() {
+    setMedicationConfirmed("");
     setName("");
     setDose("");
     setUnit("mg");
@@ -121,6 +142,7 @@ export function MedicationPage() {
   }
 
   function editMedication(item: Medication) {
+    setMedicationConfirmed("");
     setEditingId(item.id);
     setName(item.name);
     setDose(inputDecimal(item.dose));
@@ -136,6 +158,7 @@ export function MedicationPage() {
     medicationId: string,
     takenAt: string,
   ): Promise<boolean> {
+    setMedicationConfirmed("");
     if (pendingLogIds.current.has(medicationId)) return false;
     pendingLogIds.current.add(medicationId);
     setLoggingIds(new Set(pendingLogIds.current));
@@ -182,12 +205,14 @@ export function MedicationPage() {
   }
 
   function openPastUse(medicationId: string) {
+    setMedicationConfirmed("");
     setActionError("");
     setLogMedicationId(medicationId);
     setLogWhen(toLocalDateTime(new Date().toISOString()));
   }
 
   function addReminderTime() {
+    setMedicationConfirmed("");
     if (!reminderTimeSchema.safeParse(newTime).success) {
       setError("Escolha um horário válido.");
       return;
@@ -202,6 +227,7 @@ export function MedicationPage() {
   }
 
   async function deleteLog(log: MedicationLog) {
+    setMedicationConfirmed("");
     setActionError("");
     try {
       await removeWithUndo(
@@ -215,6 +241,7 @@ export function MedicationPage() {
   }
 
   async function deleteMedication(item: Medication) {
+    setMedicationConfirmed("");
     const relatedLogs = data.medicationLogs.filter(
       (log) => log.medicationId === item.id,
     );
@@ -254,7 +281,10 @@ export function MedicationPage() {
                   maxLength={120}
                   placeholder="Nome do medicamento"
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    setMedicationConfirmed("");
+                  }}
                   required
                 />
               </div>
@@ -265,7 +295,10 @@ export function MedicationPage() {
                   inputMode="decimal"
                   placeholder="Ex.: 500"
                   value={dose}
-                  onChange={(event) => setDose(event.target.value)}
+                  onChange={(event) => {
+                    setDose(event.target.value);
+                    setMedicationConfirmed("");
+                  }}
                   required
                 />
               </div>
@@ -274,7 +307,10 @@ export function MedicationPage() {
                 <input
                   id="med-unit"
                   value={unit}
-                  onChange={(event) => setUnit(event.target.value)}
+                  onChange={(event) => {
+                    setUnit(event.target.value);
+                    setMedicationConfirmed("");
+                  }}
                   maxLength={30}
                   list="med-units"
                   required
@@ -298,7 +334,10 @@ export function MedicationPage() {
                   <TimeSelect
                     id="med-time"
                     value={newTime}
-                    onChange={setNewTime}
+                    onChange={(value) => {
+                      setNewTime(value);
+                      setMedicationConfirmed("");
+                    }}
                   />
                   <button
                     className="button secondary"
@@ -316,11 +355,12 @@ export function MedicationPage() {
                         <button
                           type="button"
                           aria-label={`Remover horário ${reminderTime}`}
-                          onClick={() =>
+                          onClick={() => {
+                            setMedicationConfirmed("");
                             setReminderTimes((current) =>
                               current.filter((item) => item !== reminderTime),
-                            )
-                          }
+                            );
+                          }}
                         >
                           <Trash2 size={16} aria-hidden="true" />
                         </button>
@@ -345,13 +385,14 @@ export function MedicationPage() {
                       <input
                         type="checkbox"
                         checked={reminderWeekdays.includes(day as number)}
-                        onChange={() =>
+                        onChange={() => {
+                          setMedicationConfirmed("");
                           setReminderWeekdays((current) =>
                             current.includes(day as number)
                               ? current.filter((item) => item !== day)
                               : [...current, day as number].sort(),
-                          )
-                        }
+                          );
+                        }}
                       />{" "}
                       {label}
                     </label>
@@ -359,12 +400,25 @@ export function MedicationPage() {
                 </div>
                 <small>Escolha em quais dias estes horários se repetem.</small>
               </fieldset>
+              {confirmMedication && (
+                <p
+                  role="status"
+                  aria-atomic="true"
+                  className="small muted full"
+                >
+                  {medicationConfirmed}
+                </p>
+              )}
               {error && (
                 <p className="form-error" role="alert">
                   {error}
                 </p>
               )}
-              <button className="button primary" disabled={saving}>
+              <button
+                className="button primary"
+                disabled={!confirmMedication && saving}
+                aria-disabled={confirmMedication && saving ? true : undefined}
+              >
                 {saving
                   ? "Salvando…"
                   : editingId

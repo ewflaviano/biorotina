@@ -19,6 +19,7 @@ if (
     "weight-form-confirmation",
     "activity-form-confirmation",
     "habit-form-confirmation",
+    "medication-form-confirmation",
   ].includes(key) ||
   !Number.isInteger(rolloutPercent) ||
   rolloutPercent < 0 ||

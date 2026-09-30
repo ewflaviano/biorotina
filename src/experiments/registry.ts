@@ -73,6 +73,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; sem evidência suficiente, desligar. Interromper por confirmação falsa ou regressão de persistência ou acessibilidade.",
   },
+  "medication-form-confirmation": {
+    assignment: "browser",
+    description:
+      "Confirma de forma acessível a persistência pelo formulário de medicamentos.",
+    owner: "Biorotina",
+    issue: 81,
+    revision: 1,
+    reviewBy: "2026-10-07",
+    removeWhen:
+      "Promover ou remover após sete dias; sem evidência suficiente, desligar. Interromper por confirmação falsa ou regressão de persistência ou acessibilidade.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;
