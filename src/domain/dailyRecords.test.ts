@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { emptyData, toLocalDateTime } from "./data";
-import { recordsForDay, shiftCalendarDay } from "./dailyRecords";
+import {
+  isSelectableCalendarDay,
+  recordsForDay,
+  shiftCalendarDay,
+  summaryForDay,
+} from "./dailyRecords";
 
 function localIso(day: number, hour: number) {
   return new Date(2026, 8, day, hour, 15).toISOString();
@@ -77,6 +82,15 @@ describe("consulta de registros por dia", () => {
       "Hábito · realizado",
     );
     expect(recordsForDay(data, "2026-09-30")).toHaveLength(1);
+    const summary = summaryForDay(data, "2026-09-29");
+    expect(summary.weight?.weightKg).toBe(72.4);
+    expect(summary.activities).toHaveLength(1);
+    expect(summary.meals).toHaveLength(1);
+    expect(summary.hydrationEntries).toHaveLength(1);
+    expect(summary.medicationLogs).toHaveLength(1);
+    expect(summary.habitLogs).toHaveLength(1);
+    expect(summaryForDay(data, "2026-09-30").weight?.weightKg).toBe(72.5);
+    expect(summaryForDay(data, "2026-09-28").weight).toBeUndefined();
     expect(JSON.stringify(data)).toBe(before);
   });
 
@@ -107,5 +121,8 @@ describe("consulta de registros por dia", () => {
     expect(shiftCalendarDay("2024-02-28", 1)).toBe("2024-02-29");
     expect(shiftCalendarDay("2024-03-01", -1)).toBe("2024-02-29");
     expect(shiftCalendarDay("2026-12-31", 1)).toBe("2027-01-01");
+    expect(isSelectableCalendarDay("2024-02-29", "2026-09-30")).toBe(true);
+    expect(isSelectableCalendarDay("2026-02-29", "2026-09-30")).toBe(false);
+    expect(isSelectableCalendarDay("2026-10-01", "2026-09-30")).toBe(false);
   });
 });
