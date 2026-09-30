@@ -72,10 +72,10 @@ const desktopNav = [
 ] as const;
 
 const mobileNav = [
-  desktopNav[5],
-  desktopNav[4],
-  desktopNav[3],
+  desktopNav[0],
+  desktopNav[1],
   desktopNav[2],
+  desktopNav[5],
   { to: "/mais", label: "Mais áreas", mobileLabel: "Mais", icon: LayoutGrid },
 ] as const;
 
@@ -133,7 +133,7 @@ export function Layout() {
               to={to}
               end={to === "/"}
               className={({ isActive }) =>
-                `nav-link${isActive ? " active" : ""}`
+                `nav-link${isActive || (to === "/" && location.pathname === "/diario") ? " active" : ""}`
               }
             >
               <Icon size={20} aria-hidden="true" />
@@ -303,7 +303,7 @@ export function Layout() {
               to={to}
               aria-label={mobileLabel}
               className={({ isActive }) =>
-                `bottom-link${isActive || (to === "/mais" && location.pathname !== "/" && !mobileNav.some((item) => item.to === location.pathname)) ? " active" : ""}`
+                `bottom-link${isActive || (to === "/" && location.pathname === "/diario") || (to === "/mais" && location.pathname !== "/diario" && !mobileNav.some((item) => item.to === location.pathname)) ? " active" : ""}`
               }
             >
               <Icon size={20} aria-hidden="true" />

@@ -6,6 +6,7 @@ import "./styles.css";
 import { startVisitAnalytics } from "./analytics/visits";
 import { Layout } from "./components/Layout";
 import { DashboardPage } from "./pages/DashboardPage";
+import { DailyRecordsPage } from "./pages/DailyRecordsPage";
 import { WeightPage } from "./pages/WeightPage";
 import { ActivityPage } from "./pages/ActivityPage";
 import { FoodPage } from "./pages/FoodPage";
@@ -41,6 +42,7 @@ function AppRoutes() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<DashboardPage />} />
+        <Route path="diario" element={<DailyRecordsPage />} />
         <Route path="peso" element={<WeightPage />} />
         <Route path="atividades" element={<ActivityPage />} />
         <Route path="alimentacao" element={<FoodPage />} />

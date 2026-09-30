@@ -312,6 +312,9 @@ export function DashboardPage() {
               Ainda não há registros. Escolha uma área acima para começar.
             </p>
           )}
+          <Link className="text-link dashboard-diary-link" to="/diario">
+            Ver registros de um dia <ArrowRight size={16} aria-hidden="true" />
+          </Link>
         </section>
         <section className="panel data-card" aria-labelledby="dados-title">
           <span className="list-icon">
