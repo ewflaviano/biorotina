@@ -7,6 +7,7 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 1. A pessoa abre o app e vê o estado do dia sem precisar entrar em uma conta.
 2. Cinco atalhos levam diretamente ao registro de água, peso, atividade, refeição ou medicação.
 3. Os cartões mostram medidas do dia e abrem o histórico correspondente. Registros recentes incluem também usos de medicamento informados pela pessoa.
+4. **Ver registros de um dia** abre uma consulta local de todas as áreas, com escolha de data, navegação entre dias e acesso ao histórico de cada área. A consulta não modifica os registros.
 
 **Ajuste feito:** removemos o bloco introdutório grande que empurrava as métricas para baixo no celular. Os atalhos deixam a primeira ação visível mais cedo.
 
@@ -56,8 +57,9 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 ## 7. Mais áreas e navegação
 
 1. A barra inferior mantém cinco destinos legíveis no celular.
-2. **Mais** abre Alimentação, Medicação e Configurações. Ele permanece marcado como área ativa quando uma dessas páginas está aberta.
-3. No desktop, a barra lateral mostra todas as áreas diretamente.
+2. A barra inferior mostra **Hoje, Medidas, Atividade, Água e Mais**. A página de consulta por dia mantém Hoje marcado.
+3. **Mais** abre Alimentação, Medicação, Hábitos e Configurações. Ele permanece marcado como área ativa quando uma dessas páginas está aberta.
+4. No desktop, a barra lateral mostra todas as áreas diretamente.
 
 ## 8. Configurações e dados
 

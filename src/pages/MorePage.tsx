@@ -1,7 +1,8 @@
 import {
+  Apple,
   ArrowRight,
   HeartHandshake,
-  Scale,
+  Pill,
   Settings2,
   Smartphone,
   Sprout,
@@ -11,16 +12,22 @@ import { PageHeader } from "../components/Layout";
 
 const links = [
   {
+    to: "/alimentacao",
+    label: "Alimentação",
+    detail: "Refeições e histórico",
+    icon: Apple,
+  },
+  {
+    to: "/medicamentos",
+    label: "Medicação",
+    detail: "Medicamentos e usos registrados",
+    icon: Pill,
+  },
+  {
     to: "/habitos",
     label: "Hábitos",
     detail: "Seus bons hábitos e lembretes",
     icon: Sprout,
-  },
-  {
-    to: "/peso",
-    label: "Medidas",
-    detail: "Medidas e evolução",
-    icon: Scale,
   },
   {
     to: "/configuracoes",

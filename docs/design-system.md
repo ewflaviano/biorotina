@@ -153,6 +153,7 @@ Tamanhos: 16 px junto a metadados, 20 px em controles, 24 px em navegação e 32
 
 - Desktop: barra lateral com Hoje, Peso, Atividades, Alimentação, Medicação, Hidratação e Configurações; item ativo tem fundo verde 100 e rótulo verde 800. Cabeçalho contém contexto e acesso às configurações.
 - Mobile: navegação inferior com cinco destinos curtos (Hoje, Peso, Atividade, Água, Mais), mantendo os nomes completos como rótulos acessíveis. “Mais” dá acesso a Alimentação, Medicação e Configurações; os cartões do painel também levam diretamente a cada área. Validar legibilidade a partir de 320 px.
+- A consulta “Registros por dia” é acessada por Hoje e mantém Hoje como destino ativo. A data selecionada fica no estado da tela, sem conteúdo de saúde na URL.
 - Breadcrumb apenas em níveis acima de dois. Voltar preserva campos não salvos ou pede confirmação de descarte.
 
 ### 8.2 Botões
