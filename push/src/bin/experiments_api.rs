@@ -27,6 +27,7 @@ const FEATURES: &[&str] = &[
     "weight-form-confirmation",
     "activity-form-confirmation",
     "habit-form-confirmation",
+    "medication-form-confirmation",
 ];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 
