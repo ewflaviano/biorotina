@@ -1,4 +1,9 @@
-import { inputDecimal, toLocalDateTime, type AppData } from "./data";
+import {
+  inputDecimal,
+  todayIsoDate,
+  toLocalDateTime,
+  type AppData,
+} from "./data";
 
 export type DailyRecordKind =
   "weight" | "activity" | "meal" | "hydration" | "medication" | "habit";
@@ -8,6 +13,47 @@ export interface DailyRecord {
   kind: DailyRecordKind;
   title: string;
   at: string;
+}
+
+export function isSelectableCalendarDay(
+  day: unknown,
+  today = todayIsoDate(),
+): day is string {
+  if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  const [year, month, date] = day.split("-").map(Number);
+  const parsed = new Date(0);
+  parsed.setUTCFullYear(year, month - 1, date);
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() + 1 === month &&
+    parsed.getUTCDate() === date &&
+    day <= today
+  );
+}
+
+export function formatCalendarDay(day: string): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${day}T12:00:00`));
+}
+
+export function summaryForDay(data: AppData, day: string) {
+  const onDay = (at: string) => toLocalDateTime(at).slice(0, 10) === day;
+  const weight = data.weights
+    .filter((item) => onDay(item.measuredAt))
+    .sort((a, b) => b.measuredAt.localeCompare(a.measuredAt))[0];
+  return {
+    weight,
+    activities: data.activities.filter((item) => onDay(item.occurredAt)),
+    meals: data.meals.filter((item) => onDay(item.eatenAt)),
+    medicationLogs: data.medicationLogs.filter((item) => onDay(item.takenAt)),
+    habitLogs: data.habitLogs.filter((item) => onDay(item.completedAt)),
+    hydrationEntries: data.hydrationEntries.filter((item) =>
+      onDay(item.drankAt),
+    ),
+  };
 }
 
 export function recordsForDay(data: AppData, day: string): DailyRecord[] {

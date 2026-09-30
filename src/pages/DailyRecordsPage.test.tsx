@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyData, todayIsoDate, type AppData } from "../domain/data";
 import { shiftCalendarDay } from "../domain/dailyRecords";
@@ -19,6 +19,28 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Registros por dia", () => {
+  it("abre na data escolhida na home e a preserva ao voltar", async () => {
+    const user = userEvent.setup();
+    const yesterday = shiftCalendarDay(todayIsoDate(), -1);
+    function HomeSelection() {
+      const location = useLocation();
+      return <p>Dia da home: {(location.state as { day: string }).day}</p>;
+    }
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/diario", state: { day: yesterday } }]}
+      >
+        <Routes>
+          <Route path="/" element={<HomeSelection />} />
+          <Route path="/diario" element={<DailyRecordsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByLabelText("Data dos registros")).toHaveValue(yesterday);
+    await user.click(screen.getByRole("link", { name: "Voltar ao resumo" }));
+    expect(screen.getByText(`Dia da home: ${yesterday}`)).toBeInTheDocument();
+  });
+
   it("abre em hoje, consulta outro dia e preserva os dados", async () => {
     const user = userEvent.setup();
     const yesterday = shiftCalendarDay(todayIsoDate(), -1);

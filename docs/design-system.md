@@ -203,6 +203,8 @@ Usar confirmação para ações com efeito em vários registros, como excluir um
 
 Ordem sugerida: saudação breve e data; ação “Registrar”; visão compacta dos itens que a pessoa escolheu acompanhar; últimos registros; estado dos dados. A pessoa pode ocultar cartões e reordenar prioridades. Não criar pontuação única de “saúde” a partir de métricas heterogêneas. Sem dados, mostrar convite simples para registrar o primeiro item.
 
+Quando a pessoa seleciona outra data em Hoje, o resumo e a lista de entradas usam somente essa data local. Identificar o período em cada seção; não apresentar uma medida de peso de outro dia como se fosse a medida da data escolhida. A seleção é local à navegação e não entra na URL nem no backup.
+
 ### 9.2 Peso e IMC
 
 Mostrar peso atual, unidade e data da medida. Gráfico por semana/mês/ano com eixo e unidades visíveis; valores exatos acessíveis em tabela. Evitar escala truncada que amplifique pequenas oscilações. IMC = peso em kg / altura em metros², calculado apenas se houver altura informada e medida de peso válida. As categorias abaixo do peso, peso adequado, sobrepeso e obesidade graus I–III usam as [faixas do Ministério da Saúde para adultos de 18 a 59 anos](https://linhasdecuidado.saude.gov.br/portal/obesidade-no-adulto/unidade-de-atencao-primaria/rastreamento-diagnostico/). Exibir a faixa etária e a mensagem **“IMC é uma estimativa e não descreve sua saúde sozinho.”** Sem metas ou faixas coloridas por padrão. Outras idades exigem critérios diferentes. A tela recusa entradas acima de 350 kg ou fora de 50–250 cm como provável erro de digitação; não altera registros antigos automaticamente.

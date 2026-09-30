@@ -420,6 +420,26 @@ h3 {
   color: var(--color-text-secondary);
   font-size: 12px;
 }
+.dashboard-summary-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 14px;
+}
+.dashboard-summary-heading h2 {
+  font-size: 20px;
+  margin: 10px 0 0;
+}
+.dashboard-summary-heading .day-picker {
+  width: min(100%, 320px);
+}
+@media (max-width: 600px) {
+  .dashboard-summary-heading .day-picker {
+    width: 100%;
+  }
+}
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

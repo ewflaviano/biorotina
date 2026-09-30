@@ -15,7 +15,7 @@ Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acomp
 
 O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação têm a ação **Repetir**, que prepara um novo registro sem salvá-lo automaticamente, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; a entrega agendada foi confirmada em iPhone e Android.
 
-A tela **Hoje** também abre **Registros por dia**, uma consulta local que reúne entradas de todas as áreas em uma data escolhida, sem alterar os dados. No celular, a barra inferior oferece Hoje, Medidas, Atividade, Água e Mais.
+A tela **Hoje** permite escolher uma data para consultar o resumo e os registros daquele dia. **Registros por dia** mostra a lista completa das áreas na data escolhida, sem alterar os dados. No celular, a barra inferior oferece Hoje, Medidas, Atividade, Água e Mais.
 
 No celular, há um convite discreto para adicionar a Biorotina à tela inicial e uma página com instruções para Safari e Chrome. A página **Apoiar** permite enviar opiniões por e-mail e apresenta um Pix estático opcional para financiar o projeto. O código-fonte é disponibilizado sob a [licença MIT](LICENSE).
 
