@@ -118,6 +118,7 @@ enum Experiment {
     ActivityFormConfirmation,
     HabitFormConfirmation,
     MedicationFormConfirmation,
+    DailyRecordsLastDayShortcut,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -262,6 +263,18 @@ mod tests {
             client
                 .post(&url)
                 .json(&medication)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::NO_CONTENT
+        );
+        let mut daily_records = valid.clone();
+        daily_records["experiment"] = json!("daily-records-last-day-shortcut");
+        assert_eq!(
+            client
+                .post(&url)
+                .json(&daily_records)
                 .send()
                 .await
                 .unwrap()

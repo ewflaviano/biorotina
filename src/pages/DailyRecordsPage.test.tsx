@@ -6,13 +6,26 @@ import { emptyData, todayIsoDate, type AppData } from "../domain/data";
 import { shiftCalendarDay } from "../domain/dailyRecords";
 import { DailyRecordsPage } from "./DailyRecordsPage";
 
-const state = vi.hoisted(() => ({ data: null as AppData | null }));
+const state = vi.hoisted(() => ({
+  data: null as AppData | null,
+  experimentEnabled: false,
+  recordUse: vi.fn(),
+}));
 vi.mock("../state/AppDataContext", () => ({
   useAppData: () => ({ data: state.data }),
+}));
+vi.mock("../experiments/ExperimentContext", () => ({
+  useExperiment: () => ({
+    enabled: () => state.experimentEnabled,
+    recordUse: state.recordUse,
+  }),
+  useExperimentExposure: vi.fn(),
 }));
 
 beforeEach(() => {
   state.data = emptyData();
+  state.experimentEnabled = false;
+  state.recordUse.mockReset();
   vi.stubGlobal("scrollTo", vi.fn());
 });
 
@@ -94,6 +107,47 @@ describe("Registros por dia", () => {
       target: { value: shiftCalendarDay(todayIsoDate(), 1) },
     });
     expect(input).toHaveValue(yesterday);
+  });
+
+  it("oferece o último dia registrado somente no braço experimental e na tela vazia", async () => {
+    const user = userEvent.setup();
+    const yesterday = shiftCalendarDay(todayIsoDate(), -1);
+    const at = new Date(`${yesterday}T12:15:00`).toISOString();
+    state.data!.hydrationEntries.push({
+      id: crypto.randomUUID(),
+      createdAt: at,
+      drankAt: at,
+      amountMl: 250,
+    });
+    const before = JSON.stringify(state.data);
+    const control = render(
+      <MemoryRouter>
+        <DailyRecordsPage />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByRole("button", { name: /Ver registros de/ }),
+    ).toBeNull();
+    control.unmount();
+
+    state.experimentEnabled = true;
+    render(
+      <MemoryRouter>
+        <DailyRecordsPage />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole("button", { name: /Ver registros de/ }));
+    expect(screen.getByLabelText("Data dos registros")).toHaveValue(yesterday);
+    expect(
+      screen.getByRole("link", { name: /Água · 250 ml/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Ver registros de/ }),
+    ).toBeNull();
+    expect(state.recordUse).toHaveBeenCalledWith(
+      "daily-records-last-day-shortcut",
+    );
+    expect(JSON.stringify(state.data)).toBe(before);
   });
 
   it("mostra dias extensos em lotes sem ocultar registros", async () => {

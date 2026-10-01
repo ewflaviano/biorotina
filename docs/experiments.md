@@ -94,6 +94,7 @@ de melhor esforço, não um ledger confiável de operações.
   página relevante está montada e visível. Hidratação cobre formulário e
   atalhos; peso cobre o formulário de Medidas; atividades cobre o formulário de
   Atividades e o formulário de Hábitos; onboarding usa a página inicial elegível à decisão de instalação.
+  A consulta diária cobre apenas datas vazias com dia anterior registrado.
   Atribuir uma configuração em outra página não conta como exposição.
 - `success`/`error`: resultado de cada tentativa concluída de salvar pelo
   formulário de água/peso/atividades/hábitos ou atalho/repetição de água, em ambos os braços. Erro inclui validação e
@@ -101,6 +102,7 @@ de melhor esforço, não um ledger confiável de operações.
   Tentativas em andamento ficam fora do denominador. A atribuição é congelada
   no início, mesmo se percentual/revisão mudar enquanto a gravação está pendente.
 - `use`: ação específica de instalação; medir igualmente nos dois braços.
+  No atalho da consulta diária, mede o clique disponível no braço experimental.
 - `rollback`: perda do braço experimental após refresh, apenas se houve
   exposição consentida; inclui kill switch, redução, desligamento e falha de
   refresh. Carrega a revisão anterior; não representa quantidade de comandos
@@ -181,3 +183,17 @@ braços como guardrail de persistência; validar compreensão e leitor de tela
 antes de promover. Promover ou remover após sete dias; sem evidência suficiente,
 desligar. Interromper por confirmação falsa ou regressão de persistência ou
 acessibilidade.
+
+## Atalho na consulta diária vazia — #85
+
+`daily-records-last-day-shortcut`, revisão 1, responsável Biorotina, revisão
+até 08/10/2026: quando a data consultada não tem registros e há um dia anterior
+com registros locais, oferece um botão para abrir o mais recente. A data e o
+conteúdo dos registros não entram na telemetria. Sem configuração remota,
+permanece desligado; adesão autenticada e kill switch seguem as regras acima.
+Após deploy, iniciar em 5%. Medir exposição consentida dos dois braços somente
+na tela vazia elegível e `use` no clique; observar erros e rollback na mesma
+revisão. O uso do botão sozinho não demonstra causalidade; validar compreensão
+e acessibilidade antes de ampliar. Promover ou remover após sete dias; sem
+evidência suficiente, desligar. Interromper por navegação incorreta ou
+regressão de privacidade ou acessibilidade.

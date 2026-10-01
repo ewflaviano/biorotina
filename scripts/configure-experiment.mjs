@@ -20,6 +20,7 @@ if (
     "activity-form-confirmation",
     "habit-form-confirmation",
     "medication-form-confirmation",
+    "daily-records-last-day-shortcut",
   ].includes(key) ||
   !Number.isInteger(rolloutPercent) ||
   rolloutPercent < 0 ||
