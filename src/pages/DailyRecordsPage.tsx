@@ -8,14 +8,20 @@ import { todayIsoDate, toLocalDateTime } from "../domain/data";
 import {
   formatCalendarDay,
   isSelectableCalendarDay,
+  lastRecordedDayBefore,
   recordsForDay,
 } from "../domain/dailyRecords";
 import { useAppData } from "../state/AppDataContext";
+import {
+  useExperiment,
+  useExperimentExposure,
+} from "../experiments/ExperimentContext";
 
 const PAGE_SIZE = 30;
 
 export function DailyRecordsPage() {
   const { data } = useAppData();
+  const experiment = useExperiment();
   const location = useLocation();
   const [view, setView] = useState(() => {
     const requestedDay = (location.state as { day?: unknown } | null)?.day;
@@ -29,6 +35,14 @@ export function DailyRecordsPage() {
   const records = useMemo(
     () => recordsForDay(data, view.day),
     [data, view.day],
+  );
+  const lastRecordedDay = useMemo(
+    () => lastRecordedDayBefore(data, view.day),
+    [data, view.day],
+  );
+  useExperimentExposure(
+    "daily-records-last-day-shortcut",
+    records.length === 0 && lastRecordedDay !== null,
   );
 
   useEffect(() => {
@@ -119,7 +133,22 @@ export function DailyRecordsPage() {
               )}
             </>
           ) : (
-            <p className="diary-empty">Nenhum registro neste dia.</p>
+            <>
+              <p className="diary-empty">Nenhum registro neste dia.</p>
+              {lastRecordedDay &&
+                experiment.enabled("daily-records-last-day-shortcut") && (
+                  <button
+                    className="button secondary diary-more"
+                    type="button"
+                    onClick={() => {
+                      experiment.recordUse("daily-records-last-day-shortcut");
+                      chooseDay(lastRecordedDay);
+                    }}
+                  >
+                    Ver registros de {formatCalendarDay(lastRecordedDay)}
+                  </button>
+                )}
+            </>
           )}
         </section>
       </div>

@@ -112,6 +112,27 @@ export function recordsForDay(data: AppData, day: string): DailyRecord[] {
     );
 }
 
+export function lastRecordedDayBefore(
+  data: AppData,
+  day: string,
+): string | null {
+  const dates = [
+    ...data.weights.map((item) => item.measuredAt),
+    ...data.activities.map((item) => item.occurredAt),
+    ...data.meals.map((item) => item.eatenAt),
+    ...data.hydrationEntries.map((item) => item.drankAt),
+    ...data.medicationLogs.map((item) => item.takenAt),
+    ...data.habitLogs.map((item) => item.completedAt),
+  ];
+  let latest: string | null = null;
+  for (const at of dates) {
+    const recordedDay = toLocalDateTime(at).slice(0, 10);
+    if (recordedDay < day && (latest === null || recordedDay > latest))
+      latest = recordedDay;
+  }
+  return latest;
+}
+
 export function shiftCalendarDay(day: string, offset: number): string {
   const [year, month, date] = day.split("-").map(Number);
   const next = new Date(0);

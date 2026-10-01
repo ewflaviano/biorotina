@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { emptyData, toLocalDateTime } from "./data";
 import {
   isSelectableCalendarDay,
+  lastRecordedDayBefore,
   recordsForDay,
   shiftCalendarDay,
   summaryForDay,
@@ -124,5 +125,31 @@ describe("consulta de registros por dia", () => {
     expect(isSelectableCalendarDay("2024-02-29", "2026-09-30")).toBe(true);
     expect(isSelectableCalendarDay("2026-02-29", "2026-09-30")).toBe(false);
     expect(isSelectableCalendarDay("2026-10-01", "2026-09-30")).toBe(false);
+  });
+
+  it("encontra o último dia anterior em horário local, sem incluir dias futuros", () => {
+    const data = emptyData();
+    data.hydrationEntries.push({
+      id: crypto.randomUUID(),
+      createdAt: localIso(28, 23),
+      drankAt: localIso(28, 23),
+      amountMl: 200,
+    });
+    data.habitLogs.push({
+      id: crypto.randomUUID(),
+      createdAt: localIso(29, 0),
+      completedAt: localIso(29, 0),
+      habitId: crypto.randomUUID(),
+    });
+    data.weights.push({
+      id: crypto.randomUUID(),
+      createdAt: localIso(30, 8),
+      measuredAt: localIso(30, 8),
+      weightKg: 70,
+      note: "",
+    });
+    expect(lastRecordedDayBefore(data, "2026-09-30")).toBe("2026-09-29");
+    expect(lastRecordedDayBefore(data, "2026-09-29")).toBe("2026-09-28");
+    expect(lastRecordedDayBefore(data, "2026-09-28")).toBeNull();
   });
 });
