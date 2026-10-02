@@ -2,9 +2,11 @@ import type {
   AppData,
   Habit,
   HabitLog,
+  HydrationEntry,
   Medication,
   MedicationLog,
 } from "./data";
+import { hydrationSchema } from "./data";
 
 export type EntryCollection =
   | "weights"
@@ -34,6 +36,35 @@ export function restoreEntry<K extends EntryCollection>(
 ): AppData {
   if (data[collection].some((current) => current.id === entry.id)) return data;
   return { ...data, [collection]: [entry, ...data[collection]] };
+}
+
+export function editHydrationEntry(
+  data: AppData,
+  original: HydrationEntry,
+  amountMl: number,
+  drankAt: string,
+): AppData {
+  const index = data.hydrationEntries.findIndex(
+    (entry) => entry.id === original.id,
+  );
+  const current = data.hydrationEntries[index];
+  if (
+    !current ||
+    current.createdAt !== original.createdAt ||
+    current.amountMl !== original.amountMl ||
+    current.drankAt !== original.drankAt
+  ) {
+    throw new Error("Este registro mudou. Feche a edição e abra novamente.");
+  }
+  const updated = hydrationSchema.parse({ ...current, amountMl, drankAt });
+  if (
+    updated.amountMl === current.amountMl &&
+    updated.drankAt === current.drankAt
+  )
+    return data;
+  const hydrationEntries = [...data.hydrationEntries];
+  hydrationEntries[index] = updated;
+  return { ...data, hydrationEntries };
 }
 
 export function removeMedication(data: AppData, id: string): AppData {

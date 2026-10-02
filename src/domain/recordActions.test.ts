@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { emptyData } from "./data";
+import { emptyData, parseBackup } from "./data";
 import {
+  editHydrationEntry,
   removeEntry,
   removeMedication,
   restoreEntry,
@@ -75,5 +76,76 @@ describe("remoção e restauração de registros", () => {
     expect(restored.medications).toEqual([first, second]);
     expect(restored.medicationLogs).toEqual([firstLog, secondLog]);
     expect(restoreMedication(restored, first, [firstLog])).toBe(restored);
+  });
+});
+
+describe("edição de hidratação", () => {
+  const original = {
+    id: "00000000-0000-4000-8000-000000000001",
+    createdAt: "2026-09-30T10:00:00.000Z",
+    drankAt: "2026-09-30T10:00:00.000Z",
+    amountMl: 250,
+  };
+
+  it("atualiza a entrada pelo mesmo id e preserva o backup JSON", () => {
+    const data = emptyData();
+    data.hydrationEntries = [original];
+    const updated = editHydrationEntry(
+      data,
+      original,
+      350,
+      "2026-10-01T09:00:00.000Z",
+    );
+    expect(updated.hydrationEntries).toEqual([
+      { ...original, amountMl: 350, drankAt: "2026-10-01T09:00:00.000Z" },
+    ]);
+    expect(data.hydrationEntries).toEqual([original]);
+    expect(parseBackup(JSON.parse(JSON.stringify(updated)))).toEqual(updated);
+    expect(
+      editHydrationEntry(
+        updated,
+        updated.hydrationEntries[0],
+        350,
+        updated.hydrationEntries[0].drankAt,
+      ),
+    ).toBe(updated);
+  });
+
+  it("recusa exclusão ou alteração concorrente da mesma entrada", () => {
+    const data = emptyData();
+    data.hydrationEntries = [original];
+    expect(() =>
+      editHydrationEntry(data, original, 300, "2026-10-01T09:00:00.000Z"),
+    ).not.toThrow();
+    expect(() =>
+      editHydrationEntry(
+        { ...data, hydrationEntries: [] },
+        original,
+        300,
+        original.drankAt,
+      ),
+    ).toThrow("Este registro mudou");
+    expect(() =>
+      editHydrationEntry(
+        { ...data, hydrationEntries: [{ ...original, amountMl: 400 }] },
+        original,
+        300,
+        original.drankAt,
+      ),
+    ).toThrow("Este registro mudou");
+  });
+
+  it("valida volume e horário também no domínio", () => {
+    const data = emptyData();
+    data.hydrationEntries = [original];
+    expect(() =>
+      editHydrationEntry(data, original, 0, original.drankAt),
+    ).toThrow();
+    expect(() =>
+      editHydrationEntry(data, original, 10_001, original.drankAt),
+    ).toThrow();
+    expect(() =>
+      editHydrationEntry(data, original, 300, "data inválida"),
+    ).toThrow();
   });
 });

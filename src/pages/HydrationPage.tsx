@@ -1,5 +1,11 @@
 import { Bell, Droplets, Plus, Trash2 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent,
+} from "react";
 import { EmptyState, PageHeader } from "../components/Layout";
 import {
   dateTimePt,
@@ -16,7 +22,11 @@ import { DateTimeField } from "../components/DateTimeField";
 import { TimeSelect } from "../components/TimeSelect";
 import { PushActivationPrompt } from "../components/PushActivationPrompt";
 import { InfoDisclosure } from "../components/InfoDisclosure";
-import { removeEntry, restoreEntry } from "../domain/recordActions";
+import {
+  editHydrationEntry,
+  removeEntry,
+  restoreEntry,
+} from "../domain/recordActions";
 import {
   useExperiment,
   useExperimentExposure,
@@ -43,6 +53,25 @@ export function HydrationPage() {
   const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
   const [showPushPrompt, setShowPushPrompt] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<HydrationEntry | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editWhen, setEditWhen] = useState("");
+  const [editError, setEditError] = useState("");
+  const [editDateInvalid, setEditDateInvalid] = useState(false);
+  const [editConfirmed, setEditConfirmed] = useState(false);
+  const editAmountRef = useRef<HTMLInputElement>(null);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocusAfterEdit = useRef(false);
+  const editingEntryId = editingEntry?.id;
+  useEffect(() => {
+    if (editingEntryId) editAmountRef.current?.focus();
+  }, [editingEntryId]);
+  useEffect(() => {
+    if (returnFocusAfterEdit.current && !saving && !editingEntryId) {
+      editButtonRef.current?.focus();
+      returnFocusAfterEdit.current = false;
+    }
+  }, [saving, editingEntryId]);
   const entries = [...data.hydrationEntries].sort((a, b) =>
     b.drankAt.localeCompare(a.drankAt),
   );
@@ -69,6 +98,7 @@ export function HydrationPage() {
     const finish = startAttempt("hydration-form-confirmation");
     setWaterError("");
     setFormConfirmed(false);
+    setEditConfirmed(false);
     setSaving(true);
     try {
       await addWater(
@@ -100,6 +130,7 @@ export function HydrationPage() {
     const finish = startAttempt("hydration-quick-confirmation");
     setQuickConfirmation(null);
     setFormConfirmed(false);
+    setEditConfirmed(false);
     if (source === "hero") setQuickError("");
     else setActionError("");
     setSaving(true);
@@ -121,14 +152,65 @@ export function HydrationPage() {
 
   async function deleteWater(item: HydrationEntry) {
     setActionError("");
+    setEditConfirmed(false);
     try {
       await removeWithUndo(
         `Água de ${inputDecimal(item.amountMl)} ml`,
         (current) => removeEntry(current, "hydrationEntries", item.id),
         (current) => restoreEntry(current, "hydrationEntries", item),
       );
+      if (editingEntry?.id === item.id) setEditingEntry(null);
     } catch {
       setActionError("Não foi possível excluir o registro de água.");
+    }
+  }
+
+  function startEditing(
+    item: HydrationEntry,
+    event: MouseEvent<HTMLButtonElement>,
+  ) {
+    editButtonRef.current = event.currentTarget;
+    setEditingEntry(item);
+    setEditAmount(inputDecimal(item.amountMl));
+    setEditWhen(toLocalDateTime(item.drankAt));
+    setEditError("");
+    setEditDateInvalid(false);
+    setEditConfirmed(false);
+  }
+
+  function cancelEditing() {
+    setEditingEntry(null);
+    setEditError("");
+    editButtonRef.current?.focus();
+  }
+
+  async function saveEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!editingEntry) return;
+    setEditError("");
+    setSaving(true);
+    try {
+      if (editDateInvalid) throw new Error("Informe uma data válida.");
+      const amountMl = parseDecimal(editAmount, "um volume de água");
+      if (amountMl > 10_000) throw new Error("Confira a quantidade informada.");
+      const drankAt =
+        editWhen === toLocalDateTime(editingEntry.drankAt)
+          ? editingEntry.drankAt
+          : fromLocalDateTime(editWhen);
+      await mutate((current) =>
+        editHydrationEntry(current, editingEntry, amountMl, drankAt),
+      );
+      returnFocusAfterEdit.current = true;
+      setEditingEntry(null);
+      setEditConfirmed(true);
+    } catch (cause) {
+      setEditError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível alterar o registro de água.",
+      );
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -267,6 +349,11 @@ export function HydrationPage() {
           </section>
           <section className="panel" aria-labelledby="historico-agua">
             <h2 id="historico-agua">Histórico</h2>
+            {editConfirmed && (
+              <p role="status" className="small muted">
+                Registro de água atualizado.
+              </p>
+            )}
             {confirmQuickAdd && (
               <p role="status" aria-atomic="true" className="small muted">
                 {quickConfirmation === "history"
@@ -291,6 +378,21 @@ export function HydrationPage() {
                       <button
                         type="button"
                         className="entry-action"
+                        aria-label={`Editar água de ${inputDecimal(entry.amountMl)} ml em ${dateTimePt(entry.drankAt)}`}
+                        aria-expanded={editingEntry?.id === entry.id}
+                        aria-controls={
+                          editingEntryId === entry.id
+                            ? `water-edit-${entry.id}`
+                            : undefined
+                        }
+                        disabled={saving}
+                        onClick={(event) => startEditing(entry, event)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="entry-action"
                         aria-label={`Repetir ${inputDecimal(entry.amountMl)} ml de água`}
                         disabled={saving}
                         onClick={() => quickAdd(entry.amountMl, "history")}
@@ -301,11 +403,68 @@ export function HydrationPage() {
                         type="button"
                         className="entry-action danger"
                         aria-label={`Excluir água de ${inputDecimal(entry.amountMl)} ml em ${dateTimePt(entry.drankAt)}`}
+                        disabled={saving}
                         onClick={() => deleteWater(entry)}
                       >
                         Excluir
                       </button>
                     </div>
+                    {editingEntry?.id === entry.id && (
+                      <form
+                        id={`water-edit-${entry.id}`}
+                        className="hydration-edit-form"
+                        onSubmit={saveEdit}
+                        aria-labelledby={`water-edit-title-${entry.id}`}
+                      >
+                        <h3 id={`water-edit-title-${entry.id}`}>
+                          Editar registro de água
+                        </h3>
+                        <div className="field">
+                          <label htmlFor={`water-edit-amount-${entry.id}`}>
+                            Quantidade em ml
+                          </label>
+                          <input
+                            ref={editAmountRef}
+                            id={`water-edit-amount-${entry.id}`}
+                            inputMode="decimal"
+                            value={editAmount}
+                            onChange={(event) => {
+                              setEditAmount(event.target.value);
+                              setEditError("");
+                            }}
+                            required
+                          />
+                        </div>
+                        <DateTimeField
+                          id={`water-edit-date-${entry.id}`}
+                          value={editWhen}
+                          onChange={(value) => {
+                            setEditWhen(value);
+                            setEditDateInvalid(false);
+                            setEditError("");
+                          }}
+                          onInvalidDate={() => setEditDateInvalid(true)}
+                        />
+                        {editError && (
+                          <p className="form-error" role="alert">
+                            {editError}
+                          </p>
+                        )}
+                        <div className="hydration-edit-actions">
+                          <button
+                            type="button"
+                            className="button secondary"
+                            onClick={cancelEditing}
+                            disabled={saving}
+                          >
+                            Cancelar
+                          </button>
+                          <button className="button primary" disabled={saving}>
+                            {saving ? "Salvando…" : "Salvar alteração"}
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </li>
                 ))}
               </ul>
