@@ -119,6 +119,7 @@ enum Experiment {
     HabitFormConfirmation,
     MedicationFormConfirmation,
     DailyRecordsLastDayShortcut,
+    DailyRecordsNextDayShortcut,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]

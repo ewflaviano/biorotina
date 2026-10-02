@@ -150,6 +150,52 @@ describe("Registros por dia", () => {
     expect(JSON.stringify(state.data)).toBe(before);
   });
 
+  it("oferece o próximo dia com registros somente no experimento e preserva os dados", async () => {
+    const user = userEvent.setup();
+    const yesterday = shiftCalendarDay(todayIsoDate(), -1);
+    const at = new Date(`${todayIsoDate()}T12:15:00`).toISOString();
+    state.data!.hydrationEntries.push({
+      id: crypto.randomUUID(),
+      createdAt: at,
+      drankAt: at,
+      amountMl: 250,
+    });
+    const before = JSON.stringify(state.data);
+    const entry = { pathname: "/diario", state: { day: yesterday } };
+    const control = render(
+      <MemoryRouter initialEntries={[entry]}>
+        <DailyRecordsPage />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByRole("button", { name: /Ver próximo dia com registros/ }),
+    ).toBeNull();
+    control.unmount();
+
+    state.experimentEnabled = true;
+    render(
+      <MemoryRouter initialEntries={[entry]}>
+        <DailyRecordsPage />
+      </MemoryRouter>,
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Ver próximo dia com registros/ }),
+    );
+    expect(screen.getByLabelText("Data dos registros")).toHaveValue(
+      todayIsoDate(),
+    );
+    expect(
+      screen.getByRole("link", { name: /Água · 250 ml/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Ver próximo dia com registros/ }),
+    ).toBeNull();
+    expect(state.recordUse).toHaveBeenCalledWith(
+      "daily-records-next-day-shortcut",
+    );
+    expect(JSON.stringify(state.data)).toBe(before);
+  });
+
   it("mostra dias extensos em lotes sem ocultar registros", async () => {
     const user = userEvent.setup();
     const at = new Date(`${todayIsoDate()}T12:15:00`).toISOString();

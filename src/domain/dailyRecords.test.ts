@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { emptyData, toLocalDateTime } from "./data";
 import {
   isSelectableCalendarDay,
+  firstRecordedDayAfter,
   lastRecordedDayBefore,
   recordsForDay,
   shiftCalendarDay,
@@ -151,5 +152,22 @@ describe("consulta de registros por dia", () => {
     expect(lastRecordedDayBefore(data, "2026-09-30")).toBe("2026-09-29");
     expect(lastRecordedDayBefore(data, "2026-09-29")).toBe("2026-09-28");
     expect(lastRecordedDayBefore(data, "2026-09-28")).toBeNull();
+  });
+
+  it("encontra o primeiro dia posterior com registros, sem oferecer o futuro", () => {
+    const data = emptyData();
+    for (const day of [28, 30]) {
+      data.hydrationEntries.push({
+        id: crypto.randomUUID(),
+        createdAt: localIso(day, 12),
+        drankAt: localIso(day, 12),
+        amountMl: 200,
+      });
+    }
+    expect(firstRecordedDayAfter(data, "2026-09-27", "2026-09-29")).toBe(
+      "2026-09-28",
+    );
+    expect(firstRecordedDayAfter(data, "2026-09-28", "2026-09-29")).toBeNull();
+    expect(firstRecordedDayAfter(data, "2026-09-30", "2026-09-30")).toBeNull();
   });
 });

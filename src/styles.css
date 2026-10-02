@@ -1196,6 +1196,9 @@ h3 {
   width: 100%;
   margin-top: 16px;
 }
+.diary-next-shortcut {
+  white-space: normal;
+}
 .diary-empty {
   margin: 16px 0 0;
   padding: 20px 0 4px;

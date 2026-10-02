@@ -29,6 +29,7 @@ const FEATURES: &[&str] = &[
     "habit-form-confirmation",
     "medication-form-confirmation",
     "daily-records-last-day-shortcut",
+    "daily-records-next-day-shortcut",
 ];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 

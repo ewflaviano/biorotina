@@ -7,6 +7,7 @@ import { dailyRecordAreas } from "../components/dailyRecordAreas";
 import { todayIsoDate, toLocalDateTime } from "../domain/data";
 import {
   formatCalendarDay,
+  firstRecordedDayAfter,
   isSelectableCalendarDay,
   lastRecordedDayBefore,
   recordsForDay,
@@ -40,9 +41,17 @@ export function DailyRecordsPage() {
     () => lastRecordedDayBefore(data, view.day),
     [data, view.day],
   );
+  const nextRecordedDay = useMemo(
+    () => firstRecordedDayAfter(data, view.day),
+    [data, view.day],
+  );
   useExperimentExposure(
     "daily-records-last-day-shortcut",
     records.length === 0 && lastRecordedDay !== null,
+  );
+  useExperimentExposure(
+    "daily-records-next-day-shortcut",
+    records.length === 0 && nextRecordedDay !== null,
   );
 
   useEffect(() => {
@@ -146,6 +155,20 @@ export function DailyRecordsPage() {
                     }}
                   >
                     Ver registros de {formatCalendarDay(lastRecordedDay)}
+                  </button>
+                )}
+              {nextRecordedDay &&
+                experiment.enabled("daily-records-next-day-shortcut") && (
+                  <button
+                    className="button secondary diary-more diary-next-shortcut"
+                    type="button"
+                    onClick={() => {
+                      experiment.recordUse("daily-records-next-day-shortcut");
+                      chooseDay(nextRecordedDay);
+                    }}
+                  >
+                    Ver próximo dia com registros:{" "}
+                    {formatCalendarDay(nextRecordedDay)}
                   </button>
                 )}
             </>

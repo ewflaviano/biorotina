@@ -95,6 +95,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; sem evidência suficiente, desligar. Interromper por navegação incorreta ou regressão de privacidade ou acessibilidade.",
   },
+  "daily-records-next-day-shortcut": {
+    assignment: "browser",
+    description:
+      "Oferece o primeiro dia posterior com registros quando a consulta diária está vazia.",
+    owner: "Biorotina",
+    issue: 88,
+    revision: 1,
+    reviewBy: "2026-10-09",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por navegação incorreta ou regressão de privacidade ou acessibilidade.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;
