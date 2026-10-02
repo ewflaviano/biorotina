@@ -94,7 +94,7 @@ de melhor esforço, não um ledger confiável de operações.
   página relevante está montada e visível. Hidratação cobre formulário e
   atalhos; peso cobre o formulário de Medidas; atividades cobre o formulário de
   Atividades e o formulário de Hábitos; onboarding usa a página inicial elegível à decisão de instalação.
-  A consulta diária cobre apenas datas vazias com dia anterior registrado.
+  A consulta diária cobre apenas datas vazias com dia anterior ou posterior registrado, conforme a chave.
   Atribuir uma configuração em outra página não conta como exposição.
 - `success`/`error`: resultado de cada tentativa concluída de salvar pelo
   formulário de água/peso/atividades/hábitos ou atalho/repetição de água, em ambos os braços. Erro inclui validação e
@@ -102,7 +102,7 @@ de melhor esforço, não um ledger confiável de operações.
   Tentativas em andamento ficam fora do denominador. A atribuição é congelada
   no início, mesmo se percentual/revisão mudar enquanto a gravação está pendente.
 - `use`: ação específica de instalação; medir igualmente nos dois braços.
-  No atalho da consulta diária, mede o clique disponível no braço experimental.
+  Nos atalhos da consulta diária, mede o clique disponível no braço experimental.
 - `rollback`: perda do braço experimental após refresh, apenas se houve
   exposição consentida; inclui kill switch, redução, desligamento e falha de
   refresh. Carrega a revisão anterior; não representa quantidade de comandos
