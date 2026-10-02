@@ -1605,6 +1605,28 @@ h3 {
 .entry-action.danger:hover {
   background: var(--color-danger-soft);
 }
+.hydration-edit-form {
+  display: grid;
+  gap: 14px;
+  flex: 1 1 100%;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-tint);
+}
+.hydration-edit-form h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.hydration-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.hydration-edit-actions .button.primary {
+  flex: 1 1 auto;
+}
 .template-note {
   border-radius: var(--radius-sm);
   padding: 10px 12px;

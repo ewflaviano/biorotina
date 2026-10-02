@@ -35,11 +35,13 @@ export function DateTimeField({
   id,
   value,
   onChange,
+  onInvalidDate,
   className = "",
 }: {
   id: string;
   value: string;
   onChange: (value: string) => void;
+  onInvalidDate?: () => void;
   className?: string;
 }) {
   const [dateDraft, setDateDraft] = useState<string | null>(null);
@@ -57,7 +59,10 @@ export function DateTimeField({
   }
 
   function resetInvalidDate() {
-    if (!toIsoDate(dateText)) setDateDraft(null);
+    if (!toIsoDate(dateText)) {
+      setDateDraft(null);
+      onInvalidDate?.();
+    }
   }
 
   function useCurrentDateTime() {

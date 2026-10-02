@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyData } from "../domain/data";
@@ -27,7 +27,7 @@ vi.mock("../state/AppDataContext", () => ({
       ...emptyData(),
       hydrationEntries: [
         {
-          id: "test-water",
+          id: "00000000-0000-4000-8000-000000000001",
           amountMl: 200,
           drankAt: "2026-09-25T12:00:00Z",
           createdAt: "2026-09-25T12:00:00Z",
@@ -46,6 +46,105 @@ beforeEach(() => {
   experiment.formEnabled = false;
   experiment.startAttempt.mockImplementation(() => experiment.finish);
   storage.mutate.mockReset().mockResolvedValue(undefined);
+});
+
+describe("edição de uma entrada de água", () => {
+  it("abre o registro, permite cancelar e mantém o foco na ação", async () => {
+    const user = userEvent.setup();
+    render(<HydrationPage />);
+    const edit = screen.getByRole("button", { name: /Editar água de 200 ml/ });
+    await user.click(edit);
+    const form = screen.getByRole("form", { name: "Editar registro de água" });
+    expect(within(form).getByLabelText("Quantidade em ml")).toHaveValue("200");
+    expect(within(form).getByLabelText("Quantidade em ml")).toHaveFocus();
+    await user.click(within(form).getByRole("button", { name: "Cancelar" }));
+    expect(
+      screen.queryByRole("form", { name: "Editar registro de água" }),
+    ).not.toBeInTheDocument();
+    expect(edit).toHaveFocus();
+    expect(storage.mutate).not.toHaveBeenCalled();
+  });
+
+  it("salva volume alterado sem criar outro registro", async () => {
+    const user = userEvent.setup();
+    render(<HydrationPage />);
+    const edit = screen.getByRole("button", { name: /Editar água de 200 ml/ });
+    await user.click(edit);
+    const form = screen.getByRole("form", { name: "Editar registro de água" });
+    const amount = within(form).getByLabelText("Quantidade em ml");
+    await user.clear(amount);
+    await user.type(amount, "350");
+    await user.click(
+      within(form).getByRole("button", { name: "Salvar alteração" }),
+    );
+    expect(
+      await screen.findByText("Registro de água atualizado."),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(edit).toHaveFocus());
+    expect(storage.mutate).toHaveBeenCalledOnce();
+    const data = emptyData();
+    data.hydrationEntries = [
+      {
+        id: "00000000-0000-4000-8000-000000000001",
+        amountMl: 200,
+        drankAt: "2026-09-25T12:00:00Z",
+        createdAt: "2026-09-25T12:00:00Z",
+      },
+    ];
+    const updated = storage.mutate.mock.calls[0][0](data);
+    expect(updated.hydrationEntries).toEqual([
+      { ...data.hydrationEntries[0], amountMl: 350 },
+    ]);
+  });
+
+  it("mantém o rascunho quando o volume é inválido ou o registro mudou", async () => {
+    const user = userEvent.setup();
+    render(<HydrationPage />);
+    await user.click(
+      screen.getByRole("button", { name: /Editar água de 200 ml/ }),
+    );
+    const form = screen.getByRole("form", { name: "Editar registro de água" });
+    const amount = within(form).getByLabelText("Quantidade em ml");
+    await user.clear(amount);
+    await user.type(amount, "10001");
+    await user.click(
+      within(form).getByRole("button", { name: "Salvar alteração" }),
+    );
+    expect(await within(form).findByRole("alert")).toHaveTextContent(
+      "Confira a quantidade",
+    );
+    expect(storage.mutate).not.toHaveBeenCalled();
+    await user.clear(amount);
+    await user.type(amount, "300");
+    storage.mutate.mockRejectedValueOnce(new Error("Este registro mudou."));
+    await user.click(
+      within(form).getByRole("button", { name: "Salvar alteração" }),
+    );
+    expect(await within(form).findByRole("alert")).toHaveTextContent(
+      "Este registro mudou.",
+    );
+    expect(amount).toHaveValue("300");
+  });
+
+  it("recusa uma data digitada que não existe", async () => {
+    const user = userEvent.setup();
+    render(<HydrationPage />);
+    await user.click(
+      screen.getByRole("button", { name: /Editar água de 200 ml/ }),
+    );
+    const form = screen.getByRole("form", { name: "Editar registro de água" });
+    const date = within(form).getByLabelText("Data");
+    await user.clear(date);
+    await user.type(date, "32132026");
+    await user.tab();
+    await user.click(
+      within(form).getByRole("button", { name: "Salvar alteração" }),
+    );
+    expect(await within(form).findByRole("alert")).toHaveTextContent(
+      "Informe uma data válida.",
+    );
+    expect(storage.mutate).not.toHaveBeenCalled();
+  });
 });
 
 describe("confirmação experimental dos atalhos de água", () => {
