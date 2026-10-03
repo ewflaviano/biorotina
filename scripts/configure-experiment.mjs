@@ -22,6 +22,7 @@ if (
     "medication-form-confirmation",
     "daily-records-last-day-shortcut",
     "daily-records-next-day-shortcut",
+    "weight-history-edit",
   ].includes(key) ||
   !Number.isInteger(rolloutPercent) ||
   rolloutPercent < 0 ||
