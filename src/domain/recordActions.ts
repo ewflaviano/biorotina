@@ -5,8 +5,9 @@ import type {
   HydrationEntry,
   Medication,
   MedicationLog,
+  WeightEntry,
 } from "./data";
-import { hydrationSchema } from "./data";
+import { hydrationSchema, weightSchema, MAX_WEIGHT_KG } from "./data";
 
 export type EntryCollection =
   | "weights"
@@ -65,6 +66,43 @@ export function editHydrationEntry(
   const hydrationEntries = [...data.hydrationEntries];
   hydrationEntries[index] = updated;
   return { ...data, hydrationEntries };
+}
+
+export function editWeightEntry(
+  data: AppData,
+  original: WeightEntry,
+  weightKg: number,
+  measuredAt: string,
+  note: string,
+): AppData {
+  const index = data.weights.findIndex((entry) => entry.id === original.id);
+  const current = data.weights[index];
+  if (
+    !current ||
+    current.createdAt !== original.createdAt ||
+    current.weightKg !== original.weightKg ||
+    current.measuredAt !== original.measuredAt ||
+    current.note !== original.note
+  ) {
+    throw new Error("Esta medida mudou. Feche a edição e abra novamente.");
+  }
+  if (weightKg > MAX_WEIGHT_KG)
+    throw new Error(`Confira o peso: o máximo aceito é ${MAX_WEIGHT_KG} kg.`);
+  const updated = weightSchema.parse({
+    ...current,
+    weightKg,
+    measuredAt,
+    note,
+  });
+  if (
+    updated.weightKg === current.weightKg &&
+    updated.measuredAt === current.measuredAt &&
+    updated.note === current.note
+  )
+    return data;
+  const weights = [...data.weights];
+  weights[index] = updated;
+  return { ...data, weights };
 }
 
 export function removeMedication(data: AppData, id: string): AppData {

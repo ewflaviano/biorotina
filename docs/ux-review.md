@@ -18,7 +18,7 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 3. **Repetir** preenche o valor anterior, limpa a observação antiga e define data/hora atual. A pessoa confere antes de salvar um novo registro.
 4. **Excluir** remove uma medida incorreta; **Desfazer** restaura exatamente o registro anterior.
 
-**Próxima melhoria possível:** edição direta de uma medida histórica, sem precisar excluir e recriar.
+**Em experimento:** editar peso, data/hora e observação de uma medida histórica sem excluir e recriar (`weight-history-edit`, issue #92). O controle mantém o fluxo atual.
 
 ## 3. Atividades físicas
 

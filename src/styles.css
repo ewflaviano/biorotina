@@ -1608,7 +1608,8 @@ h3 {
 .entry-action.danger:hover {
   background: var(--color-danger-soft);
 }
-.hydration-edit-form {
+.hydration-edit-form,
+.record-edit-form {
   display: grid;
   gap: 14px;
   flex: 1 1 100%;
@@ -1618,16 +1619,19 @@ h3 {
   border-radius: var(--radius-md);
   background: var(--color-surface-tint);
 }
-.hydration-edit-form h3 {
+.hydration-edit-form h3,
+.record-edit-form h3 {
   margin: 0;
   font-size: 16px;
 }
-.hydration-edit-actions {
+.hydration-edit-actions,
+.record-edit-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-.hydration-edit-actions .button.primary {
+.hydration-edit-actions .button.primary,
+.record-edit-actions .button.primary {
   flex: 1 1 auto;
 }
 .template-note {

@@ -106,6 +106,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por navegação incorreta ou regressão de privacidade ou acessibilidade.",
   },
+  "weight-history-edit": {
+    assignment: "browser",
+    description:
+      "Permite corrigir uma medida de peso diretamente no histórico.",
+    owner: "Biorotina",
+    issue: 92,
+    revision: 1,
+    reviewBy: "2026-10-10",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por perda de dados, falha de persistência ou acessibilidade.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;

@@ -1,5 +1,11 @@
 import { Ruler, Scale } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent,
+} from "react";
 import {
   bmi,
   bmiCategory,
@@ -18,7 +24,11 @@ import { WeightTrend } from "../components/ProgressCharts";
 import { DateTimeField } from "../components/DateTimeField";
 import { InfoDisclosure } from "../components/InfoDisclosure";
 import { useAppData } from "../state/AppDataContext";
-import { removeEntry, restoreEntry } from "../domain/recordActions";
+import {
+  editWeightEntry,
+  removeEntry,
+  restoreEntry,
+} from "../domain/recordActions";
 import {
   useExperiment,
   useExperimentExposure,
@@ -27,9 +37,11 @@ import type { WeightEntry } from "../domain/data";
 
 export function WeightPage() {
   const { data, mutate, removeWithUndo } = useAppData();
-  const { enabled, startAttempt } = useExperiment();
+  const { enabled, recordUse, startAttempt } = useExperiment();
   useExperimentExposure("weight-form-confirmation");
+  useExperimentExposure("weight-history-edit", data.weights.length > 0);
   const confirmWeight = enabled("weight-form-confirmation");
+  const canEditHistory = enabled("weight-history-edit");
   const [weightConfirmed, setWeightConfirmed] = useState(false);
   const [value, setValue] = useState("");
   const [height, setHeight] = useState(
@@ -43,6 +55,26 @@ export function WeightPage() {
   const [heightMessage, setHeightMessage] = useState("");
   const [prefilled, setPrefilled] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [editingEntry, setEditingEntry] = useState<WeightEntry | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editWhen, setEditWhen] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [editError, setEditError] = useState("");
+  const [editDateInvalid, setEditDateInvalid] = useState(false);
+  const [editConfirmed, setEditConfirmed] = useState(false);
+  const editValueRef = useRef<HTMLInputElement>(null);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocusAfterEdit = useRef(false);
+  const editingEntryId = editingEntry?.id;
+  useEffect(() => {
+    if (editingEntryId && canEditHistory) editValueRef.current?.focus();
+  }, [editingEntryId, canEditHistory]);
+  useEffect(() => {
+    if (returnFocusAfterEdit.current && !saving && !editingEntryId) {
+      editButtonRef.current?.focus();
+      returnFocusAfterEdit.current = false;
+    }
+  }, [saving, editingEntryId]);
   const weights = [...data.weights].sort((a, b) =>
     b.measuredAt.localeCompare(a.measuredAt),
   );
@@ -138,6 +170,7 @@ export function WeightPage() {
 
   async function deleteWeight(item: WeightEntry) {
     setWeightConfirmed(false);
+    setEditConfirmed(false);
     setActionError("");
     try {
       await removeWithUndo(
@@ -147,6 +180,70 @@ export function WeightPage() {
       );
     } catch {
       setActionError("Não foi possível excluir o peso. Tente novamente.");
+    }
+  }
+
+  function startEditing(
+    item: WeightEntry,
+    event: MouseEvent<HTMLButtonElement>,
+  ) {
+    if (!canEditHistory) return;
+    recordUse("weight-history-edit");
+    editButtonRef.current = event.currentTarget;
+    setEditingEntry(item);
+    setEditValue(inputDecimal(item.weightKg));
+    setEditWhen(toLocalDateTime(item.measuredAt));
+    setEditNote(item.note);
+    setEditError("");
+    setEditDateInvalid(false);
+    setEditConfirmed(false);
+  }
+
+  function cancelEditing() {
+    setEditingEntry(null);
+    setEditError("");
+    editButtonRef.current?.focus();
+  }
+
+  async function saveEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!editingEntry || !canEditHistory || saving) return;
+    const finish = startAttempt("weight-history-edit");
+    setEditError("");
+    setSaving(true);
+    try {
+      if (editDateInvalid) throw new Error("Informe uma data válida.");
+      const weightKg = parseDecimal(editValue, "um peso");
+      if (weightKg > MAX_WEIGHT_KG)
+        throw new Error(
+          `Confira o peso: o máximo aceito é ${MAX_WEIGHT_KG} kg.`,
+        );
+      const measuredAt =
+        editWhen === toLocalDateTime(editingEntry.measuredAt)
+          ? editingEntry.measuredAt
+          : fromLocalDateTime(editWhen);
+      await mutate((current) =>
+        editWeightEntry(
+          current,
+          editingEntry,
+          weightKg,
+          measuredAt,
+          editNote.trim(),
+        ),
+      );
+      returnFocusAfterEdit.current = true;
+      setEditingEntry(null);
+      setEditConfirmed(true);
+      finish("success");
+    } catch (cause) {
+      finish("error");
+      setEditError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível alterar a medida.",
+      );
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -276,6 +373,11 @@ export function WeightPage() {
           </section>
           <section className="panel" aria-labelledby="historico-peso">
             <h2 id="historico-peso">Histórico</h2>
+            {canEditHistory && (
+              <p role="status" aria-atomic="true" className="small muted">
+                {editConfirmed ? "Medida atualizada no histórico." : ""}
+              </p>
+            )}
             {actionError && (
               <p className="form-error" role="alert">
                 {actionError}
@@ -294,6 +396,23 @@ export function WeightPage() {
                       </small>
                     </div>
                     <div className="entry-actions">
+                      {canEditHistory && (
+                        <button
+                          type="button"
+                          className="entry-action"
+                          aria-label={`Editar peso de ${dateTimePt(item.measuredAt)}`}
+                          aria-expanded={editingEntryId === item.id}
+                          aria-controls={
+                            editingEntryId === item.id
+                              ? `weight-edit-${item.id}`
+                              : undefined
+                          }
+                          disabled={saving}
+                          onClick={(event) => startEditing(item, event)}
+                        >
+                          Editar
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="entry-action"
@@ -311,6 +430,76 @@ export function WeightPage() {
                         Excluir
                       </button>
                     </div>
+                    {canEditHistory && editingEntryId === item.id && (
+                      <form
+                        id={`weight-edit-${item.id}`}
+                        className="record-edit-form"
+                        onSubmit={saveEdit}
+                        aria-labelledby={`weight-edit-title-${item.id}`}
+                      >
+                        <h3 id={`weight-edit-title-${item.id}`}>
+                          Editar medida de peso
+                        </h3>
+                        <div className="field">
+                          <label htmlFor={`weight-edit-value-${item.id}`}>
+                            Peso em kg
+                          </label>
+                          <input
+                            ref={editValueRef}
+                            id={`weight-edit-value-${item.id}`}
+                            inputMode="decimal"
+                            value={editValue}
+                            onChange={(event) => {
+                              setEditValue(event.target.value);
+                              setEditError("");
+                            }}
+                            required
+                          />
+                        </div>
+                        <DateTimeField
+                          id={`weight-edit-date-${item.id}`}
+                          value={editWhen}
+                          onChange={(value) => {
+                            setEditWhen(value);
+                            setEditDateInvalid(false);
+                            setEditError("");
+                          }}
+                          onInvalidDate={() => setEditDateInvalid(true)}
+                        />
+                        <div className="field">
+                          <label htmlFor={`weight-edit-note-${item.id}`}>
+                            Observação (opcional)
+                          </label>
+                          <input
+                            id={`weight-edit-note-${item.id}`}
+                            maxLength={500}
+                            value={editNote}
+                            onChange={(event) => {
+                              setEditNote(event.target.value);
+                              setEditError("");
+                            }}
+                          />
+                        </div>
+                        {editError && (
+                          <p className="form-error" role="alert">
+                            {editError}
+                          </p>
+                        )}
+                        <div className="record-edit-actions">
+                          <button
+                            type="button"
+                            className="button secondary"
+                            onClick={cancelEditing}
+                            disabled={saving}
+                          >
+                            Cancelar
+                          </button>
+                          <button className="button primary" disabled={saving}>
+                            {saving ? "Salvando…" : "Salvar alteração"}
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </li>
                 ))}
               </ul>
