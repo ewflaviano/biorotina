@@ -25,10 +25,10 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 1. Os atalhos mostram primeiro as atividades registradas mais recentemente, sem repetir nomes. Tocar em uma delas recupera duração e calorias do último registro para revisão. As vagas restantes mostram sugestões gerais; também é possível buscar no catálogo de mais de 50 atividades ou digitar livremente.
 2. Para uma atividade do catálogo, o app sugere calorias a partir de MET, duração e último peso; sem peso, indica a referência de 70 kg. A pessoa pode ajustar, limpar ou voltar à estimativa. O botão de informação mostra a fórmula, o MET e código da atividade escolhida e o link para a fonte.
 3. **Agora** corrige a hora sugerida quando necessário.
-4. O histórico oferece **Repetir** para preencher nome, duração e calorias anteriores com data/hora atual; **Excluir** tem desfazer. Valores estimados e informados são identificados.
-5. O resumo e o gráfico mostram tempo registrado, sem penalizar dias vazios.
+4. O histórico começa em hoje e permite escolher qualquer dia até a data atual pelo mesmo seletor da home. A busca por nome, sem distinção de acentos ou maiúsculas, atua dentro do dia escolhido; a tela informa quantidade e minutos exibidos. **Repetir** preenche nome, duração e calorias anteriores com data/hora atual; **Excluir** tem desfazer. Valores estimados e informados são identificados.
+5. O resumo e o gráfico mostram tempo registrado, sem penalizar dias vazios. O total geral da página permanece identificado separadamente do recorte do histórico.
 
-**Próxima melhoria possível:** filtros de período e edição de detalhes de uma atividade passada quando o histórico crescer.
+**Próxima melhoria possível:** edição de detalhes de uma atividade passada quando o histórico crescer.
 
 ## 4. Alimentação
 

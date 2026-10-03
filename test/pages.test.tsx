@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { openDB } from "idb";
 import { MemoryRouter } from "react-router-dom";
@@ -479,6 +479,9 @@ describe("atividade e alimentação", () => {
       },
     ];
     const user = await renderPage(<ActivityPage />, initial);
+    fireEvent.change(screen.getByLabelText("Data do histórico de atividades"), {
+      target: { value: toLocalDateTime(past).slice(0, 10) },
+    });
     await user.click(screen.getByRole("button", { name: /Repetir Caminhada/ }));
     expect(screen.getByLabelText("Atividade")).toHaveValue("Caminhada");
     expect(screen.getByLabelText("Duração em minutos")).toHaveValue("35,5");
