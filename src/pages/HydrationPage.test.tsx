@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -51,7 +52,13 @@ beforeEach(() => {
 describe("edição de uma entrada de água", () => {
   it("abre o registro, permite cancelar e mantém o foco na ação", async () => {
     const user = userEvent.setup();
-    render(<HydrationPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
     const edit = screen.getByRole("button", { name: /Editar água de 200 ml/ });
     await user.click(edit);
     const form = screen.getByRole("form", { name: "Editar registro de água" });
@@ -67,7 +74,13 @@ describe("edição de uma entrada de água", () => {
 
   it("salva volume alterado sem criar outro registro", async () => {
     const user = userEvent.setup();
-    render(<HydrationPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
     const edit = screen.getByRole("button", { name: /Editar água de 200 ml/ });
     await user.click(edit);
     const form = screen.getByRole("form", { name: "Editar registro de água" });
@@ -99,7 +112,13 @@ describe("edição de uma entrada de água", () => {
 
   it("mantém o rascunho quando o volume é inválido ou o registro mudou", async () => {
     const user = userEvent.setup();
-    render(<HydrationPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
     await user.click(
       screen.getByRole("button", { name: /Editar água de 200 ml/ }),
     );
@@ -128,7 +147,13 @@ describe("edição de uma entrada de água", () => {
 
   it("recusa uma data digitada que não existe", async () => {
     const user = userEvent.setup();
-    render(<HydrationPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
     await user.click(
       screen.getByRole("button", { name: /Editar água de 200 ml/ }),
     );
@@ -150,7 +175,13 @@ describe("edição de uma entrada de água", () => {
 describe("confirmação experimental dos atalhos de água", () => {
   it("preserva o comportamento comum quando o gate está desligado", async () => {
     const user = userEvent.setup();
-    render(<HydrationPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
     await user.click(screen.getByRole("button", { name: "200 ml" }));
     expect(storage.mutate).toHaveBeenCalledOnce();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -166,7 +197,13 @@ describe("confirmação experimental dos atalhos de água", () => {
       }),
     );
     const user = userEvent.setup();
-    render(<HydrationPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
     const button = screen.getByRole("button", { name: "200 ml" });
     await user.click(button);
     expect(
@@ -186,7 +223,13 @@ describe("confirmação experimental dos atalhos de água", () => {
   it("confirma repetição do histórico e limpa o sucesso anterior se a próxima gravação falhar", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
-    render(<HydrationPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
     await user.click(
       screen.getByRole("button", { name: "Repetir 200 ml de água" }),
     );
@@ -211,7 +254,13 @@ describe("confirmação experimental do formulário de água", () => {
   it("mantém o formulário sem confirmação quando só o experimento dos atalhos está ativo", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
-    render(<HydrationPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
     await user.type(screen.getByLabelText("Quantidade em ml"), "300");
     await user.click(screen.getByRole("button", { name: "Salvar água" }));
     expect(storage.mutate).toHaveBeenCalledOnce();
@@ -230,7 +279,13 @@ describe("confirmação experimental do formulário de água", () => {
       }),
     );
     const user = userEvent.setup();
-    render(<HydrationPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
     const amount = screen.getByLabelText("Quantidade em ml");
     await user.type(amount, "300");
     const save = screen.getByRole("button", { name: "Salvar água" });
@@ -263,7 +318,13 @@ describe("confirmação experimental do formulário de água", () => {
   it("não confirma quantidade inválida nem habilita a confirmação dos atalhos", async () => {
     experiment.formEnabled = true;
     const user = userEvent.setup();
-    render(<HydrationPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
     await user.type(screen.getByLabelText("Quantidade em ml"), "-1");
     await user.click(screen.getByRole("button", { name: "Salvar água" }));
     expect(await screen.findByRole("alert")).toBeInTheDocument();

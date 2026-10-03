@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,7 +46,11 @@ const form = () => within(document.querySelector("form")!);
 describe("confirmação experimental do formulário de hábitos", () => {
   it("mantém o controle sem anúncio e mede a tentativa", async () => {
     const user = userEvent.setup();
-    render(<HabitsPage />);
+    render(
+      <MemoryRouter>
+        <HabitsPage />
+      </MemoryRouter>,
+    );
     await user.type(screen.getByLabelText("Nome"), "Ler");
     await user.click(screen.getByRole("button", { name: "Salvar hábito" }));
     expect(storage.mutate).toHaveBeenCalledOnce();
@@ -65,7 +70,11 @@ describe("confirmação experimental do formulário de hábitos", () => {
       }),
     );
     const user = userEvent.setup();
-    render(<HabitsPage />);
+    render(
+      <MemoryRouter>
+        <HabitsPage />
+      </MemoryRouter>,
+    );
     await user.type(screen.getByLabelText("Nome"), "Ler");
     await user.click(screen.getByRole("button", { name: "Salvar hábito" }));
     const button = screen.getByRole("button", { name: "Salvando…" });
@@ -89,7 +98,11 @@ describe("confirmação experimental do formulário de hábitos", () => {
   it("não confirma após validação ou falha de persistência", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
-    render(<HabitsPage />);
+    render(
+      <MemoryRouter>
+        <HabitsPage />
+      </MemoryRouter>,
+    );
     await user.type(screen.getByLabelText("Nome"), " ");
     await user.click(screen.getByRole("button", { name: "Salvar hábito" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(

@@ -1,4 +1,11 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyData } from "../domain/data";
@@ -50,14 +57,26 @@ beforeEach(() => {
 
 describe("edição experimental do histórico de peso", () => {
   it("mantém o controle sem ação de edição", () => {
-    render(<WeightPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     expect(screen.queryByRole("button", { name: /Editar peso de/ })).toBeNull();
   });
 
   it("pré-preenche e salva a mesma medida, mantendo foco e sem alterar novos registros", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
-    render(<WeightPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     const edit = screen.getByRole("button", { name: /Editar peso de/ });
     await user.click(edit);
     const editForm = screen.getByRole("form", {
@@ -102,7 +121,13 @@ describe("edição experimental do histórico de peso", () => {
     experiment.enabled = true;
     storage.mutate.mockRejectedValueOnce(new Error("Falha simulada"));
     const user = userEvent.setup();
-    render(<WeightPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     const edit = screen.getByRole("button", { name: /Editar peso de/ });
     await user.click(edit);
     const editForm = screen.getByRole("form", {
@@ -140,7 +165,13 @@ async function save(user: ReturnType<typeof userEvent.setup>) {
 describe("confirmação experimental do formulário de peso", () => {
   it("mantém controle sem confirmação e mede a tentativa concluída", async () => {
     const user = userEvent.setup();
-    render(<WeightPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     await save(user);
     expect(storage.mutate).toHaveBeenCalledOnce();
     expect(form().queryByRole("status")).not.toBeInTheDocument();
@@ -159,7 +190,13 @@ describe("confirmação experimental do formulário de peso", () => {
       }),
     );
     const user = userEvent.setup();
-    const view = render(<WeightPage />);
+    const view = render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     await save(user);
     const button = screen.getByRole("button", { name: "Salvando…" });
     expect(button).toHaveAttribute("aria-disabled", "true");
@@ -177,14 +214,26 @@ describe("confirmação experimental do formulário de peso", () => {
     expect(screen.getByLabelText("Peso em kg")).toHaveValue("");
     expect(experiment.finish).toHaveBeenCalledWith("success");
     experiment.enabled = false;
-    view.rerender(<WeightPage />);
+    view.rerender(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     expect(form().queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("limpa ao editar e não confirma falha após sucesso", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
-    render(<WeightPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     await save(user);
     expect(await screen.findByText(confirmation)).toBeInTheDocument();
     await user.type(screen.getByLabelText("Peso em kg"), "71");
@@ -202,7 +251,13 @@ describe("confirmação experimental do formulário de peso", () => {
   it("mede validação recusada sem persistir ou anunciar sucesso", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
-    render(<WeightPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     await user.type(screen.getByLabelText("Peso em kg"), "-1");
     await user.click(screen.getByRole("button", { name: "Salvar medida" }));
     expect(await screen.findByRole("alert")).toBeInTheDocument();
@@ -214,16 +269,28 @@ describe("confirmação experimental do formulário de peso", () => {
   it("limpa sucesso ao editar nota, repetir e excluir", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
-    render(<WeightPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     await save(user);
     await user.type(screen.getByLabelText(/Observação/), "teste");
     expect(screen.queryByText(confirmation)).not.toBeInTheDocument();
     await save(user);
+    fireEvent.change(screen.getByLabelText("Data do histórico de medidas"), {
+      target: { value: "2026-09-27" },
+    });
     await user.click(screen.getByRole("button", { name: /Repetir peso/ }));
     expect(screen.queryByText(confirmation)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Peso em kg")).toHaveFocus();
     await user.click(screen.getByRole("button", { name: "Salvar medida" }));
     expect(await screen.findByText(confirmation)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Data do histórico de medidas"), {
+      target: { value: "2026-09-27" },
+    });
     await user.click(screen.getByRole("button", { name: /Excluir peso/ }));
     await waitFor(() => expect(storage.removeWithUndo).toHaveBeenCalledOnce());
     expect(screen.queryByText(confirmation)).not.toBeInTheDocument();

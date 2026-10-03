@@ -7,6 +7,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { openDB } from "idb";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
 import {
   emptyData,
@@ -55,7 +56,9 @@ it("persiste a edição local e move a entrada entre os totais dos dias", async 
   const user = userEvent.setup();
   render(
     <AppDataProvider>
-      <HydrationPage />
+      <MemoryRouter>
+        <HydrationPage />
+      </MemoryRouter>
     </AppDataProvider>,
   );
   expect(
@@ -88,6 +91,10 @@ it("persiste a edição local e move a entrada entre os totais dos dias", async 
   expect(
     await screen.findByText("200", { selector: ".large-value" }),
   ).toBeInTheDocument();
+  expect(screen.getByLabelText("Data do histórico de água")).toHaveValue(
+    yesterday,
+  );
+  expect(screen.getByLabelText("Data do histórico de água")).toHaveFocus();
   const saved = await loadData();
   expect(summaryForDay(saved, today).hydrationEntries).toHaveLength(1);
   expect(summaryForDay(saved, yesterday).hydrationEntries).toHaveLength(1);

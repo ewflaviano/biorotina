@@ -11,6 +11,13 @@ import {
 } from "../domain/data";
 import { TimeSelect } from "../components/TimeSelect";
 import { DateTimeField } from "../components/DateTimeField";
+import {
+  HistoryDayControls,
+  historyDayOf,
+  isOnHistoryDay,
+  normalizeHistoryName,
+  useHistoryDay,
+} from "../components/HistoryDayControls";
 import { PushActivationPrompt } from "../components/PushActivationPrompt";
 import { EmptyState, Notice, PageHeader } from "../components/Layout";
 import { useAppData } from "../state/AppDataContext";
@@ -28,6 +35,8 @@ import {
 
 export function MedicationPage() {
   const { data, mutate, removeWithUndo } = useAppData();
+  const [selectedDay, setSelectedDay] = useHistoryDay();
+  const [historySearch, setHistorySearch] = useState("");
   const { enabled, startAttempt } = useExperiment();
   useExperimentExposure("medication-form-confirmation");
   const confirmMedication = enabled("medication-form-confirmation");
@@ -56,6 +65,18 @@ export function MedicationPage() {
   );
   const logs = [...data.medicationLogs].sort((a, b) =>
     b.takenAt.localeCompare(a.takenAt),
+  );
+  const medicationNames = new Map(
+    data.medications.map((item) => [item.id, item.name]),
+  );
+  const logsForDay = logs.filter((log) =>
+    isOnHistoryDay(log.takenAt, selectedDay),
+  );
+  const searchTerm = normalizeHistoryName(historySearch.trim());
+  const visibleLogs = logsForDay.filter((log) =>
+    normalizeHistoryName(
+      medicationNames.get(log.medicationId) ?? "Medicamento removido",
+    ).includes(searchTerm),
   );
 
   async function submit(event: FormEvent) {
@@ -177,6 +198,8 @@ export function MedicationPage() {
           ...current.medicationLogs,
         ],
       }));
+      setSelectedDay(historyDayOf(takenAt));
+      setHistorySearch("");
       return true;
     } catch {
       setActionError("Não foi possível registrar o uso.");
@@ -590,11 +613,34 @@ export function MedicationPage() {
               </form>
             </section>
           )}
-          {logs.length > 0 && (
-            <section className="panel">
-              <h2>Histórico de uso</h2>
+          <section className="panel" aria-labelledby="historico-medicacao">
+            <HistoryDayControls
+              title="Histórico de uso"
+              headingId="historico-medicacao"
+              pickerId="medication-history-date"
+              pickerLabel="Data do histórico de usos de medicação"
+              day={selectedDay}
+              onDayChange={setSelectedDay}
+              search={
+                logs.length
+                  ? {
+                      id: "medication-history-search",
+                      label: "Buscar medicamento neste dia",
+                      placeholder: "Ex.: Medicamento",
+                      value: historySearch,
+                      onChange: setHistorySearch,
+                    }
+                  : undefined
+              }
+              summary={
+                logs.length
+                  ? `${visibleLogs.length} uso${visibleLogs.length === 1 ? "" : "s"} exibido${visibleLogs.length === 1 ? "" : "s"}`
+                  : undefined
+              }
+            />
+            {visibleLogs.length ? (
               <ul className="entry-list">
-                {logs.map((log) => {
+                {visibleLogs.map((log) => {
                   const medication = data.medications.find(
                     (item) => item.id === log.medicationId,
                   );
@@ -620,8 +666,20 @@ export function MedicationPage() {
                   );
                 })}
               </ul>
-            </section>
-          )}
+            ) : logs.length === 0 ? (
+              <EmptyState
+                icon={Pill}
+                title="Nenhum uso registrado"
+                description="Registros de uso aparecerão aqui depois que você os informar."
+              />
+            ) : (
+              <p className="history-day-empty">
+                {logsForDay.length === 0
+                  ? "Nenhum uso registrado neste dia. Escolha outra data para consultar o histórico."
+                  : "Nenhum medicamento corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
+              </p>
+            )}
+          </section>
         </div>
         <aside className="side-stack">
           <div className="panel highlight">
