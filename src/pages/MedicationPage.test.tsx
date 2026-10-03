@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -49,7 +50,11 @@ async function fill(user: ReturnType<typeof userEvent.setup>) {
 describe("confirmação experimental do formulário de medicamentos", () => {
   it("mantém o controle sem anúncio e mede a tentativa", async () => {
     const user = userEvent.setup();
-    render(<MedicationPage />);
+    render(
+      <MemoryRouter>
+        <MedicationPage />
+      </MemoryRouter>,
+    );
     await fill(user);
     await user.click(
       screen.getByRole("button", { name: "Salvar medicamento" }),
@@ -71,7 +76,11 @@ describe("confirmação experimental do formulário de medicamentos", () => {
       }),
     );
     const user = userEvent.setup();
-    render(<MedicationPage />);
+    render(
+      <MemoryRouter>
+        <MedicationPage />
+      </MemoryRouter>,
+    );
     await fill(user);
     await user.click(
       screen.getByRole("button", { name: "Salvar medicamento" }),
@@ -96,7 +105,11 @@ describe("confirmação experimental do formulário de medicamentos", () => {
   it("não confirma validação recusada nem falha de persistência", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
-    render(<MedicationPage />);
+    render(
+      <MemoryRouter>
+        <MedicationPage />
+      </MemoryRouter>,
+    );
     await user.type(screen.getByLabelText("Nome"), "Teste");
     await user.type(screen.getByLabelText("Dose"), "-1");
     await user.click(

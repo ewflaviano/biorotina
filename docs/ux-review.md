@@ -14,7 +14,7 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 ## 2. Peso
 
 1. Informe a medida; a data e hora começam no momento de abertura da tela e o botão **Agora** atualiza esse valor se a página ficou aberta.
-2. O histórico e o gráfico mostram as medidas anteriores; o IMC só aparece com altura informada. A categoria usa faixas de referência para adultos de 18 a 59 anos, sem cor de julgamento ou diagnóstico. O botão de informação abre a fórmula, todas as faixas, a fonte oficial e a justificativa dos limites de entrada.
+2. O histórico começa em hoje e permite escolher qualquer dia até a data atual. A lista mostra apenas as medidas do dia escolhido; o gráfico continua mostrando todas as medidas e informa esse escopo. O IMC só aparece com altura informada. A categoria usa faixas de referência para adultos de 18 a 59 anos, sem cor de julgamento ou diagnóstico. O botão de informação abre a fórmula, todas as faixas, a fonte oficial e a justificativa dos limites de entrada.
 3. **Repetir** preenche o valor anterior, limpa a observação antiga e define data/hora atual. A pessoa confere antes de salvar um novo registro.
 4. **Excluir** remove uma medida incorreta; **Desfazer** restaura exatamente o registro anterior.
 
@@ -35,8 +35,9 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 1. Descreva a refeição; calorias continuam opcionais. Alternativamente, escolha ou tire uma foto, confirme a análise com Gemini e revise alimentos, quantidades e calorias antes de salvar.
 2. Uma refeição frequente pode ser usada como modelo: descrição e calorias são copiadas, mas a data/hora é atualizada e a pessoa revisa antes de salvar.
 3. Uma refeição equivocada pode ser excluída e restaurada com **Desfazer**.
+4. O histórico começa em hoje, permite escolher outro dia e buscar pelo nome de uma refeição dentro desse dia. O total geral fica identificado separadamente do recorte.
 
-**Próxima melhoria possível:** edição direta e agrupamento por dia para históricos extensos.
+**Próxima melhoria possível:** edição direta de uma refeição passada.
 
 ## 5. Medicação
 
@@ -44,13 +45,14 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 2. **Editar** corrige o medicamento sem apagar os registros de uso. A dose mantém a precisão informada.
 3. **Registrar uso** exige uma ação da pessoa e continua disponível após o primeiro registro do dia como **Registrar outro uso**. A tela informa quantos usos foram registrados hoje e quando ocorreu o último. **Remover último** corrige um toque acidental sem apagar os demais; o histórico permite remover qualquer registro individual.
 4. **Excluir medicamento** informa quantos registros de uso ligados serão removidos e pede confirmação. O banner de desfazer restaura medicamento e registros juntos.
+5. O histórico de usos começa em hoje e permite escolher outro dia e buscar pelo nome do medicamento. A lista de medicamentos cadastrados e o contador de hoje continuam independentes da data consultada.
 
 **Próxima melhoria possível:** permitir frequências que não sejam diárias, sem sugerir orientação clínica. A entrega agendada ainda precisa ser confirmada em dispositivos reais.
 
 ## 6. Hidratação
 
 1. Os atalhos de 200, 250 e 500 ml registram água em um toque; um campo permite qualquer volume válido.
-2. O total do dia e o histórico se atualizam imediatamente.
+2. O total de hoje e o histórico se atualizam imediatamente. No histórico, a pessoa pode escolher outro dia e ver o volume e a quantidade de registros desse dia; o destaque de hoje permanece identificado separadamente.
 3. **Repetir** registra o mesmo volume de uma entrada anterior com o horário atual. **Excluir** e **Desfazer** corrigem um toque acidental.
 4. A pessoa pode guardar vários horários de lembrete. O controle “Avisos neste dispositivo” explica quando os avisos estão ativos e permite enviar um teste, ativar ou desativar.
 
@@ -60,6 +62,7 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 2. A barra inferior mostra **Hoje, Medidas, Atividade, Água e Mais**. A página de consulta por dia mantém Hoje marcado.
 3. **Mais** abre Alimentação, Medicação, Hábitos e Configurações. Ele permanece marcado como área ativa quando uma dessas páginas está aberta.
 4. No desktop, a barra lateral mostra todas as áreas diretamente.
+5. Em Hábitos, o histórico de registros começa em hoje e permite escolher outro dia e buscar pelo nome do hábito. A lista de hábitos cadastrados e o contador de hoje continuam independentes da data consultada.
 
 ## 8. Configurações e dados
 

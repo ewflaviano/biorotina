@@ -22,6 +22,12 @@ import {
 import { EmptyState, Notice, PageHeader } from "../components/Layout";
 import { WeightTrend } from "../components/ProgressCharts";
 import { DateTimeField } from "../components/DateTimeField";
+import {
+  HistoryDayControls,
+  historyDayOf,
+  isOnHistoryDay,
+  useHistoryDay,
+} from "../components/HistoryDayControls";
 import { InfoDisclosure } from "../components/InfoDisclosure";
 import { useAppData } from "../state/AppDataContext";
 import {
@@ -37,6 +43,7 @@ import type { WeightEntry } from "../domain/data";
 
 export function WeightPage() {
   const { data, mutate, removeWithUndo } = useAppData();
+  const [selectedDay, setSelectedDay] = useHistoryDay();
   const { enabled, recordUse, startAttempt } = useExperiment();
   useExperimentExposure("weight-form-confirmation");
   useExperimentExposure("weight-history-edit", data.weights.length > 0);
@@ -65,6 +72,7 @@ export function WeightPage() {
   const editValueRef = useRef<HTMLInputElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusAfterEdit = useRef(false);
+  const focusDayAfterEdit = useRef(false);
   const editingEntryId = editingEntry?.id;
   useEffect(() => {
     if (editingEntryId && canEditHistory) editValueRef.current?.focus();
@@ -75,8 +83,17 @@ export function WeightPage() {
       returnFocusAfterEdit.current = false;
     }
   }, [saving, editingEntryId]);
+  useEffect(() => {
+    if (focusDayAfterEdit.current && !saving && !editingEntryId) {
+      document.getElementById("weight-history-date")?.focus();
+      focusDayAfterEdit.current = false;
+    }
+  }, [saving, editingEntryId, selectedDay]);
   const weights = [...data.weights].sort((a, b) =>
     b.measuredAt.localeCompare(a.measuredAt),
+  );
+  const historyWeights = weights.filter((item) =>
+    isOnHistoryDay(item.measuredAt, selectedDay),
   );
   const latest = weights[0];
   const previous = weights[1];
@@ -116,6 +133,7 @@ export function WeightPage() {
       setNote("");
       setWhen(toLocalDateTime(new Date().toISOString()));
       setPrefilled(false);
+      setSelectedDay(historyDayOf(measuredAt));
       if (confirmWeight) setWeightConfirmed(true);
       finish("success");
     } catch (cause) {
@@ -231,7 +249,10 @@ export function WeightPage() {
           editNote.trim(),
         ),
       );
-      returnFocusAfterEdit.current = true;
+      const nextDay = historyDayOf(measuredAt);
+      returnFocusAfterEdit.current = nextDay === selectedDay;
+      focusDayAfterEdit.current = nextDay !== selectedDay;
+      setSelectedDay(nextDay);
       setEditingEntry(null);
       setEditConfirmed(true);
       finish("success");
@@ -372,7 +393,25 @@ export function WeightPage() {
             </form>
           </section>
           <section className="panel" aria-labelledby="historico-peso">
-            <h2 id="historico-peso">Histórico</h2>
+            <HistoryDayControls
+              title="Histórico"
+              headingId="historico-peso"
+              pickerId="weight-history-date"
+              pickerLabel="Data do histórico de medidas"
+              day={selectedDay}
+              onDayChange={(day) => {
+                setSelectedDay(day);
+                setEditingEntry(null);
+                setEditConfirmed(false);
+                returnFocusAfterEdit.current = false;
+                focusDayAfterEdit.current = false;
+              }}
+              summary={
+                weights.length
+                  ? `${historyWeights.length} medida${historyWeights.length === 1 ? "" : "s"} exibida${historyWeights.length === 1 ? "" : "s"}`
+                  : undefined
+              }
+            />
             {canEditHistory && (
               <p role="status" aria-atomic="true" className="small muted">
                 {editConfirmed ? "Medida atualizada no histórico." : ""}
@@ -383,10 +422,14 @@ export function WeightPage() {
                 {actionError}
               </p>
             )}
+            <p className="small muted">
+              O gráfico mostra todas as medidas, independentemente do dia
+              escolhido.
+            </p>
             <WeightTrend entries={weights} />
-            {weights.length ? (
+            {historyWeights.length ? (
               <ul className="entry-list">
-                {weights.map((item) => (
+                {historyWeights.map((item) => (
                   <li key={item.id}>
                     <div>
                       <strong>{inputDecimal(item.weightKg)} kg</strong>
@@ -503,12 +546,17 @@ export function WeightPage() {
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : weights.length === 0 ? (
               <EmptyState
                 icon={Scale}
                 title="Sua primeira medida"
                 description="Registre um peso quando quiser começar a acompanhar sua evolução."
               />
+            ) : (
+              <p className="history-day-empty">
+                Nenhuma medida registrada neste dia. Escolha outra data para
+                consultar o histórico.
+              </p>
             )}
           </section>
         </div>

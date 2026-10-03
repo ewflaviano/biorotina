@@ -26,6 +26,13 @@ import {
 import { EmptyState, Notice, PageHeader } from "../components/Layout";
 import { useAppData } from "../state/AppDataContext";
 import { DateTimeField } from "../components/DateTimeField";
+import {
+  HistoryDayControls,
+  historyDayOf,
+  isOnHistoryDay,
+  normalizeHistoryName,
+  useHistoryDay,
+} from "../components/HistoryDayControls";
 import { removeEntry, restoreEntry } from "../domain/recordActions";
 import { mealFoodSchema, type MealEntry } from "../domain/data";
 import {
@@ -54,6 +61,8 @@ function totalFromFoods(foods: FoodDraft[]): string {
 
 export function FoodPage() {
   const { data, mutate, removeWithUndo } = useAppData();
+  const [selectedDay, setSelectedDay] = useHistoryDay();
+  const [historySearch, setHistorySearch] = useState("");
   const drive = useDriveSync();
   const [name, setName] = useState("");
   const [calories, setCalories] = useState("");
@@ -85,6 +94,13 @@ export function FoodPage() {
   const [totalEdited, setTotalEdited] = useState(false);
   const meals = [...data.meals].sort((a, b) =>
     b.eatenAt.localeCompare(a.eatenAt),
+  );
+  const mealsForDay = meals.filter((item) =>
+    isOnHistoryDay(item.eatenAt, selectedDay),
+  );
+  const searchTerm = normalizeHistoryName(historySearch.trim());
+  const visibleMeals = mealsForDay.filter((item) =>
+    normalizeHistoryName(item.name).includes(searchTerm),
   );
   const totalCalories = meals.reduce(
     (sum, item) => sum + (item.caloriesKcal ?? 0),
@@ -203,6 +219,8 @@ export function FoodPage() {
       setTotalEdited(false);
       setWhen(toLocalDateTime(new Date().toISOString()));
       setPrefilled(false);
+      setSelectedDay(historyDayOf(eatenAt));
+      setHistorySearch("");
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -758,16 +776,39 @@ export function FoodPage() {
               </button>
             </form>
           </section>
-          <section className="panel">
-            <h2>Histórico</h2>
+          <section className="panel" aria-labelledby="historico-refeicoes">
+            <HistoryDayControls
+              title="Histórico"
+              headingId="historico-refeicoes"
+              pickerId="food-history-date"
+              pickerLabel="Data do histórico de refeições"
+              day={selectedDay}
+              onDayChange={setSelectedDay}
+              search={
+                meals.length
+                  ? {
+                      id: "food-history-search",
+                      label: "Buscar refeição neste dia",
+                      placeholder: "Ex.: Almoço",
+                      value: historySearch,
+                      onChange: setHistorySearch,
+                    }
+                  : undefined
+              }
+              summary={
+                meals.length
+                  ? `${visibleMeals.length} refeiç${visibleMeals.length === 1 ? "ão" : "ões"} exibida${visibleMeals.length === 1 ? "" : "s"}`
+                  : undefined
+              }
+            />
             {actionError && (
               <p className="form-error" role="alert">
                 {actionError}
               </p>
             )}
-            {meals.length ? (
+            {visibleMeals.length ? (
               <ul className="entry-list">
-                {meals.map((item) => (
+                {visibleMeals.map((item) => (
                   <li key={item.id}>
                     <div>
                       <strong>{item.name}</strong>
@@ -806,12 +847,18 @@ export function FoodPage() {
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : meals.length === 0 ? (
               <EmptyState
                 icon={Apple}
                 title="Seu diário de alimentação"
                 description="Adicione uma refeição quando quiser começar. As calorias não são obrigatórias."
               />
+            ) : (
+              <p className="history-day-empty">
+                {mealsForDay.length === 0
+                  ? "Nenhuma refeição registrada neste dia. Escolha outra data para consultar o histórico."
+                  : "Nenhuma refeição corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
+              </p>
             )}
           </section>
         </div>
@@ -819,6 +866,7 @@ export function FoodPage() {
           <div className="panel highlight">
             <span className="eyebrow">Refeições registradas</span>
             <strong className="large-value">{meals.length}</strong>
+            <p className="muted">Em todo o histórico.</p>
             <p className="muted">
               {measuredMeals
                 ? `${numberPt(totalCalories, 3)} kcal informadas em ${measuredMeals} refeições.`

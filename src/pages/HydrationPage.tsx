@@ -19,6 +19,12 @@ import {
 } from "../domain/data";
 import { useAppData } from "../state/AppDataContext";
 import { DateTimeField } from "../components/DateTimeField";
+import {
+  HistoryDayControls,
+  historyDayOf,
+  isOnHistoryDay,
+  useHistoryDay,
+} from "../components/HistoryDayControls";
 import { TimeSelect } from "../components/TimeSelect";
 import { PushActivationPrompt } from "../components/PushActivationPrompt";
 import { InfoDisclosure } from "../components/InfoDisclosure";
@@ -35,6 +41,7 @@ import type { HydrationEntry } from "../domain/data";
 
 export function HydrationPage() {
   const { data, mutate, removeWithUndo } = useAppData();
+  const [selectedDay, setSelectedDay] = useHistoryDay();
   const { enabled, startAttempt } = useExperiment();
   useExperimentExposure("hydration-quick-confirmation");
   useExperimentExposure("hydration-form-confirmation");
@@ -62,6 +69,7 @@ export function HydrationPage() {
   const editAmountRef = useRef<HTMLInputElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusAfterEdit = useRef(false);
+  const focusDayAfterEdit = useRef(false);
   const editingEntryId = editingEntry?.id;
   useEffect(() => {
     if (editingEntryId) editAmountRef.current?.focus();
@@ -72,10 +80,23 @@ export function HydrationPage() {
       returnFocusAfterEdit.current = false;
     }
   }, [saving, editingEntryId]);
+  useEffect(() => {
+    if (focusDayAfterEdit.current && !saving && !editingEntryId) {
+      document.getElementById("water-history-date")?.focus();
+      focusDayAfterEdit.current = false;
+    }
+  }, [saving, editingEntryId, selectedDay]);
   const entries = [...data.hydrationEntries].sort((a, b) =>
     b.drankAt.localeCompare(a.drankAt),
   );
   const todayEntries = entries.filter((entry) => isToday(entry.drankAt));
+  const historyEntries = entries.filter((entry) =>
+    isOnHistoryDay(entry.drankAt, selectedDay),
+  );
+  const historyTotalMl = historyEntries.reduce(
+    (sum, entry) => sum + entry.amountMl,
+    0,
+  );
   const totalToday = todayEntries.reduce(
     (sum, entry) => sum + entry.amountMl,
     0,
@@ -101,10 +122,9 @@ export function HydrationPage() {
     setEditConfirmed(false);
     setSaving(true);
     try {
-      await addWater(
-        parseDecimal(amount, "um volume de água"),
-        fromLocalDateTime(when),
-      );
+      const drankAt = fromLocalDateTime(when);
+      await addWater(parseDecimal(amount, "um volume de água"), drankAt);
+      setSelectedDay(historyDayOf(drankAt));
       setAmount("");
       setWhen(toLocalDateTime(new Date().toISOString()));
       if (confirmForm) {
@@ -135,7 +155,9 @@ export function HydrationPage() {
     else setActionError("");
     setSaving(true);
     try {
-      await addWater(amountMl, new Date().toISOString());
+      const drankAt = new Date().toISOString();
+      await addWater(amountMl, drankAt);
+      setSelectedDay(historyDayOf(drankAt));
       if (confirmQuickAdd) {
         setQuickConfirmation(source);
       }
@@ -200,7 +222,10 @@ export function HydrationPage() {
       await mutate((current) =>
         editHydrationEntry(current, editingEntry, amountMl, drankAt),
       );
-      returnFocusAfterEdit.current = true;
+      const nextDay = historyDayOf(drankAt);
+      returnFocusAfterEdit.current = nextDay === selectedDay;
+      focusDayAfterEdit.current = nextDay !== selectedDay;
+      setSelectedDay(nextDay);
       setEditingEntry(null);
       setEditConfirmed(true);
     } catch (cause) {
@@ -348,7 +373,25 @@ export function HydrationPage() {
             </form>
           </section>
           <section className="panel" aria-labelledby="historico-agua">
-            <h2 id="historico-agua">Histórico</h2>
+            <HistoryDayControls
+              title="Histórico"
+              headingId="historico-agua"
+              pickerId="water-history-date"
+              pickerLabel="Data do histórico de água"
+              day={selectedDay}
+              onDayChange={(day) => {
+                setSelectedDay(day);
+                setEditingEntry(null);
+                setEditConfirmed(false);
+                returnFocusAfterEdit.current = false;
+                focusDayAfterEdit.current = false;
+              }}
+              summary={
+                entries.length
+                  ? `${historyEntries.length} registro${historyEntries.length === 1 ? "" : "s"} · ${numberPt(historyTotalMl, 3)} ml exibidos`
+                  : undefined
+              }
+            />
             {editConfirmed && (
               <p role="status" className="small muted">
                 Registro de água atualizado.
@@ -366,9 +409,9 @@ export function HydrationPage() {
                 {actionError}
               </p>
             )}
-            {entries.length ? (
+            {historyEntries.length ? (
               <ul className="entry-list">
-                {entries.map((entry) => (
+                {historyEntries.map((entry) => (
                   <li key={entry.id}>
                     <div>
                       <strong>{inputDecimal(entry.amountMl)} ml</strong>
@@ -468,12 +511,17 @@ export function HydrationPage() {
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : entries.length === 0 ? (
               <EmptyState
                 icon={Droplets}
                 title="Comece quando quiser"
                 description="Seu primeiro copo de água aparecerá aqui."
               />
+            ) : (
+              <p className="history-day-empty">
+                Nenhum registro de água neste dia. Escolha outra data para
+                consultar o histórico.
+              </p>
             )}
           </section>
         </div>

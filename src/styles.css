@@ -2597,3 +2597,48 @@ h3 {
     width: 100%;
   }
 }
+
+.history-day-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-bottom: 18px;
+}
+.history-day-heading h2 {
+  margin: 8px 0 0;
+}
+.history-day-heading .day-picker {
+  width: min(100%, 320px);
+}
+.history-day-search {
+  margin-bottom: 14px;
+}
+.history-clear-search {
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+}
+.history-day-summary {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-info-soft);
+  color: var(--color-info);
+  font-size: 13px;
+  font-weight: 700;
+}
+.history-day-empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+@media (max-width: 600px) {
+  .history-day-heading .day-picker {
+    width: 100%;
+  }
+}

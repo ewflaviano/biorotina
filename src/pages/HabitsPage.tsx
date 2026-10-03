@@ -15,6 +15,13 @@ import {
 } from "../domain/recordActions";
 import { TimeSelect } from "../components/TimeSelect";
 import { PushActivationPrompt } from "../components/PushActivationPrompt";
+import {
+  HistoryDayControls,
+  historyDayOf,
+  isOnHistoryDay,
+  normalizeHistoryName,
+  useHistoryDay,
+} from "../components/HistoryDayControls";
 import { EmptyState, PageHeader } from "../components/Layout";
 import { useAppData } from "../state/AppDataContext";
 import {
@@ -35,6 +42,8 @@ const everyDay = weekdays.map(([day]) => day);
 
 export function HabitsPage() {
   const { data, mutate, removeWithUndo } = useAppData();
+  const [selectedDay, setSelectedDay] = useHistoryDay();
+  const [historySearch, setHistorySearch] = useState("");
   const { enabled, startAttempt } = useExperiment();
   useExperimentExposure("habit-form-confirmation");
   const confirmHabit = enabled("habit-form-confirmation");
@@ -55,6 +64,18 @@ export function HabitsPage() {
   );
   const logs = [...data.habitLogs].sort((a, b) =>
     b.completedAt.localeCompare(a.completedAt),
+  );
+  const habitNames = new Map(
+    data.habits.map((habit) => [habit.id, habit.name]),
+  );
+  const logsForDay = logs.filter((log) =>
+    isOnHistoryDay(log.completedAt, selectedDay),
+  );
+  const searchTerm = normalizeHistoryName(historySearch.trim());
+  const visibleLogs = logsForDay.filter((log) =>
+    normalizeHistoryName(
+      habitNames.get(log.habitId) ?? "Hábito removido",
+    ).includes(searchTerm),
   );
 
   function clearForm() {
@@ -182,6 +203,8 @@ export function HabitsPage() {
           ...current.habitLogs,
         ],
       }));
+      setSelectedDay(historyDayOf(now));
+      setHistorySearch("");
     } catch {
       setActionError("Não foi possível registrar o hábito.");
     } finally {
@@ -426,11 +449,34 @@ export function HabitsPage() {
               />
             )}
           </section>
-          {logs.length > 0 && (
-            <section className="panel">
-              <h2>Histórico</h2>
+          <section className="panel" aria-labelledby="historico-habitos">
+            <HistoryDayControls
+              title="Histórico"
+              headingId="historico-habitos"
+              pickerId="habit-history-date"
+              pickerLabel="Data do histórico de hábitos"
+              day={selectedDay}
+              onDayChange={setSelectedDay}
+              search={
+                logs.length
+                  ? {
+                      id: "habit-history-search",
+                      label: "Buscar hábito neste dia",
+                      placeholder: "Ex.: Caminhada",
+                      value: historySearch,
+                      onChange: setHistorySearch,
+                    }
+                  : undefined
+              }
+              summary={
+                logs.length
+                  ? `${visibleLogs.length} registro${visibleLogs.length === 1 ? "" : "s"} exibido${visibleLogs.length === 1 ? "" : "s"}`
+                  : undefined
+              }
+            />
+            {visibleLogs.length ? (
               <ul className="entry-list">
-                {logs.map((log) => {
+                {visibleLogs.map((log) => {
                   const habit = data.habits.find(
                     (item) => item.id === log.habitId,
                   );
@@ -454,8 +500,20 @@ export function HabitsPage() {
                   );
                 })}
               </ul>
-            </section>
-          )}
+            ) : logs.length === 0 ? (
+              <EmptyState
+                icon={Sprout}
+                title="Nenhum hábito registrado"
+                description="Registros de hábitos aparecerão aqui depois que você os informar."
+              />
+            ) : (
+              <p className="history-day-empty">
+                {logsForDay.length === 0
+                  ? "Nenhum hábito registrado neste dia. Escolha outra data para consultar o histórico."
+                  : "Nenhum hábito corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
+              </p>
+            )}
+          </section>
         </div>
         <aside className="side-stack">
           <div className="panel highlight">
