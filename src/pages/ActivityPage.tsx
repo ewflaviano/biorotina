@@ -1,5 +1,6 @@
 import { Activity } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+import { useLocation } from "react-router-dom";
 import {
   dateTimePt,
   fromLocalDateTime,
@@ -9,7 +10,13 @@ import {
   parseDecimal,
   parseOptionalCalories,
   toLocalDateTime,
+  todayIsoDate,
 } from "../domain/data";
+import { DayPicker } from "../components/DayPicker";
+import {
+  formatCalendarDay,
+  isSelectableCalendarDay,
+} from "../domain/dailyRecords";
 import { EmptyState, Notice, PageHeader } from "../components/Layout";
 import { useAppData } from "../state/AppDataContext";
 import { DateTimeField } from "../components/DateTimeField";
@@ -31,8 +38,23 @@ import {
 
 const referenceWeightKg = 70;
 
+function normalizeName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+}
+
 export function ActivityPage() {
   const { data, mutate, removeWithUndo } = useAppData();
+  const location = useLocation();
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const requestedDay = (location.state as { day?: unknown } | null)?.day;
+    return isSelectableCalendarDay(requestedDay)
+      ? requestedDay
+      : todayIsoDate();
+  });
+  const [historySearch, setHistorySearch] = useState("");
   const { enabled, startAttempt } = useExperiment();
   useExperimentExposure("activity-form-confirmation");
   const confirmActivity = enabled("activity-form-confirmation");
@@ -48,10 +70,25 @@ export function ActivityPage() {
   const [saving, setSaving] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
   const [actionError, setActionError] = useState("");
-  const activities = [...data.activities].sort((a, b) =>
-    b.occurredAt.localeCompare(a.occurredAt),
+  const activitiesForDay = useMemo(
+    () =>
+      data.activities
+        .filter(
+          (item) =>
+            toLocalDateTime(item.occurredAt).slice(0, 10) === selectedDay,
+        )
+        .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)),
+    [data.activities, selectedDay],
   );
-  const totalMinutes = activities.reduce(
+  const searchTerm = normalizeName(historySearch.trim());
+  const visibleActivities = activitiesForDay.filter((item) =>
+    normalizeName(item.name).includes(searchTerm),
+  );
+  const visibleMinutes = visibleActivities.reduce(
+    (sum, item) => sum + item.durationMinutes,
+    0,
+  );
+  const totalMinutes = data.activities.reduce(
     (sum, item) => sum + item.durationMinutes,
     0,
   );
@@ -112,6 +149,8 @@ export function ActivityPage() {
       setCaloriesMode("estimated");
       setWhen(toLocalDateTime(new Date().toISOString()));
       setPrefilled(false);
+      setSelectedDay(toLocalDateTime(occurredAt).slice(0, 10));
+      setHistorySearch("");
       if (confirmActivity) setActivityConfirmed(true);
       finish("success");
     } catch (cause) {
@@ -348,16 +387,56 @@ export function ActivityPage() {
               </button>
             </form>
           </section>
-          <section className="panel">
-            <h2>Histórico</h2>
+          <section className="panel" aria-labelledby="activity-history-title">
+            <div className="activity-history-heading">
+              <h2 id="activity-history-title">
+                Histórico de {formatCalendarDay(selectedDay)}
+              </h2>
+              <DayPicker
+                id="activity-history-date"
+                label="Data do histórico de atividades"
+                value={selectedDay}
+                onChange={setSelectedDay}
+              />
+            </div>
+            {data.activities.length > 0 && (
+              <div className="field activity-history-search">
+                <label htmlFor="activity-history-search">
+                  Buscar atividade neste dia
+                </label>
+                <input
+                  id="activity-history-search"
+                  type="search"
+                  placeholder="Ex.: Caminhada"
+                  value={historySearch}
+                  onChange={(event) => setHistorySearch(event.target.value)}
+                />
+                {historySearch && (
+                  <button
+                    className="text-link activity-clear-search"
+                    type="button"
+                    onClick={() => setHistorySearch("")}
+                  >
+                    Limpar busca
+                  </button>
+                )}
+              </div>
+            )}
             {actionError && (
               <p className="form-error" role="alert">
                 {actionError}
               </p>
             )}
-            {activities.length ? (
+            {data.activities.length > 0 && (
+              <p className="activity-history-summary" role="status">
+                {visibleActivities.length} atividade
+                {visibleActivities.length === 1 ? "" : "s"} ·{" "}
+                {numberPt(visibleMinutes, 3)} min exibidos
+              </p>
+            )}
+            {visibleActivities.length ? (
               <ul className="entry-list">
-                {activities.map((item) => (
+                {visibleActivities.map((item) => (
                   <li key={item.id}>
                     <div>
                       <strong>{item.name}</strong>
@@ -390,12 +469,18 @@ export function ActivityPage() {
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : data.activities.length === 0 ? (
               <EmptyState
                 icon={Activity}
                 title="Movimento no seu ritmo"
                 description="Registre uma caminhada, treino ou qualquer outra atividade quando quiser."
               />
+            ) : (
+              <p className="activity-history-empty">
+                {activitiesForDay.length === 0
+                  ? "Nenhuma atividade registrada neste dia. Escolha outra data para consultar o histórico."
+                  : "Nenhuma atividade corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
+              </p>
             )}
           </section>
         </div>
@@ -406,8 +491,8 @@ export function ActivityPage() {
               {numberPt(totalMinutes, 3)} <small>min</small>
             </strong>
             <p className="muted">
-              Em {activities.length} atividade
-              {activities.length === 1 ? "" : "s"}.
+              Em {data.activities.length} atividade
+              {data.activities.length === 1 ? "" : "s"} em todo o histórico.
             </p>
           </div>
           <Notice>

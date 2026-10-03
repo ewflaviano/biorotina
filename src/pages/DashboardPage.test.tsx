@@ -161,6 +161,22 @@ describe("resumo da página inicial por data", () => {
     expect(screen.getByText(`Dia recebido: ${yesterday}`)).toBeInTheDocument();
   });
 
+  it("leva a data selecionada ao histórico de atividades", async () => {
+    const user = userEvent.setup();
+    const yesterday = shiftCalendarDay(todayIsoDate(), -1);
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/atividades" element={<DiarySelection />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole("button", { name: "Dia anterior" }));
+    await user.click(screen.getByText("Movimento no dia").closest("a")!);
+    expect(screen.getByText(`Dia recebido: ${yesterday}`)).toBeInTheDocument();
+  });
+
   it("mostra um dia vazio sem carregar valores de outras datas", async () => {
     const user = userEvent.setup();
     const today = todayIsoDate();

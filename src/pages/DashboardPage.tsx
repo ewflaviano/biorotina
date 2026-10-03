@@ -188,7 +188,11 @@ export function DashboardPage() {
                 : "Nenhuma medida neste dia"}
             </p>
           </Link>
-          <Link to="/atividades" className="metric-card">
+          <Link
+            to="/atividades"
+            state={{ day: selectedDay }}
+            className="metric-card"
+          >
             <div className="metric-top">
               <span>
                 {viewingToday ? "Movimento hoje" : "Movimento no dia"}

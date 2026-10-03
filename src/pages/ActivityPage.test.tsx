@@ -1,7 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { emptyData } from "../domain/data";
+import { MemoryRouter } from "react-router-dom";
+import { emptyData, todayIsoDate, type AppData } from "../domain/data";
+import { formatCalendarDay, shiftCalendarDay } from "../domain/dailyRecords";
 import { ActivityPage } from "./ActivityPage";
 
 const experiment = vi.hoisted(() => ({
@@ -9,6 +11,7 @@ const experiment = vi.hoisted(() => ({
   startAttempt: vi.fn(),
   finish: vi.fn(),
 }));
+const state = vi.hoisted(() => ({ data: null as AppData | null }));
 const storage = vi.hoisted(() => ({
   mutate: vi.fn(),
   removeWithUndo: vi.fn(),
@@ -22,12 +25,13 @@ vi.mock("../experiments/ExperimentContext", () => ({
 }));
 vi.mock("../state/AppDataContext", () => ({
   useAppData: () => ({
-    data: emptyData(),
+    data: state.data,
     ...storage,
   }),
 }));
 
 beforeEach(() => {
+  state.data = emptyData();
   experiment.enabled = false;
   experiment.startAttempt
     .mockReset()
@@ -42,11 +46,44 @@ async function fillActivity(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Duração em minutos"), "20");
 }
 const form = () => within(document.querySelector("form")!);
+const history = () =>
+  within(screen.getByRole("region", { name: /^Histórico de / }));
+
+function renderActivity(day?: string) {
+  return render(
+    <MemoryRouter
+      initialEntries={[
+        { pathname: "/atividades", state: day ? { day } : null },
+      ]}
+    >
+      <ActivityPage />
+    </MemoryRouter>,
+  );
+}
+
+function addActivity(
+  day: string,
+  hour: number,
+  name: string,
+  durationMinutes: number,
+) {
+  const occurredAt = new Date(
+    `${day}T${String(hour).padStart(2, "0")}:15:00`,
+  ).toISOString();
+  state.data!.activities.push({
+    id: crypto.randomUUID(),
+    createdAt: occurredAt,
+    occurredAt,
+    name,
+    durationMinutes,
+    caloriesKcal: null,
+  });
+}
 
 describe("confirmação experimental do formulário de atividades", () => {
   it("mantém o controle sem anúncio e mede a tentativa", async () => {
     const user = userEvent.setup();
-    render(<ActivityPage />);
+    renderActivity();
     await fillActivity(user);
     await user.click(screen.getByRole("button", { name: "Salvar atividade" }));
     expect(storage.mutate).toHaveBeenCalledOnce();
@@ -66,7 +103,7 @@ describe("confirmação experimental do formulário de atividades", () => {
       }),
     );
     const user = userEvent.setup();
-    render(<ActivityPage />);
+    renderActivity();
     await fillActivity(user);
     await user.click(screen.getByRole("button", { name: "Salvar atividade" }));
     const button = screen.getByRole("button", { name: "Salvando…" });
@@ -90,7 +127,7 @@ describe("confirmação experimental do formulário de atividades", () => {
   it("não anuncia sucesso na validação nem após falha de persistência", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
-    render(<ActivityPage />);
+    renderActivity();
     await fillActivity(user);
     await user.clear(screen.getByLabelText("Duração em minutos"));
     await user.type(screen.getByLabelText("Duração em minutos"), "2000");
@@ -107,5 +144,97 @@ describe("confirmação experimental do formulário de atividades", () => {
     );
     expect(form().getByRole("status")).toBeEmptyDOMElement();
     expect(experiment.finish.mock.calls).toEqual([["error"], ["error"]]);
+  });
+});
+
+describe("histórico de atividades por dia", () => {
+  it("começa em hoje e combina dia e busca sem alterar registros", async () => {
+    const user = userEvent.setup();
+    const today = todayIsoDate();
+    const yesterday = shiftCalendarDay(today, -1);
+    addActivity(today, 6, "Corrída", 35);
+    addActivity(today, 5, "Alongamento", 20);
+    addActivity(yesterday, 6, "Caminhada", 40);
+    const before = JSON.stringify(state.data);
+
+    renderActivity();
+    expect(
+      screen.getByRole("heading", {
+        name: `Histórico de ${formatCalendarDay(today)}`,
+      }),
+    ).toBeInTheDocument();
+    expect(history().getByRole("status")).toHaveTextContent(
+      "2 atividades · 55 min exibidos",
+    );
+    expect(history().getByText("Corrída")).toBeInTheDocument();
+    expect(history().queryByText("Caminhada")).not.toBeInTheDocument();
+
+    const search = screen.getByRole("searchbox", {
+      name: "Buscar atividade neste dia",
+    });
+    await user.type(search, "CORRIDA");
+    expect(history().getByText("Corrída")).toBeInTheDocument();
+    expect(history().queryByText("Alongamento")).not.toBeInTheDocument();
+    expect(
+      history().getByText("1 atividade · 35 min exibidos"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Limpar busca" }));
+    await user.click(screen.getByRole("button", { name: "Dia anterior" }));
+    expect(history().getByText("Caminhada")).toBeInTheDocument();
+    expect(history().queryByText("Corrída")).not.toBeInTheDocument();
+    expect(
+      history().getByText("1 atividade · 40 min exibidos"),
+    ).toBeInTheDocument();
+    expect(JSON.stringify(state.data)).toBe(before);
+    expect(storage.mutate).not.toHaveBeenCalled();
+  });
+
+  it("recebe a data escolhida na home e orienta quando o dia está vazio", async () => {
+    const user = userEvent.setup();
+    const today = todayIsoDate();
+    const yesterday = shiftCalendarDay(today, -1);
+    addActivity(today, 6, "Caminhada", 20);
+    renderActivity(yesterday);
+    expect(
+      screen.getByRole("heading", {
+        name: `Histórico de ${formatCalendarDay(yesterday)}`,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      history().getByText(/Nenhuma atividade registrada neste dia/),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ir para hoje" }));
+    expect(history().getByText("Caminhada")).toBeInTheDocument();
+  });
+
+  it("mostra o dia salvo e limpa a busca ao registrar atividade retroativa", async () => {
+    const user = userEvent.setup();
+    const yesterday = shiftCalendarDay(todayIsoDate(), -1);
+    addActivity(todayIsoDate(), 6, "Passeio", 10);
+    storage.mutate.mockImplementationOnce(
+      async (update: (current: AppData) => AppData) => {
+        state.data = update(state.data!);
+      },
+    );
+    renderActivity();
+    await user.type(
+      screen.getByRole("searchbox", { name: "Buscar atividade neste dia" }),
+      "Passeio",
+    );
+    await fillActivity(user);
+    const date = screen.getByLabelText("Data");
+    await user.clear(date);
+    await user.type(date, yesterday.split("-").reverse().join(""));
+    await user.click(screen.getByRole("button", { name: "Salvar atividade" }));
+    expect(
+      await screen.findByRole("heading", {
+        name: `Histórico de ${formatCalendarDay(yesterday)}`,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("searchbox", { name: "Buscar atividade neste dia" }),
+    ).toHaveValue("");
+    expect(history().getByText("Caminhada")).toBeInTheDocument();
+    expect(history().queryByText("Passeio")).not.toBeInTheDocument();
   });
 });
