@@ -10,6 +10,7 @@ export const experimentKeys = [
   "daily-records-last-day-shortcut",
   "daily-records-next-day-shortcut",
   "weight-history-edit",
+  "weight-history-last-day-shortcut",
 ];
 export const outcomes = ["exposure", "success", "error", "use", "rollback"];
 export function validExperimentMetric(value) {

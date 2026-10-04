@@ -95,6 +95,7 @@ de melhor esforço, não um ledger confiável de operações.
   atalhos; peso cobre o formulário de Medidas; atividades cobre o formulário de
   Atividades e o formulário de Hábitos; onboarding usa a página inicial elegível à decisão de instalação.
   A consulta diária cobre apenas datas vazias com dia anterior ou posterior registrado, conforme a chave.
+  O atalho do histórico de peso cobre apenas um dia sem medidas com medida anterior.
   Atribuir uma configuração em outra página não conta como exposição.
 - `success`/`error`: resultado de cada tentativa concluída de salvar pelo
   formulário de água/peso/atividades/hábitos ou atalho/repetição de água, em ambos os braços. Erro inclui validação e
@@ -197,3 +198,17 @@ revisão. O uso do botão sozinho não demonstra causalidade; validar compreens�
 e acessibilidade antes de ampliar. Promover ou remover após sete dias; sem
 evidência suficiente, desligar. Interromper por navegação incorreta ou
 regressão de privacidade ou acessibilidade.
+
+## Atalho no histórico de peso vazio — #96
+
+`weight-history-last-day-shortcut`, revisão 1, responsável Biorotina, revisão
+até 11/10/2026: quando o dia escolhido em Medidas não tem medidas e há uma
+medida anterior, oferece um botão para consultar o último dia com medida. O
+controle mantém a escolha manual da data. Sem configuração remota, permanece
+desligado; adesão de teste autenticada e kill switch seguem as regras acima.
+Após deploy, iniciar em 5%. Medir exposições consentidas dos dois braços na
+condição elegível, `use` no clique, erros e rollback na mesma revisão. Não
+enviar datas nem valores de medidas na telemetria. Promover ou remover após
+sete dias conforme uso e avaliação de acessibilidade; sem evidência suficiente,
+desligar. Interromper por navegação incorreta ou regressão de privacidade ou
+acessibilidade.
