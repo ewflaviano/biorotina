@@ -985,6 +985,136 @@ h3 {
 .panel > .muted {
   margin-bottom: 20px;
 }
+.habit-week-panel {
+  padding: 16px 8px;
+}
+.habit-week-panel > .muted {
+  margin-bottom: 0;
+}
+.habit-week-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 18px 0 10px;
+}
+.habit-week-controls strong {
+  font-size: 14px;
+  text-align: center;
+}
+.habit-week-arrow {
+  min-width: 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.habit-week-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.habit-week-item {
+  border-top: 1px solid var(--color-border);
+  padding: 16px 0;
+}
+.habit-week-item-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+.habit-week-item-heading strong {
+  font-size: 16px;
+}
+.habit-week-item-heading small {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.habit-week-scroll {
+  overflow-x: auto;
+  padding: 3px 2px;
+}
+.habit-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(44px, 1fr));
+  gap: 2px;
+  min-width: 320px;
+}
+.habit-week-headings {
+  margin-bottom: 8px;
+}
+.habit-week-headings span {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+}
+.habit-week-cell {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-canvas);
+  color: var(--color-text-secondary);
+  font: 700 17px var(--font-ui);
+}
+button.habit-week-cell {
+  cursor: pointer;
+}
+.habit-week-cell.recorded {
+  background: var(--color-success-soft);
+  border-color: var(--green-300);
+  color: var(--green-800);
+}
+.habit-week-cell.before-created,
+.habit-week-cell.future {
+  background: var(--neutral-100);
+  color: var(--neutral-500);
+}
+.habit-week-cell:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.habit-week-empty {
+  margin: 14px 0 0;
+  color: var(--color-text-secondary);
+}
+.habit-week-scroll-hint {
+  display: none;
+  margin: 0 0 8px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.habit-week-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+  margin: 8px 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.habit-week-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.habit-week-note {
+  margin: 8px 0 0;
+}
+@media (max-width: 360px) {
+  .habit-week-scroll-hint {
+    display: block;
+  }
+}
 .muted {
   color: var(--color-text-secondary);
 }

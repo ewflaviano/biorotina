@@ -14,6 +14,7 @@ import {
   restoreHabit,
 } from "../domain/recordActions";
 import { TimeSelect } from "../components/TimeSelect";
+import { HabitWeekPanel } from "../components/HabitWeekPanel";
 import { PushActivationPrompt } from "../components/PushActivationPrompt";
 import {
   HistoryDayControls,
@@ -77,6 +78,14 @@ export function HabitsPage() {
       habitNames.get(log.habitId) ?? "Hábito removido",
     ).includes(searchTerm),
   );
+
+  function showHistoryDay(day: string) {
+    setSelectedDay(day);
+    setHistorySearch("");
+    const history = document.getElementById("habit-history-section");
+    history?.focus();
+    history?.scrollIntoView?.();
+  }
 
   function clearForm() {
     setHabitConfirmed("");
@@ -449,7 +458,17 @@ export function HabitsPage() {
               />
             )}
           </section>
-          <section className="panel" aria-labelledby="historico-habitos">
+          <HabitWeekPanel
+            habits={habits}
+            logs={logs}
+            onSelectDay={showHistoryDay}
+          />
+          <section
+            className="panel"
+            id="habit-history-section"
+            tabIndex={-1}
+            aria-labelledby="historico-habitos"
+          >
             <HistoryDayControls
               title="Histórico"
               headingId="historico-habitos"
