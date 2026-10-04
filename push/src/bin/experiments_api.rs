@@ -31,6 +31,7 @@ const FEATURES: &[&str] = &[
     "daily-records-last-day-shortcut",
     "daily-records-next-day-shortcut",
     "weight-history-edit",
+    "weight-history-last-day-shortcut",
 ];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 

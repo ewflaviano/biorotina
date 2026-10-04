@@ -23,6 +23,7 @@ if (
     "daily-records-last-day-shortcut",
     "daily-records-next-day-shortcut",
     "weight-history-edit",
+    "weight-history-last-day-shortcut",
   ].includes(key) ||
   !Number.isInteger(rolloutPercent) ||
   rolloutPercent < 0 ||

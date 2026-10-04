@@ -19,6 +19,7 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 4. **Excluir** remove uma medida incorreta; **Desfazer** restaura exatamente o registro anterior.
 
 **Em experimento:** editar peso, data/hora e observação de uma medida histórica sem excluir e recriar (`weight-history-edit`, issue #92). O controle mantém o fluxo atual.
+**Em experimento:** quando o dia selecionado não tem medidas, abrir diretamente o último dia anterior com medida (`weight-history-last-day-shortcut`, issue #96). O controle mantém a escolha manual.
 
 ## 3. Atividades físicas
 

@@ -22,6 +22,7 @@ import {
 import { EmptyState, Notice, PageHeader } from "../components/Layout";
 import { WeightTrend } from "../components/ProgressCharts";
 import { DateTimeField } from "../components/DateTimeField";
+import { formatCalendarDay } from "../domain/dailyRecords";
 import {
   HistoryDayControls,
   historyDayOf,
@@ -94,6 +95,14 @@ export function WeightPage() {
   );
   const historyWeights = weights.filter((item) =>
     isOnHistoryDay(item.measuredAt, selectedDay),
+  );
+  const lastWeightDay = weights.reduce<string | null>((last, item) => {
+    const day = historyDayOf(item.measuredAt);
+    return day < selectedDay && (last === null || day > last) ? day : last;
+  }, null);
+  useExperimentExposure(
+    "weight-history-last-day-shortcut",
+    historyWeights.length === 0 && lastWeightDay !== null,
   );
   const latest = weights[0];
   const previous = weights[1];
@@ -553,10 +562,26 @@ export function WeightPage() {
                 description="Registre um peso quando quiser começar a acompanhar sua evolução."
               />
             ) : (
-              <p className="history-day-empty">
-                Nenhuma medida registrada neste dia. Escolha outra data para
-                consultar o histórico.
-              </p>
+              <>
+                <p className="history-day-empty">
+                  Nenhuma medida registrada neste dia. Escolha outra data para
+                  consultar o histórico.
+                </p>
+                {lastWeightDay &&
+                  enabled("weight-history-last-day-shortcut") && (
+                    <button
+                      className="button secondary diary-more"
+                      type="button"
+                      onClick={() => {
+                        recordUse("weight-history-last-day-shortcut");
+                        setSelectedDay(lastWeightDay);
+                        document.getElementById("weight-history-date")?.focus();
+                      }}
+                    >
+                      Ver medidas de {formatCalendarDay(lastWeightDay)}
+                    </button>
+                  )}
+              </>
             )}
           </section>
         </div>

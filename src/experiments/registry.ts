@@ -117,6 +117,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por perda de dados, falha de persistência ou acessibilidade.",
   },
+  "weight-history-last-day-shortcut": {
+    assignment: "browser",
+    description:
+      "Oferece o último dia com medida anterior quando o histórico de peso selecionado está vazio.",
+    owner: "Biorotina",
+    issue: 96,
+    revision: 1,
+    reviewBy: "2026-10-11",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por navegação incorreta ou regressão de privacidade ou acessibilidade.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;
