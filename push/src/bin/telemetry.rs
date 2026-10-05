@@ -120,6 +120,9 @@ enum Experiment {
     MedicationFormConfirmation,
     DailyRecordsLastDayShortcut,
     DailyRecordsNextDayShortcut,
+    WeightHistoryEdit,
+    WeightHistoryLastDayShortcut,
+    HydrationHistoryLastDayShortcut,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -222,6 +225,24 @@ mod tests {
                 .status(),
             StatusCode::NO_CONTENT
         );
+        for key in [
+            "weight-history-edit",
+            "weight-history-last-day-shortcut",
+            "hydration-history-last-day-shortcut",
+        ] {
+            let mut metric = valid.clone();
+            metric["experiment"] = json!(key);
+            assert_eq!(
+                client
+                    .post(&url)
+                    .json(&metric)
+                    .send()
+                    .await
+                    .unwrap()
+                    .status(),
+                StatusCode::NO_CONTENT
+            );
+        }
         let mut weight = valid.clone();
         weight["experiment"] = json!("weight-form-confirmation");
         assert_eq!(
@@ -322,6 +343,18 @@ mod tests {
                     StatusCode::NO_CONTENT
                 );
             }
+        }
+        for key in [
+            "weight-history-edit",
+            "weight-history-last-day-shortcut",
+            "hydration-history-last-day-shortcut",
+        ] {
+            let mut value = base.clone();
+            value["experiment"] = json!(key);
+            assert_eq!(
+                record_experiment(Json(serde_json::from_value(value).unwrap())).await,
+                StatusCode::NO_CONTENT
+            );
         }
         for field in ["account", "bucket", "token", "amount", "url", "message"] {
             let mut value = base.clone();

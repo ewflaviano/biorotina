@@ -128,6 +128,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por navegação incorreta ou regressão de privacidade ou acessibilidade.",
   },
+  "hydration-history-last-day-shortcut": {
+    assignment: "browser",
+    description:
+      "Oferece o último dia anterior com água quando o histórico selecionado está vazio.",
+    owner: "Biorotina",
+    issue: 100,
+    revision: 1,
+    reviewBy: "2026-10-12",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por navegação incorreta ou regressão de privacidade ou acessibilidade.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;

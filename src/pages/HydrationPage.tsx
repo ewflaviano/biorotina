@@ -7,6 +7,7 @@ import {
   type MouseEvent,
 } from "react";
 import { EmptyState, PageHeader } from "../components/Layout";
+import { formatCalendarDay } from "../domain/dailyRecords";
 import {
   dateTimePt,
   fromLocalDateTime,
@@ -42,7 +43,7 @@ import type { HydrationEntry } from "../domain/data";
 export function HydrationPage() {
   const { data, mutate, removeWithUndo } = useAppData();
   const [selectedDay, setSelectedDay] = useHistoryDay();
-  const { enabled, startAttempt } = useExperiment();
+  const { enabled, recordUse, startAttempt } = useExperiment();
   useExperimentExposure("hydration-quick-confirmation");
   useExperimentExposure("hydration-form-confirmation");
   const confirmQuickAdd = enabled("hydration-quick-confirmation");
@@ -70,6 +71,7 @@ export function HydrationPage() {
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusAfterEdit = useRef(false);
   const focusDayAfterEdit = useRef(false);
+  const focusDayAfterShortcut = useRef(false);
   const editingEntryId = editingEntry?.id;
   useEffect(() => {
     if (editingEntryId) editAmountRef.current?.focus();
@@ -86,12 +88,26 @@ export function HydrationPage() {
       focusDayAfterEdit.current = false;
     }
   }, [saving, editingEntryId, selectedDay]);
+  useEffect(() => {
+    if (focusDayAfterShortcut.current) {
+      document.getElementById("water-history-date")?.focus();
+      focusDayAfterShortcut.current = false;
+    }
+  }, [selectedDay]);
   const entries = [...data.hydrationEntries].sort((a, b) =>
     b.drankAt.localeCompare(a.drankAt),
   );
   const todayEntries = entries.filter((entry) => isToday(entry.drankAt));
   const historyEntries = entries.filter((entry) =>
     isOnHistoryDay(entry.drankAt, selectedDay),
+  );
+  const lastHydrationDay = entries.reduce<string | null>((last, entry) => {
+    const day = historyDayOf(entry.drankAt);
+    return day < selectedDay && (last === null || day > last) ? day : last;
+  }, null);
+  useExperimentExposure(
+    "hydration-history-last-day-shortcut",
+    historyEntries.length === 0 && lastHydrationDay !== null,
   );
   const historyTotalMl = historyEntries.reduce(
     (sum, entry) => sum + entry.amountMl,
@@ -518,10 +534,26 @@ export function HydrationPage() {
                 description="Seu primeiro copo de água aparecerá aqui."
               />
             ) : (
-              <p className="history-day-empty">
-                Nenhum registro de água neste dia. Escolha outra data para
-                consultar o histórico.
-              </p>
+              <>
+                <p className="history-day-empty">
+                  Nenhum registro de água neste dia. Escolha outra data para
+                  consultar o histórico.
+                </p>
+                {lastHydrationDay &&
+                  enabled("hydration-history-last-day-shortcut") && (
+                    <button
+                      className="button secondary"
+                      type="button"
+                      onClick={() => {
+                        recordUse("hydration-history-last-day-shortcut");
+                        focusDayAfterShortcut.current = true;
+                        setSelectedDay(lastHydrationDay);
+                      }}
+                    >
+                      Ver água de {formatCalendarDay(lastHydrationDay)}
+                    </button>
+                  )}
+              </>
             )}
           </section>
         </div>
