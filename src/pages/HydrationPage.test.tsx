@@ -10,6 +10,7 @@ const experiment = vi.hoisted(() => ({
   formEnabled: false,
   startAttempt: vi.fn(),
   finish: vi.fn(),
+  recordUse: vi.fn(),
 }));
 const storage = vi.hoisted(() => ({ mutate: vi.fn() }));
 vi.mock("../experiments/ExperimentContext", () => ({
@@ -20,6 +21,7 @@ vi.mock("../experiments/ExperimentContext", () => ({
         ? experiment.formEnabled
         : experiment.enabled,
     startAttempt: experiment.startAttempt,
+    recordUse: experiment.recordUse,
   }),
 }));
 vi.mock("../state/AppDataContext", () => ({
@@ -46,7 +48,59 @@ beforeEach(() => {
   experiment.enabled = false;
   experiment.formEnabled = false;
   experiment.startAttempt.mockImplementation(() => experiment.finish);
+  experiment.recordUse.mockReset();
   storage.mutate.mockReset().mockResolvedValue(undefined);
+});
+
+describe("atalho experimental no histórico de água vazio", () => {
+  it("não aparece no controle", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("button", { name: /Ver água de/ })).toBeNull();
+  });
+
+  it("abre o último dia anterior com água e foca o seletor", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Ver água de 25 de setembro de 2026",
+      }),
+    );
+    expect(
+      within(screen.getByRole("region", { name: /Histórico de/ })).getByText(
+        "200 ml",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Data do histórico de água")).toHaveFocus();
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "hydration-history-last-day-shortcut",
+    );
+  });
+
+  it("não aparece quando há somente um dia posterior", () => {
+    experiment.enabled = true;
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-24" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("button", { name: /Ver água de/ })).toBeNull();
+  });
 });
 
 describe("edição de uma entrada de água", () => {
