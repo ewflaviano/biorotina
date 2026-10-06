@@ -12,6 +12,7 @@ export const experimentKeys = [
   "weight-history-edit",
   "weight-history-last-day-shortcut",
   "hydration-history-last-day-shortcut",
+  "habit-history-clear-search",
 ];
 export const outcomes = ["exposure", "success", "error", "use", "rollback"];
 export function validExperimentMetric(value) {

@@ -25,6 +25,7 @@ if (
     "weight-history-edit",
     "weight-history-last-day-shortcut",
     "hydration-history-last-day-shortcut",
+    "habit-history-clear-search",
   ].includes(key) ||
   !Number.isInteger(rolloutPercent) ||
   rolloutPercent < 0 ||

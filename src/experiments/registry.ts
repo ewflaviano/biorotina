@@ -139,6 +139,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por navegação incorreta ou regressão de privacidade ou acessibilidade.",
   },
+  "habit-history-clear-search": {
+    assignment: "browser",
+    description:
+      "Oferece limpar a busca junto ao resultado vazio no histórico de hábitos.",
+    owner: "Biorotina",
+    issue: 102,
+    revision: 1,
+    reviewBy: "2026-10-13",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por foco incorreto, perda de dados ou envio do texto buscado à telemetria.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;

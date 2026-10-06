@@ -9,6 +9,7 @@ const experiment = vi.hoisted(() => ({
   enabled: false,
   startAttempt: vi.fn(),
   finish: vi.fn(),
+  recordUse: vi.fn(),
 }));
 const storage = vi.hoisted(() => ({
   data: null as AppData | null,
@@ -20,6 +21,7 @@ vi.mock("../experiments/ExperimentContext", () => ({
   useExperiment: () => ({
     enabled: () => experiment.enabled,
     startAttempt: experiment.startAttempt,
+    recordUse: experiment.recordUse,
   }),
 }));
 vi.mock("../state/AppDataContext", () => ({
@@ -39,6 +41,7 @@ beforeEach(() => {
     .mockReset()
     .mockImplementation(() => experiment.finish);
   experiment.finish.mockReset();
+  experiment.recordUse.mockReset();
   storage.mutate.mockReset().mockResolvedValue(undefined);
   storage.removeWithUndo.mockReset().mockResolvedValue(undefined);
 });
@@ -172,5 +175,66 @@ describe("visão semanal integrada ao histórico", () => {
         "Leitura",
       ),
     ).toBeInTheDocument();
+  });
+});
+
+describe("limpeza experimental da busca vazia no histórico", () => {
+  function renderWithLog() {
+    const data = emptyData();
+    const habitId = crypto.randomUUID();
+    data.habits.push({
+      id: habitId,
+      name: "Leitura",
+      createdAt: "2026-10-02T12:00:00Z",
+      reminderTimes: [],
+      reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
+    });
+    data.habitLogs.push({
+      id: crypto.randomUUID(),
+      habitId,
+      completedAt: "2026-10-02T12:00:00Z",
+      createdAt: "2026-10-02T12:00:00Z",
+    });
+    storage.data = data;
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-10-02" } }]}
+      >
+        <HabitsPage />
+      </MemoryRouter>,
+    );
+  }
+
+  it("mantém o controle sem ação junto ao estado vazio", () => {
+    renderWithLog();
+    fireEvent.change(screen.getByLabelText("Buscar hábito neste dia"), {
+      target: { value: "outro" },
+    });
+    expect(
+      screen.getByText(/Nenhum hábito corresponde à busca/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Limpar busca e ver registros" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("limpa a busca, restaura os registros e foca o campo", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    renderWithLog();
+    await user.type(screen.getByLabelText("Buscar hábito neste dia"), "outro");
+    await user.click(
+      screen.getByRole("button", { name: "Limpar busca e ver registros" }),
+    );
+    expect(screen.getByLabelText("Buscar hábito neste dia")).toHaveValue("");
+    expect(screen.getByLabelText("Buscar hábito neste dia")).toHaveFocus();
+    expect(
+      within(document.getElementById("habit-history-section")!).getByText(
+        "Leitura",
+      ),
+    ).toBeInTheDocument();
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "habit-history-clear-search",
+    );
   });
 });

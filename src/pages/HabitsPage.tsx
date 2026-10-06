@@ -45,7 +45,7 @@ export function HabitsPage() {
   const { data, mutate, removeWithUndo } = useAppData();
   const [selectedDay, setSelectedDay] = useHistoryDay();
   const [historySearch, setHistorySearch] = useState("");
-  const { enabled, startAttempt } = useExperiment();
+  const { enabled, recordUse, startAttempt } = useExperiment();
   useExperimentExposure("habit-form-confirmation");
   const confirmHabit = enabled("habit-form-confirmation");
   const [habitConfirmed, setHabitConfirmed] = useState("");
@@ -78,6 +78,9 @@ export function HabitsPage() {
       habitNames.get(log.habitId) ?? "Hábito removido",
     ).includes(searchTerm),
   );
+  const emptySearch =
+    logsForDay.length > 0 && searchTerm.length > 0 && visibleLogs.length === 0;
+  useExperimentExposure("habit-history-clear-search", emptySearch);
 
   function showHistoryDay(day: string) {
     setSelectedDay(day);
@@ -526,11 +529,26 @@ export function HabitsPage() {
                 description="Registros de hábitos aparecerão aqui depois que você os informar."
               />
             ) : (
-              <p className="history-day-empty">
-                {logsForDay.length === 0
-                  ? "Nenhum hábito registrado neste dia. Escolha outra data para consultar o histórico."
-                  : "Nenhum hábito corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
-              </p>
+              <>
+                <p className="history-day-empty">
+                  {logsForDay.length === 0
+                    ? "Nenhum hábito registrado neste dia. Escolha outra data para consultar o histórico."
+                    : "Nenhum hábito corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
+                </p>
+                {emptySearch && enabled("habit-history-clear-search") && (
+                  <button
+                    className="button secondary"
+                    type="button"
+                    onClick={() => {
+                      recordUse("habit-history-clear-search");
+                      setHistorySearch("");
+                      document.getElementById("habit-history-search")?.focus();
+                    }}
+                  >
+                    Limpar busca e ver registros
+                  </button>
+                )}
+              </>
             )}
           </section>
         </div>

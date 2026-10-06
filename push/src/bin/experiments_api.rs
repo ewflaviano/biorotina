@@ -33,6 +33,7 @@ const FEATURES: &[&str] = &[
     "weight-history-edit",
     "weight-history-last-day-shortcut",
     "hydration-history-last-day-shortcut",
+    "habit-history-clear-search",
 ];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 
