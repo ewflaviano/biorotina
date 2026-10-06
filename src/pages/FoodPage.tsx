@@ -33,6 +33,11 @@ import {
   normalizeHistoryName,
   useHistoryDay,
 } from "../components/HistoryDayControls";
+import { formatCalendarDay } from "../domain/dailyRecords";
+import {
+  useExperiment,
+  useExperimentExposure,
+} from "../experiments/ExperimentContext";
 import { removeEntry, restoreEntry } from "../domain/recordActions";
 import { mealFoodSchema, type MealEntry } from "../domain/data";
 import {
@@ -62,6 +67,9 @@ function totalFromFoods(foods: FoodDraft[]): string {
 export function FoodPage() {
   const { data, mutate, removeWithUndo } = useAppData();
   const [selectedDay, setSelectedDay] = useHistoryDay();
+  const experiment = useExperiment();
+  const showDailyCalories = experiment.enabled("food-daily-calories");
+  useExperimentExposure("food-daily-calories");
   const [historySearch, setHistorySearch] = useState("");
   const drive = useDriveSync();
   const [name, setName] = useState("");
@@ -106,7 +114,14 @@ export function FoodPage() {
     (sum, item) => sum + (item.caloriesKcal ?? 0),
     0,
   );
+  const dayCalories = mealsForDay.reduce(
+    (sum, item) => sum + (item.caloriesKcal ?? 0),
+    0,
+  );
   const measuredMeals = meals.filter(
+    (item) => item.caloriesKcal !== null,
+  ).length;
+  const measuredMealsForDay = mealsForDay.filter(
     (item) => item.caloriesKcal !== null,
   ).length;
   const planStatus =
@@ -783,7 +798,10 @@ export function FoodPage() {
               pickerId="food-history-date"
               pickerLabel="Data do histórico de refeições"
               day={selectedDay}
-              onDayChange={setSelectedDay}
+              onDayChange={(day) => {
+                experiment.recordUse("food-daily-calories");
+                setSelectedDay(day);
+              }}
               search={
                 meals.length
                   ? {
@@ -864,14 +882,38 @@ export function FoodPage() {
         </div>
         <aside className="side-stack">
           <div className="panel highlight">
-            <span className="eyebrow">Refeições registradas</span>
-            <strong className="large-value">{meals.length}</strong>
-            <p className="muted">Em todo o histórico.</p>
-            <p className="muted">
-              {measuredMeals
-                ? `${numberPt(totalCalories, 3)} kcal informadas em ${measuredMeals} refeições.`
-                : "Sem valores de calorias informados."}
-            </p>
+            {showDailyCalories ? (
+              <>
+                <span className="eyebrow">
+                  Calorias de {formatCalendarDay(selectedDay)}
+                </span>
+                <strong className="large-value">
+                  {measuredMealsForDay ? (
+                    <>
+                      {numberPt(dayCalories, 3)} <small>kcal</small>
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </strong>
+                <p className="muted">
+                  {mealsForDay.length
+                    ? `${mealsForDay.length} ${mealsForDay.length === 1 ? "refeição registrada" : "refeições registradas"} neste dia. ${measuredMealsForDay ? `${measuredMealsForDay} com calorias informadas.` : "Nenhuma com calorias informadas."}`
+                    : "Nenhuma refeição registrada neste dia."}
+                </p>
+              </>
+            ) : (
+              <>
+                <span className="eyebrow">Refeições registradas</span>
+                <strong className="large-value">{meals.length}</strong>
+                <p className="muted">Em todo o histórico.</p>
+                <p className="muted">
+                  {measuredMeals
+                    ? `${numberPt(totalCalories, 3)} kcal informadas em ${measuredMeals} refeições.`
+                    : "Sem valores de calorias informados."}
+                </p>
+              </>
+            )}
           </div>
           <Notice>
             As calorias sugeridas por foto são estimativas. Revise os alimentos,

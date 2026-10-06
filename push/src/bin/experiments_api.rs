@@ -34,6 +34,7 @@ const FEATURES: &[&str] = &[
     "weight-history-last-day-shortcut",
     "hydration-history-last-day-shortcut",
     "habit-history-clear-search",
+    "food-daily-calories",
 ];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 
