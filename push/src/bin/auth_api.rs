@@ -23,6 +23,8 @@ const ALLOWED_SCOPES: [&str; 5] = [
     DRIVE_SCOPE,
 ];
 const COOKIE: &str = "biorotina_session";
+const COOKIE_PATH: &str = "/api";
+const LEGACY_COOKIE_PATH: &str = "/api/auth";
 const SESSION_SECONDS: i64 = 30 * 24 * 60 * 60;
 const SESSION_PREFIX: &str = "DRIVE_SESSION#";
 
@@ -162,6 +164,25 @@ fn response(
         }
     }
     (status, headers, Json(body))
+}
+
+fn session_cookie_header(session: &str, max_age: i64) -> String {
+    format!(
+        "{COOKIE}={session}; Path={COOKIE_PATH}; Max-Age={max_age}; HttpOnly; Secure; SameSite=Lax"
+    )
+}
+
+fn expired_cookie_header(path: &str) -> String {
+    format!("{COOKIE}=; Path={path}; Max-Age=0; HttpOnly; Secure; SameSite=Lax")
+}
+
+fn clear_legacy_cookie(
+    mut result: (StatusCode, HeaderMap, Json<Value>),
+) -> (StatusCode, HeaderMap, Json<Value>) {
+    if let Ok(value) = HeaderValue::from_str(&expired_cookie_header(LEGACY_COOKIE_PATH)) {
+        result.1.append(header::SET_COOKIE, value);
+    }
+    result
 }
 
 fn origin(headers: &HeaderMap) -> Option<&str> {
@@ -376,19 +397,20 @@ async fn exchange(
             None,
         );
     }
-    let cookie = format!(
-        "{COOKIE}={session}; Path=/api; Max-Age={SESSION_SECONDS}; HttpOnly; Secure; SameSite=Lax"
-    );
-    response(
+    clear_legacy_cookie(response(
         StatusCode::OK,
         json!({"id":identity.sub,"email":identity.email,"accessToken":tokens.access_token,"expiresIn":tokens.expires_in,"driveAuthorized":scopes.split_whitespace().any(|s| s == DRIVE_SCOPE)}),
         org,
         &app,
-        Some(cookie),
-    )
+        Some(session_cookie_header(&session, SESSION_SECONDS)),
+    ))
 }
 
-async fn refreshed(app: &App, headers: &HeaderMap, drive_only: bool) -> Result<Value, StatusCode> {
+async fn refreshed(
+    app: &App,
+    headers: &HeaderMap,
+    drive_only: bool,
+) -> Result<(Value, String), StatusCode> {
     let raw = session_cookie(headers).ok_or(StatusCode::UNAUTHORIZED)?;
     let key = session_key(raw);
     let item = app
@@ -407,7 +429,8 @@ async fn refreshed(app: &App, headers: &HeaderMap, drive_only: bool) -> Result<V
         .and_then(|v| v.as_n().ok())
         .and_then(|v| v.parse::<i64>().ok())
         .unwrap_or(0);
-    if expires < Utc::now().timestamp() {
+    let remaining = expires - Utc::now().timestamp();
+    if remaining <= 0 {
         return Err(StatusCode::UNAUTHORIZED);
     }
     let account_pk = get("accountKey").ok_or(StatusCode::UNAUTHORIZED)?;
@@ -466,7 +489,10 @@ async fn refreshed(app: &App, headers: &HeaderMap, drive_only: bool) -> Result<V
         .get("expires_in")
         .and_then(Value::as_i64)
         .unwrap_or(3600);
-    Ok(json!({"accessToken":token,"expiresIn":expires_in}))
+    Ok((
+        json!({"accessToken":token,"expiresIn":expires_in}),
+        session_cookie_header(raw, remaining),
+    ))
 }
 
 async fn drive_token(
@@ -484,7 +510,9 @@ async fn drive_token(
         );
     }
     match refreshed(&app, &headers, true).await {
-        Ok(v) => response(StatusCode::OK, v, org, &app, None),
+        Ok((v, cookie)) => {
+            clear_legacy_cookie(response(StatusCode::OK, v, org, &app, Some(cookie)))
+        }
         Err(status) => response(
             status,
             json!({"error":"Reconecte o Google Drive para sincronizar."}),
@@ -509,7 +537,9 @@ async fn access_token(
         );
     }
     match refreshed(&app, &headers, false).await {
-        Ok(v) => response(StatusCode::OK, v, org, &app, None),
+        Ok((v, cookie)) => {
+            clear_legacy_cookie(response(StatusCode::OK, v, org, &app, Some(cookie)))
+        }
         Err(status) => response(
             status,
             json!({"error":"Reconecte sua conta Google."}),
@@ -547,15 +577,13 @@ async fn logout(
             .send()
             .await;
     }
-    response(
+    clear_legacy_cookie(response(
         StatusCode::OK,
         json!({"ok":true}),
         org,
         &app,
-        Some(format!(
-            "{COOKIE}=; Path=/api/auth; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
-        )),
-    )
+        Some(expired_cookie_header(COOKIE_PATH)),
+    ))
 }
 
 #[cfg(test)]
@@ -571,6 +599,24 @@ mod tests {
         assert_eq!(key, session_key(session));
         assert_ne!(account_key("google-sub-a"), account_key("google-sub-b"));
         assert!(!account_key("google-sub-a").contains("google-sub-a"));
+    }
+
+    #[test]
+    fn session_responses_replace_legacy_cookie_path() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::SET_COOKIE,
+            HeaderValue::from_str(&session_cookie_header("opaque-session", 60)).unwrap(),
+        );
+        let (_, headers, _) = clear_legacy_cookie((StatusCode::OK, headers, Json(json!({}))));
+        let cookies = headers
+            .get_all(header::SET_COOKIE)
+            .iter()
+            .map(|value| value.to_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(cookies.len(), 2);
+        assert!(cookies[0].contains("Path=/api; Max-Age=60"));
+        assert!(cookies[1].contains("Path=/api/auth; Max-Age=0"));
     }
 
     #[test]
