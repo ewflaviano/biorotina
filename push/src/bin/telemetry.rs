@@ -123,6 +123,7 @@ enum Experiment {
     WeightHistoryEdit,
     WeightHistoryLastDayShortcut,
     HydrationHistoryLastDayShortcut,
+    HabitHistoryClearSearch,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -229,6 +230,7 @@ mod tests {
             "weight-history-edit",
             "weight-history-last-day-shortcut",
             "hydration-history-last-day-shortcut",
+            "habit-history-clear-search",
         ] {
             let mut metric = valid.clone();
             metric["experiment"] = json!(key);
@@ -348,6 +350,7 @@ mod tests {
             "weight-history-edit",
             "weight-history-last-day-shortcut",
             "hydration-history-last-day-shortcut",
+            "habit-history-clear-search",
         ] {
             let mut value = base.clone();
             value["experiment"] = json!(key);
