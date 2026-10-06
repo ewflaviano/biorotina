@@ -150,6 +150,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por foco incorreto, perda de dados ou envio do texto buscado à telemetria.",
   },
+  "food-daily-calories": {
+    assignment: "browser",
+    description:
+      "Mostra as calorias informadas no dia selecionado no histórico de refeições.",
+    owner: "Biorotina",
+    issue: 104,
+    revision: 1,
+    reviewBy: "2026-10-13",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por soma incorreta, leitura ambígua ou regressão de acessibilidade.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;
