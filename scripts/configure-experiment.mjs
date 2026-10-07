@@ -28,6 +28,7 @@ if (
     "habit-history-clear-search",
     "medication-history-clear-search",
     "food-daily-calories",
+    "mobile-nav-meal-priority",
   ].includes(key) ||
   !Number.isInteger(rolloutPercent) ||
   rolloutPercent < 0 ||

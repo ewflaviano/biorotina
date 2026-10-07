@@ -3,20 +3,30 @@ import {
   ArrowRight,
   HeartHandshake,
   Pill,
+  Scale,
   Settings2,
   Smartphone,
   Sprout,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/Layout";
+import { useExperiment } from "../experiments/ExperimentContext";
 
-const links = [
-  {
-    to: "/alimentacao",
-    label: "Alimentação",
-    detail: "Refeições e histórico",
-    icon: Apple,
-  },
+const mealLink = {
+  to: "/alimentacao",
+  label: "Alimentação",
+  detail: "Refeições e histórico",
+  icon: Apple,
+};
+
+const weightLink = {
+  to: "/peso",
+  label: "Medidas",
+  detail: "Peso, altura e histórico",
+  icon: Scale,
+};
+
+const otherLinks = [
   {
     to: "/medicamentos",
     label: "Medicação",
@@ -50,6 +60,8 @@ const links = [
 ];
 
 export function MorePage() {
+  const mealInMobileNav = useExperiment().enabled("mobile-nav-meal-priority");
+  const links = [mealInMobileNav ? weightLink : mealLink, ...otherLinks];
   return (
     <>
       <PageHeader

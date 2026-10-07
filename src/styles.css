@@ -2472,6 +2472,11 @@ button.habit-week-cell {
     padding: 0 8px;
   }
 }
+@media (max-width: 360px) {
+  .support-topbar span {
+    display: none;
+  }
+}
 @media (max-width: 280px) {
   .mobile-brand span,
   .support-topbar span,

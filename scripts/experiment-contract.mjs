@@ -15,6 +15,7 @@ export const experimentKeys = [
   "habit-history-clear-search",
   "medication-history-clear-search",
   "food-daily-calories",
+  "mobile-nav-meal-priority",
 ];
 export const outcomes = ["exposure", "success", "error", "use", "rollback"];
 export function validExperimentMetric(value) {

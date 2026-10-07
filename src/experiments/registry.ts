@@ -172,6 +172,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por soma incorreta, leitura ambígua ou regressão de acessibilidade.",
   },
+  "mobile-nav-meal-priority": {
+    assignment: "browser",
+    description:
+      "Testa Refeição na barra inferior do celular e Medidas em Mais.",
+    owner: "Biorotina",
+    issue: 112,
+    revision: 1,
+    reviewBy: "2026-10-14",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por navegação incorreta, perda de acesso a Medidas ou regressão de acessibilidade.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;
