@@ -23,7 +23,6 @@ export function recordExperimentMetric(
 ): boolean {
   if (
     !metricsAllowed() ||
-    assignment.forced ||
     !experimentKeys.includes(key) ||
     !Number.isInteger(assignment.revision) ||
     assignment.revision < 1 ||
@@ -36,6 +35,7 @@ export function recordExperimentMetric(
     experiment: key,
     revision: assignment.revision,
     arm: assignment.arm,
+    manual: assignment.forced,
     outcome,
     environment:
       window.location.hostname === "biorotina.app.br"

@@ -149,6 +149,8 @@ struct ExperimentMetric {
     experiment: Experiment,
     revision: u32,
     arm: Arm,
+    #[serde(default)]
+    manual: bool,
     outcome: Outcome,
     environment: Environment,
 }
@@ -159,7 +161,7 @@ async fn record_experiment(Json(event): Json<ExperimentMetric>) -> StatusCode {
     // No cookies, IPs, IDs, buckets, free text or original request body are logged.
     eprintln!(
         "{}",
-        json!({ "kind": "experiment_metric", "service": "frontend",
+        json!({ "kind": if event.manual { "experiment_metric_manual" } else { "experiment_metric" }, "service": "frontend",
         "experiment": event.experiment, "revision": event.revision, "arm": event.arm,
         "outcome": event.outcome, "environment": event.environment })
     );
@@ -351,6 +353,15 @@ mod tests {
                 );
             }
         }
+        let mut manual = base.clone();
+        manual["manual"] = json!(true);
+        assert_eq!(
+            record_experiment(Json(serde_json::from_value(manual).unwrap())).await,
+            StatusCode::NO_CONTENT
+        );
+        let mut invalid_manual = base.clone();
+        invalid_manual["manual"] = json!("true");
+        assert!(serde_json::from_value::<ExperimentMetric>(invalid_manual).is_err());
         for key in [
             "weight-history-edit",
             "weight-history-last-day-shortcut",

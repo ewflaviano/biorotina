@@ -5,7 +5,7 @@ import { experimentKeys, outcomes } from "./experiment-contract.mjs";
 export function reportQuery(environment = "production") {
   if (!["production", "development"].includes(environment))
     throw new Error("Ambiente inválido.");
-  return `filter kind = "experiment_metric" and environment = "${environment}" | stats count(*) as events by experiment, revision, arm, outcome | sort experiment asc, revision asc, arm asc, outcome asc`;
+  return `filter environment = "${environment}" and (kind = "experiment_metric" or kind = "experiment_metric_manual") | stats count(*) as events by kind, experiment, revision, arm, outcome | sort experiment asc, revision asc, kind asc, arm asc, outcome asc`;
 }
 export function summarize(results) {
   const groups = new Map();
@@ -14,6 +14,7 @@ export function summarize(results) {
     const revision = Number(r.revision),
       count = Number(r.events);
     if (
+      !["experiment_metric", "experiment_metric_manual"].includes(r.kind) ||
       !experimentKeys.includes(r.experiment) ||
       !["control", "experiment"].includes(r.arm) ||
       !outcomes.includes(r.outcome) ||
@@ -24,10 +25,13 @@ export function summarize(results) {
       count < 0
     )
       throw new Error("Agregado inválido; nenhuma linha bruta será exibida.");
-    const key = `${r.experiment}:${revision}:${r.arm}`;
+    const allocation =
+      r.kind === "experiment_metric_manual" ? "manual" : "randomized";
+    const key = `${r.experiment}:${revision}:${allocation}:${r.arm}`;
     const item = groups.get(key) || {
       experiment: r.experiment,
       revision,
+      allocation,
       arm: r.arm,
       exposure: 0,
       success: 0,
@@ -103,7 +107,7 @@ async function main() {
             until,
             environment,
             groups: summarize(result.results),
-            note: "Contagens de eventos consentidos, não pessoas. Tentativas concluídas = success + error. Compare somente mesma revisão e período. Ausência de linhas não comprova ausência de uso.",
+            note: "Contagens de eventos consentidos, não pessoas. Tentativas concluídas = success + error. Compare braços sorteados apenas na alocação randomized e na mesma revisão/período; a alocação manual serve para diagnóstico separado. Ausência de linhas não comprova ausência de uso.",
           },
           null,
           2,

@@ -98,6 +98,28 @@ describe("sorteio persistente por navegador", () => {
       ),
     ).toEqual({ [key]: { arm: "control", revision: 2, forced: false } });
   });
+  it("beta ativa somente experimentos de navegador habilitados e respeita o kill switch", async () => {
+    const payload = {
+      browser: {
+        [key]: config,
+        "activity-form-confirmation": { ...config, rolloutPercent: 0 },
+        "weight-form-confirmation": { ...config, enabled: false },
+        "mobile-nav-meal-priority": { ...config, killSwitch: true },
+      },
+      enabled: ["demo-highlight"],
+      revisions: { "demo-highlight": 2 },
+    };
+    expect(
+      await resolveAssignments(payload, false, async () => 99, true),
+    ).toEqual({
+      [key]: { arm: "experiment", revision: 2, forced: true },
+      "activity-form-confirmation": {
+        arm: "experiment",
+        revision: 2,
+        forced: true,
+      },
+    });
+  });
 });
 
 it("armazenamento bloqueado deixa desligado sem novo identificador ou rejeição", async () => {

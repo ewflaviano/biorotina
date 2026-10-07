@@ -44,8 +44,19 @@ Pessoas conectadas podem usar
 sinaliza `forced` somente após validar sessão. Anônimos não forçam o gate;
 um kill switch sempre vence, inclusive para participantes forçados. É possível
 aderir sem configuração remota; falha de leitura/configuração inválida desliga
-inclusive a adesão. Tráfego forçado é excluído das métricas comparativas.
+inclusive a adesão. Tráfego forçado aparece no relatório como participação
+manual, separado dos grupos sorteados.
 O header não é guardado em dados pessoais, backups ou logs.
+
+Em Configurações, **Programa beta** guarda uma preferência somente nesta
+instalação. Ao ativá-la, a pessoa participa de todos os experimentos de
+interface por navegador que estejam habilitados, mesmo fora da porcentagem
+sorteada. Configuração ausente/inválida, recurso desabilitado e kill switch
+continuam desligados. Experimentos de conta e operações protegidas no servidor
+não mudam. A preferência não vai para backup, Drive ou backend. Sair do programa
+restaura o sorteio persistente do navegador. Exposição e ações consentidas
+entram no relatório como participação manual; não se inferem resultados A/B
+dessa população autoselecionada.
 
 ## Configuração e rollback
 
@@ -76,11 +87,14 @@ prazos e condições de remoção seguem no registro tipado.
 ## Medição consentida na AWS
 
 `POST /api/telemetry/experiment` aceita somente `experiment`, `revision`, `arm`
-(`control`/`experiment`), `outcome` e `environment`. Chaves e resultados são
+(`control`/`experiment`), `outcome`, `environment` e `manual` booleano
+(opcional para clientes anteriores). Chaves e resultados são
 enums fechados; revisão limitada; corpo máximo de 512 bytes. Não envia cookie,
 ID de conta/navegador, número sorteado, valor/data de registro, rota, erro livre
 ou dados de saúde. O backend escreve somente essas dimensões e campos fixos
-`kind=experiment_metric` e `service=frontend`, com retenção de 14 dias.
+`service=frontend` e `kind=experiment_metric` ou
+`kind=experiment_metric_manual`, com retenção de 14 dias. O último identifica
+testes por adesão beta ou header, sem identificar quem participou.
 
 Sem consentimento de métricas, nada é enviado. Revogar interrompe novos envios.
 Aceitar depois registra apenas a exposição atual, sem recuperar ações passadas.
@@ -110,7 +124,10 @@ de melhor esforço, não um ledger confiável de operações.
   administrativos de rollback.
 
 Taxa de sucesso = success / (success + error), calculada separadamente por
-chave/revisão/braço no mesmo período. Exposição é contagem de carregamentos
+chave/revisão/origem da participação/braço no mesmo período. A origem é
+`randomized` ou `manual`; somente grupos sorteados servem para comparar braços.
+Os testes manuais ajudam a observar uso e erros, mas são autoselecionados.
+Exposição é contagem de carregamentos
 observados, não usuários únicos. Repetição de visitas, consentimento, bloqueios,
 limites, atraso de ingestão e múltiplos dispositivos afetam as contagens.
 Não inferir causalidade com amostra insuficiente nem tratar falta de eventos
@@ -126,7 +143,7 @@ AWS_PROFILE=biorotina AWS_REGION=sa-east-1 npm run report-experiments -- \
   --since 2026-09-26T00:00:00Z --until 2026-09-27T00:00:00Z
 ```
 
-Retorna JSON agregado por chave/revisão/braço: exposure, success, error, use,
+Retorna JSON agregado por chave/revisão/origem/braço: exposure, success, error, use,
 rollback, completedAttempts e successRate (null sem tentativas concluídas).
 Padrão: últimas 24 horas, ambiente production. `--environment development`
 separa ensaios sintéticos; janela máxima 14 dias. A consulta nunca retorna
@@ -228,7 +245,8 @@ perda de dados ou vazamento de busca.
 
 ## Refeição na barra inferior móvel — #112
 
-`mobile-nav-meal-priority`, revisão 1, responsável Biorotina, revisar até
+`mobile-nav-meal-priority`, revisão 2, liberado a 100% em 07/10/2026,
+responsável Biorotina, revisar até
 14/10/2026: testa Hoje, Atividade, Refeição, Água e Mais na barra inferior do
 celular, com Medidas em Mais. O controle mantém Hoje, Medidas, Atividade, Água e
 Mais, com Alimentação em Mais. A barra lateral do desktop e as rotas não mudam.

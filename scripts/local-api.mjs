@@ -244,12 +244,13 @@ export async function createLocalApi({ dataDir, port = 0 } = {}) {
         const event = await readJson(request, 512);
         if (!validExperimentMetric(event))
           return json(response, 400, { error: "Métrica inválida." });
+        const { manual, ...dimensions } = event;
         await appendFile(
           telemetryPath,
           JSON.stringify({
-            kind: "experiment_metric",
+            kind: manual ? "experiment_metric_manual" : "experiment_metric",
             service: "frontend",
-            ...event,
+            ...dimensions,
           }) + "\n",
         );
         return json(response, 204);

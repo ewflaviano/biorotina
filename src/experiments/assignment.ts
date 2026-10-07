@@ -89,6 +89,7 @@ export async function resolveAssignments(
   payload: unknown,
   authenticated: boolean,
   bucketFor = browserBucket,
+  betaTester = false,
 ): Promise<Assignments> {
   if (!payload || typeof payload !== "object") return {};
   const value = payload as {
@@ -123,7 +124,7 @@ export async function resolveAssignments(
     const config = value.browser?.[key];
     // Even header opt-in requires a well-formed server decision; kill switch wins.
     if (!validConfig(config) || config.killSwitch) continue;
-    if (forced) {
+    if (forced || (betaTester && config.enabled)) {
       assignments[key] = {
         arm: "experiment",
         revision: config.revision,
