@@ -68,7 +68,7 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 ## 8. Configurações e dados
 
 1. O perfil mantém nome opcional e altura usada apenas para contextualizar o IMC. Alturas fora de 50–250 cm e pesos acima de 350 kg são recusados como provável erro de digitação; valores negativos já são inválidos.
-2. O backup JSON pode ser exportado. Antes de importar, o app valida o arquivo, mostra a data de alteração e a quantidade por categoria, e pede confirmação; quando existem dados locais, prepara uma cópia anterior para download.
+2. O backup JSON pode ser exportado. Antes de importar, o app valida o arquivo e compara seus registros com os deste navegador nas oito categorias, mostrando exclusividades e conteúdo diferente por identificador, além de alterações no perfil e nos horários de água. Uma mudança local exige nova conferência; a confirmação deixa claro que a operação substitui os dados. Quando existem dados locais, prepara uma cópia anterior para download.
 3. Google Drive permite conectar uma conta opcionalmente pelo topo e sincroniza alterações automaticamente enquanto a página está aberta. A sessão pode continuar após recarregar; se a renovação do Google falhar, a pessoa conecta novamente. Configurações mostra a última cópia e oferece sincronização manual. Alterações concorrentes exigem escolha explícita; ao restaurar a versão remota, o app prepara um JSON local antes da substituição. O uso local não depende de login.
 
 **Próxima melhoria possível:** comparar lado a lado a cópia escolhida e os dados locais, além de mostrar a data da última cópia feita pela pessoa. O app não consegue garantir que um download iniciado foi guardado em local seguro.

@@ -7,7 +7,7 @@ Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acomp
 ## Dados sob controle da pessoa
 
 - Uso inicial sem conta, com dados guardados localmente no navegador.
-- Exportação e importação de arquivo JSON para cópia e recuperação dos registros.
+- Exportação e importação de arquivo JSON para cópia e recuperação dos registros. Antes de importar, a tela compara o arquivo com os dados deste navegador e mostra o que será substituído.
 - Sincronização opcional com o **Google Drive da própria pessoa** para usar os dados em outro navegador ou dispositivo.
 - Registros locais separados por conta Google. Ao sair, o app apaga os dados e a chave pessoal deste navegador; se houver alterações pendentes, oferece esperar, baixar JSON ou apagar sem backup.
 - Sem banco de dados central de registros de saúde operado pelo projeto; o serviço de avisos guarda dados técnicos da inscrição e horários. O plano de IA guarda somente estado da assinatura e uso diário.
