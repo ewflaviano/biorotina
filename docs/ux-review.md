@@ -60,8 +60,8 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 ## 7. Mais áreas e navegação
 
 1. A barra inferior mantém cinco destinos legíveis no celular.
-2. A barra inferior mostra **Hoje, Medidas, Atividade, Água e Mais**. A página de consulta por dia mantém Hoje marcado.
-3. **Mais** abre Alimentação, Medicação, Hábitos e Configurações. Ele permanece marcado como área ativa quando uma dessas páginas está aberta.
+2. A barra inferior mostra **Hoje, Medidas, Atividade, Água e Mais** no controle. No experimento de 50%, mostra **Hoje, Atividade, Refeição, Água e Mais**; Medidas aparece em Mais. A página de consulta por dia mantém Hoje marcado.
+3. **Mais** abre Alimentação no controle ou Medidas na variante, além de Medicação, Hábitos e Configurações. Ele permanece marcado como área ativa quando uma dessas páginas está aberta.
 4. No desktop, a barra lateral mostra todas as áreas diretamente.
 5. Em Hábitos, uma visão semanal mostra em quais dias cada hábito atual tem registros informados, sem tratar dias vazios como falha. O painel permite consultar semanas anteriores e abrir o histórico do dia tocado. O histórico começa em hoje e permite escolher outro dia e buscar pelo nome do hábito. A lista de hábitos cadastrados e o contador de hoje continuam independentes da data consultada.
 

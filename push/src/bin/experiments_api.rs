@@ -36,6 +36,7 @@ const FEATURES: &[&str] = &[
     "habit-history-clear-search",
     "medication-history-clear-search",
     "food-daily-calories",
+    "mobile-nav-meal-priority",
 ];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 

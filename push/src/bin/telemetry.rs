@@ -126,6 +126,7 @@ enum Experiment {
     HabitHistoryClearSearch,
     MedicationHistoryClearSearch,
     FoodDailyCalories,
+    MobileNavMealPriority,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
