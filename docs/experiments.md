@@ -212,3 +212,16 @@ enviar datas nem valores de medidas na telemetria. Promover ou remover após
 sete dias conforme uso e avaliação de acessibilidade; sem evidência suficiente,
 desligar. Interromper por navegação incorreta ou regressão de privacidade ou
 acessibilidade.
+
+## Limpeza da busca vazia em medicamentos — #109
+
+`medication-history-clear-search`, revisão 1, responsável Biorotina, revisar
+até 14/10/2026: quando o histórico do dia contém usos, mas a busca não encontra
+um nome, move a ação de limpar para o estado vazio e restaura a lista com foco no campo. Controle
+mantém a instrução atual. Sem configuração remota, fica desligado; adesão
+autenticada e kill switch seguem as regras acima. Após deploy, iniciar em 5%.
+Medir exposição consentida dos dois braços somente no vazio elegível, `use`
+no clique, erros e rollback na mesma revisão. Não enviar texto buscado, nomes
+ou registros. Promover ou remover após sete dias conforme uso e avaliação de
+acessibilidade; sem dados suficientes, desligar. Interromper por foco incorreto,
+perda de dados ou vazamento de busca.

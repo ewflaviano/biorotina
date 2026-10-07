@@ -1,16 +1,18 @@
 import { MemoryRouter } from "react-router-dom";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { emptyData } from "../domain/data";
+import { emptyData, type AppData } from "../domain/data";
 import { MedicationPage } from "./MedicationPage";
 
 const experiment = vi.hoisted(() => ({
   enabled: false,
   startAttempt: vi.fn(),
   finish: vi.fn(),
+  recordUse: vi.fn(),
 }));
 const storage = vi.hoisted(() => ({
+  data: null as AppData | null,
   mutate: vi.fn(),
   removeWithUndo: vi.fn(),
 }));
@@ -19,12 +21,13 @@ vi.mock("../experiments/ExperimentContext", () => ({
   useExperiment: () => ({
     enabled: () => experiment.enabled,
     startAttempt: experiment.startAttempt,
+    recordUse: experiment.recordUse,
   }),
 }));
 vi.mock("../state/AppDataContext", () => ({
   useAppData: () => ({
-    data: emptyData(),
     ...storage,
+    data: storage.data ?? emptyData(),
   }),
 }));
 vi.mock("../components/PushActivationPrompt", () => ({
@@ -32,6 +35,8 @@ vi.mock("../components/PushActivationPrompt", () => ({
 }));
 
 beforeEach(() => {
+  storage.data = null;
+  experiment.recordUse.mockReset();
   experiment.enabled = false;
   experiment.startAttempt
     .mockReset()
@@ -129,5 +134,79 @@ describe("confirmação experimental do formulário de medicamentos", () => {
     );
     expect(form().getByRole("status")).toBeEmptyDOMElement();
     expect(experiment.finish.mock.calls).toEqual([["error"], ["error"]]);
+  });
+});
+
+describe("limpeza experimental da busca vazia de medicamentos", () => {
+  function renderWithLog() {
+    const data = emptyData();
+    const medicationId = crypto.randomUUID();
+    data.medications.push({
+      id: medicationId,
+      name: "Exemplo",
+      dose: 1,
+      unit: "mg",
+      reminderTimes: [],
+      reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
+      createdAt: "2026-10-02T12:00:00Z",
+    });
+    data.medicationLogs.push({
+      id: crypto.randomUUID(),
+      medicationId,
+      takenAt: "2026-10-02T12:00:00Z",
+      createdAt: "2026-10-02T12:00:00Z",
+    });
+    storage.data = data;
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-10-02" } }]}
+      >
+        <MedicationPage />
+      </MemoryRouter>,
+    );
+  }
+
+  it("mantém o controle sem ação no estado vazio", () => {
+    renderWithLog();
+    fireEvent.change(screen.getByLabelText("Buscar medicamento neste dia"), {
+      target: { value: "outro" },
+    });
+    expect(
+      screen.getByText(/Nenhum medicamento corresponde à busca/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Limpar busca e ver registros" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Limpar busca" }),
+    ).toBeInTheDocument();
+  });
+
+  it("limpa a busca, restaura os usos e foca o campo", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    renderWithLog();
+    await user.type(
+      screen.getByLabelText("Buscar medicamento neste dia"),
+      "outro",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Limpar busca" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Limpar busca e ver registros" }),
+    );
+    expect(screen.getByLabelText("Buscar medicamento neste dia")).toHaveValue(
+      "",
+    );
+    expect(screen.getByLabelText("Buscar medicamento neste dia")).toHaveFocus();
+    expect(
+      within(
+        screen.getByRole("region", { name: /Histórico de uso de/ }),
+      ).getByText("Exemplo"),
+    ).toBeInTheDocument();
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "medication-history-clear-search",
+    );
   });
 });

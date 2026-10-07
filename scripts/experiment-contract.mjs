@@ -13,6 +13,7 @@ export const experimentKeys = [
   "weight-history-last-day-shortcut",
   "hydration-history-last-day-shortcut",
   "habit-history-clear-search",
+  "medication-history-clear-search",
   "food-daily-calories",
 ];
 export const outcomes = ["exposure", "success", "error", "use", "rollback"];

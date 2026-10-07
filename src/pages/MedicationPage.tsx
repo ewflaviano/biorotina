@@ -37,7 +37,7 @@ export function MedicationPage() {
   const { data, mutate, removeWithUndo } = useAppData();
   const [selectedDay, setSelectedDay] = useHistoryDay();
   const [historySearch, setHistorySearch] = useState("");
-  const { enabled, startAttempt } = useExperiment();
+  const { enabled, startAttempt, recordUse } = useExperiment();
   useExperimentExposure("medication-form-confirmation");
   const confirmMedication = enabled("medication-form-confirmation");
   const [medicationConfirmed, setMedicationConfirmed] = useState("");
@@ -78,6 +78,12 @@ export function MedicationPage() {
       medicationNames.get(log.medicationId) ?? "Medicamento removido",
     ).includes(searchTerm),
   );
+
+  const emptySearch =
+    logsForDay.length > 0 && searchTerm.length > 0 && visibleLogs.length === 0;
+  useExperimentExposure("medication-history-clear-search", emptySearch);
+  const clearFromEmpty =
+    emptySearch && enabled("medication-history-clear-search");
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -629,6 +635,7 @@ export function MedicationPage() {
                       placeholder: "Ex.: Medicamento",
                       value: historySearch,
                       onChange: setHistorySearch,
+                      showClearAction: !clearFromEmpty,
                     }
                   : undefined
               }
@@ -673,11 +680,28 @@ export function MedicationPage() {
                 description="Registros de uso aparecerão aqui depois que você os informar."
               />
             ) : (
-              <p className="history-day-empty">
-                {logsForDay.length === 0
-                  ? "Nenhum uso registrado neste dia. Escolha outra data para consultar o histórico."
-                  : "Nenhum medicamento corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
-              </p>
+              <>
+                <p className="history-day-empty">
+                  {logsForDay.length === 0
+                    ? "Nenhum uso registrado neste dia. Escolha outra data para consultar o histórico."
+                    : "Nenhum medicamento corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
+                </p>
+                {clearFromEmpty && (
+                  <button
+                    className="button secondary"
+                    type="button"
+                    onClick={() => {
+                      recordUse("medication-history-clear-search");
+                      setHistorySearch("");
+                      document
+                        .getElementById("medication-history-search")
+                        ?.focus();
+                    }}
+                  >
+                    Limpar busca e ver registros
+                  </button>
+                )}
+              </>
             )}
           </section>
         </div>

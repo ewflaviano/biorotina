@@ -124,6 +124,7 @@ enum Experiment {
     WeightHistoryLastDayShortcut,
     HydrationHistoryLastDayShortcut,
     HabitHistoryClearSearch,
+    MedicationHistoryClearSearch,
     FoodDailyCalories,
 }
 #[derive(Debug, Deserialize, Serialize)]
@@ -232,6 +233,7 @@ mod tests {
             "weight-history-last-day-shortcut",
             "hydration-history-last-day-shortcut",
             "habit-history-clear-search",
+            "medication-history-clear-search",
             "food-daily-calories",
         ] {
             let mut metric = valid.clone();
@@ -353,6 +355,7 @@ mod tests {
             "weight-history-last-day-shortcut",
             "hydration-history-last-day-shortcut",
             "habit-history-clear-search",
+            "medication-history-clear-search",
             "food-daily-calories",
         ] {
             let mut value = base.clone();
