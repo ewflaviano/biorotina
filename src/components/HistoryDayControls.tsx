@@ -54,6 +54,7 @@ export function HistoryDayControls({
     placeholder: string;
     value: string;
     onChange: (value: string) => void;
+    showClearAction?: boolean;
   };
   summary?: string;
 }) {
@@ -80,7 +81,7 @@ export function HistoryDayControls({
             value={search.value}
             onChange={(event) => search.onChange(event.target.value)}
           />
-          {search.value && (
+          {search.value && search.showClearAction !== false && (
             <button
               className="text-link history-clear-search"
               type="button"

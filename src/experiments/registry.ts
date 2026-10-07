@@ -150,6 +150,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por foco incorreto, perda de dados ou envio do texto buscado à telemetria.",
   },
+  "medication-history-clear-search": {
+    assignment: "browser",
+    description:
+      "Oferece limpar a busca junto ao resultado vazio no histórico de medicamentos.",
+    owner: "Biorotina",
+    issue: 109,
+    revision: 1,
+    reviewBy: "2026-10-14",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por foco incorreto, perda de dados ou envio da busca à telemetria.",
+  },
   "food-daily-calories": {
     assignment: "browser",
     description:
