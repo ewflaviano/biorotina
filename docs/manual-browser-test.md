@@ -102,7 +102,8 @@ sintéticos. Em largura móvel:
    Sem configuração ou com falha/entrada inválida, manter desligado. API demo
    permanece protegida; header anônimo não força nada.
 5. Antes de consentir e após recusar, não há novas métricas. Aceitar não envia
-   ações passadas. Header forçado autenticado não gera métricas comparativas.
+   ações passadas. Header forçado autenticado aparece no relatório como
+   participação manual, separado dos grupos sorteados.
 6. Inspecionar a rota local de métricas: só dimensões enumeradas e revisão,
    sem número sorteado, contas, campos da tela ou cookies. Confirmar resultados
    success/error e denominator success+error nos dois braços.

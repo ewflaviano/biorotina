@@ -248,6 +248,8 @@ test("configuração pública, adesão autenticada e métricas fechadas dos dois
     (await post({ ...metric, arm: "experiment", outcome: "error" })).status,
     204,
   );
+  assert.equal((await post({ ...metric, manual: true })).status, 204);
+  assert.equal((await post({ ...metric, manual: "true" })).status, 400);
   assert.equal((await post({ ...metric, amount: 300 })).status, 400);
   assert.equal((await post({ ...metric, revision: 0 })).status, 400);
   assert.equal((await post({ ...metric, extra: "x".repeat(512) })).status, 413);
@@ -255,9 +257,11 @@ test("configuração pública, adesão autenticada e métricas fechadas dos dois
     .trim()
     .split("\n")
     .map(JSON.parse);
-  assert.equal(recorded.length, 2);
+  assert.equal(recorded.length, 3);
   assert.deepEqual(
     Object.keys(recorded[0]).sort(),
     ["kind", "service", ...Object.keys(metric)].sort(),
   );
+  assert.equal(recorded[2].kind, "experiment_metric_manual");
+  assert.equal("manual" in recorded[2], false);
 });

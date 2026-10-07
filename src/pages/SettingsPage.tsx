@@ -2,6 +2,7 @@ import {
   Cloud,
   Download,
   FileJson2,
+  FlaskConical,
   ShieldCheck,
   ChartNoAxesCombined,
   Upload,
@@ -33,6 +34,7 @@ import { Link } from "react-router-dom";
 import { loadLegacyData } from "../storage/indexedDb";
 import { PushControl } from "../components/PushControl";
 import { InfoDisclosure } from "../components/InfoDisclosure";
+import { useExperiment } from "../experiments/ExperimentContext";
 
 const recordsLabel = (count: number) =>
   `${count} ${count === 1 ? "registro" : "registros"}`;
@@ -44,6 +46,7 @@ export function SettingsPage() {
 
 function SettingsPageContent() {
   const { data, scope, mutate, replaceIfRevision } = useAppData();
+  const experiment = useExperiment();
   const profileKey = JSON.stringify(data.profile);
   const [draft, setDraft] = useState({
     profileKey,
@@ -412,6 +415,53 @@ function SettingsPageContent() {
               um backup regularmente.
             </p>
           </InfoDisclosure>
+        </section>
+        <section className="panel">
+          <div className="card-title">
+            <span className="list-icon">
+              <FlaskConical size={20} aria-hidden="true" />
+            </span>
+            <div>
+              <h2>Programa beta</h2>
+              <p>
+                Experimente novidades de interface antes da liberação geral.
+              </p>
+            </div>
+          </div>
+          <p>
+            {experiment.betaTester
+              ? "O programa beta está ativo nesta instalação. Você recebe os testes de interface disponíveis."
+              : "Participe dos testes de interface disponíveis nesta instalação, independentemente do sorteio."}
+          </p>
+          <p>
+            Recursos pausados continuam desligados. Esta escolha não altera seus
+            registros nem vai para o backup. Com seu consentimento, os testes
+            aparecem nas métricas como participação manual, separada dos grupos
+            sorteados.
+          </p>
+          <button
+            className="button secondary"
+            type="button"
+            onClick={() => {
+              const enabled = !experiment.betaTester;
+              if (!experiment.setBetaTester(enabled)) {
+                setError(
+                  "Não foi possível guardar a preferência neste navegador.",
+                );
+                return;
+              }
+              setError("");
+              setMessage(
+                enabled
+                  ? "Programa beta ativado nesta instalação. Os testes disponíveis serão atualizados."
+                  : "Programa beta desativado nesta instalação. A distribuição normal será restaurada.",
+              );
+            }}
+          >
+            {experiment.betaTester
+              ? "Sair do programa beta"
+              : "Virar beta tester"}
+          </button>
         </section>
         <section className="panel">
           <div className="card-title">
