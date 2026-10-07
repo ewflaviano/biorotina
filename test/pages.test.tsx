@@ -989,12 +989,11 @@ describe("configurações e backup", () => {
       }),
     );
     expect(
-      await screen.findByText("Arquivo pronto para importar"),
+      await screen.findByText("Compare antes de importar"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Água: 0")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Última alteração no arquivo:/),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Água")).toBeInTheDocument();
+    expect(screen.getByText("Registros de hábitos")).toBeInTheDocument();
+    expect(screen.getByText(/última alteração:/)).toBeInTheDocument();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     await user.click(
       screen.getByRole("button", { name: "Importar este arquivo" }),
@@ -1017,7 +1016,7 @@ describe("configurações e backup", () => {
         type: "application/json",
       }),
     );
-    await screen.findByText("Arquivo pronto para importar");
+    await screen.findByText("Compare antes de importar");
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     await user.click(
       screen.getByRole("button", { name: "Importar este arquivo" }),
