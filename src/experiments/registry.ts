@@ -183,6 +183,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por navegação incorreta, perda de acesso a Medidas ou regressão de acessibilidade.",
   },
+  "calorie-balance-daily": {
+    assignment: "browser",
+    description:
+      "Mostra a diferença parcial diária entre refeições e gastos estimados, com parâmetros informados apenas na tela.",
+    owner: "Biorotina",
+    issue: 117,
+    revision: 1,
+    reviewBy: "2026-10-15",
+    removeWhen:
+      "Revisar após sete dias; interromper se o cálculo induzir interpretação clínica, contar repouso duas vezes ou expuser dados pessoais.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;

@@ -1,5 +1,6 @@
 import {
   Apple,
+  ChartNoAxesCombined,
   ArrowRight,
   HeartHandshake,
   Pill,
@@ -10,7 +11,10 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/Layout";
-import { useExperiment } from "../experiments/ExperimentContext";
+import {
+  useExperiment,
+  useExperimentExposure,
+} from "../experiments/ExperimentContext";
 
 const mealLink = {
   to: "/alimentacao",
@@ -60,8 +64,23 @@ const otherLinks = [
 ];
 
 export function MorePage() {
-  const mealInMobileNav = useExperiment().enabled("mobile-nav-meal-priority");
-  const links = [mealInMobileNav ? weightLink : mealLink, ...otherLinks];
+  const experiment = useExperiment();
+  useExperimentExposure("calorie-balance-daily");
+  const mealInMobileNav = experiment.enabled("mobile-nav-meal-priority");
+  const links = [
+    mealInMobileNav ? weightLink : mealLink,
+    ...(experiment.enabled("calorie-balance-daily")
+      ? [
+          {
+            to: "/balanco-calorico",
+            label: "Balanço calórico",
+            detail: "Diferença parcial por dia · experimento",
+            icon: ChartNoAxesCombined,
+          },
+        ]
+      : []),
+    ...otherLinks,
+  ];
   return (
     <>
       <PageHeader
@@ -71,7 +90,16 @@ export function MorePage() {
       />
       <nav className="more-links" aria-label="Outras áreas">
         {links.map(({ to, label, detail, icon: Icon }) => (
-          <Link key={to} to={to} className="more-link">
+          <Link
+            key={to}
+            to={to}
+            className="more-link"
+            onClick={
+              to === "/balanco-calorico"
+                ? () => experiment.recordUse("calorie-balance-daily")
+                : undefined
+            }
+          >
             <span className="list-icon">
               <Icon size={22} aria-hidden="true" />
             </span>
