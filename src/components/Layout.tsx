@@ -115,6 +115,7 @@ export function Layout() {
     return () => query.removeEventListener("change", update);
   }, []);
   useExperimentExposure("mobile-nav-meal-priority", mobileNavVisible);
+  useExperimentExposure("calorie-balance-daily", !mobileNavVisible);
   useExperimentExposure(
     "onboarding-install-prompt",
     location.pathname === "/" && analyticsPreference !== "unselected",

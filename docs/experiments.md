@@ -20,7 +20,8 @@ orientação clínica ou meta. A interface não faz recomendações alimentares.
 Fonte da equação: [Mifflin et al. (1990)](https://pubmed.ncbi.nlm.nih.gov/2305711/).
 Fonte do uso de MET: [Compêndio de Atividades Físicas para Adultos](https://pacompendium.com/adult-compendium/).
 Não há dependência nova nem envio de dados de saúde ao backend próprio.
-As métricas consentidas registram exposição ao abrir Mais nos dois braços,
+As métricas consentidas registram exposição ao abrir Mais no celular ou ao
+exibir a barra lateral no desktop, nos dois braços,
 uso do link e navegação por dias no braço experimental, apenas com chave,
 revisão, braço, origem da adesão e evento técnico. O kill switch desliga link
 e rota. Revisar compreensão do caráter parcial e eventuais falhas de cálculo
