@@ -1,5 +1,28 @@
 # Experimentos e liberação gradual
 
+## Balanço calórico diário experimental (#117)
+
+`calorie-balance-daily` controla o link em Mais e a rota `/balanco-calorico`.
+A tela consulta apenas os registros locais do dia selecionado. A equação
+Mifflin–St Jeor estima gasto em repouso com o último peso registrado até o dia,
+altura do perfil, idade adulta e parâmetro feminino/masculino informado na tela.
+Idade e parâmetro não persistem, não entram no backup ou Drive e desaparecem ao
+sair da tela. O cálculo usa somente calorias registradas nas refeições e a
+parcela acima de 1 MET das atividades estimadas; calorias manuais de atividades
+não entram, pois não distinguem gasto bruto e adicional. Refeições sem calorias
+e atividades excluídas aparecem como lacunas. Sem refeição com valor não há
+diferença numérica. A diferença é parcial e não representa déficit real,
+orientação clínica ou meta. A interface não faz recomendações alimentares.
+
+Fonte da equação: [Mifflin et al. (1990)](https://pubmed.ncbi.nlm.nih.gov/2305711/).
+Fonte do uso de MET: [Compêndio de Atividades Físicas para Adultos](https://pacompendium.com/adult-compendium/).
+Não há dependência nova, migração de dados ou envio de dados de saúde ao backend.
+As métricas consentidas registram exposição ao abrir Mais nos dois braços,
+uso do link e navegação por dias no braço experimental, apenas com chave,
+revisão, braço, origem da adesão e evento técnico. O kill switch desliga link
+e rota. Revisar compreensão do
+caráter parcial e eventuais falhas de cálculo antes de ampliar a exposição.
+
 Cada experimento entra no registro tipado `src/experiments/registry.ts` com
 issue, hipótese, responsável, revisão e condição de remoção. Configuração
 remota só opera chaves conhecidas. A infraestrutura de coortes/medição foi

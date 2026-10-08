@@ -37,6 +37,7 @@ const FEATURES: &[&str] = &[
     "medication-history-clear-search",
     "food-daily-calories",
     "mobile-nav-meal-priority",
+    "calorie-balance-daily",
 ];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 
