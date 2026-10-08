@@ -270,6 +270,20 @@ ou registros. Promover ou remover após sete dias conforme uso e avaliação de
 acessibilidade; sem dados suficientes, desligar. Interromper por foco incorreto,
 perda de dados ou vazamento de busca.
 
+## Limpeza da busca vazia em atividades — #122
+
+`activity-history-clear-search`, revisão 1, responsável Biorotina, revisar
+até 15/10/2026: quando há atividades no dia mas a busca não encontra nenhuma,
+a variante oferece uma ação única junto ao resultado vazio, restaura a lista e
+foca o campo. O controle mantém a ação acima do resumo. Sem configuração remota,
+permanece no controle; testes conectados podem usar o header de força. Após o
+deploy, iniciar em 5% com kill switch disponível. Medir exposição consentida
+nos dois braços somente no vazio elegível, `use` no clique da variante, erros e
+rollback na mesma revisão. Não enviar busca, nomes ou registros. Promover ou
+remover após sete dias conforme uso e avaliação de acessibilidade; sem dados
+suficientes, desligar. Interromper por foco incorreto, perda da lista ou
+vazamento da busca.
+
 ## Refeição na barra inferior móvel — #112
 
 `mobile-nav-meal-priority`, revisão 2, liberado a 100% em 07/10/2026,

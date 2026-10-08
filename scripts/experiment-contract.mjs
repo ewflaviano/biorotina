@@ -14,6 +14,7 @@ export const experimentKeys = [
   "hydration-history-last-day-shortcut",
   "habit-history-clear-search",
   "medication-history-clear-search",
+  "activity-history-clear-search",
   "food-daily-calories",
   "mobile-nav-meal-priority",
   "calorie-balance-daily",
