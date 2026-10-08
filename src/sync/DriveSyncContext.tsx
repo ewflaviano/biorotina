@@ -635,7 +635,12 @@ export function DriveSyncProvider({
       setSettledRevision(merged.revision);
       setMessage("Registros deste navegador e do Drive foram reunidos.");
     } catch (cause) {
-      reportClientError("drive", "drive_sync_failed", "drive_merge");
+      reportClientError(
+        "drive",
+        "drive_sync_failed",
+        "drive_merge",
+        cause instanceof GoogleDriveHttpError ? cause.status : undefined,
+      );
       setError(
         cause instanceof Error
           ? cause.message

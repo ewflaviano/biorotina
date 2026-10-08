@@ -10,6 +10,7 @@ const experiment = vi.hoisted(() => ({
   enabled: false,
   startAttempt: vi.fn(),
   finish: vi.fn(),
+  recordUse: vi.fn(),
 }));
 const state = vi.hoisted(() => ({ data: null as AppData | null }));
 const storage = vi.hoisted(() => ({
@@ -21,6 +22,7 @@ vi.mock("../experiments/ExperimentContext", () => ({
   useExperiment: () => ({
     enabled: () => experiment.enabled,
     startAttempt: experiment.startAttempt,
+    recordUse: experiment.recordUse,
   }),
 }));
 vi.mock("../state/AppDataContext", () => ({
@@ -37,6 +39,7 @@ beforeEach(() => {
     .mockReset()
     .mockImplementation(() => experiment.finish);
   experiment.finish.mockReset();
+  experiment.recordUse.mockReset();
   storage.mutate.mockReset().mockResolvedValue(undefined);
   storage.removeWithUndo.mockReset().mockResolvedValue(undefined);
 });
@@ -153,6 +156,48 @@ describe("confirmação experimental do formulário de atividades", () => {
 });
 
 describe("histórico de atividades por dia", () => {
+  it("mantém a limpeza atual no controle quando a busca não encontra atividade", async () => {
+    const user = userEvent.setup();
+    addActivity(todayIsoDate(), 7, "Caminhada", 30);
+    renderActivity();
+    await user.type(
+      screen.getByRole("searchbox", { name: "Buscar atividade neste dia" }),
+      "corrida",
+    );
+    expect(
+      history().getByText(/Nenhuma atividade corresponde à busca/),
+    ).toBeInTheDocument();
+    expect(
+      history().getByRole("button", { name: "Limpar busca" }),
+    ).toBeInTheDocument();
+    expect(
+      history().queryByRole("button", { name: "Limpar busca e ver registros" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("na variante limpa junto ao vazio e restaura lista e foco", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    addActivity(todayIsoDate(), 7, "Caminhada", 30);
+    renderActivity();
+    const search = screen.getByRole("searchbox", {
+      name: "Buscar atividade neste dia",
+    });
+    await user.type(search, "corrida");
+    expect(
+      history().queryByRole("button", { name: "Limpar busca" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      history().getByRole("button", { name: "Limpar busca e ver registros" }),
+    );
+    expect(search).toHaveValue("");
+    expect(search).toHaveFocus();
+    expect(history().getByText("Caminhada")).toBeInTheDocument();
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "activity-history-clear-search",
+    );
+  });
+
   it("soma calorias disponíveis na data escolhida sem incluir outro dia ou a busca", async () => {
     const user = userEvent.setup();
     const today = todayIsoDate();

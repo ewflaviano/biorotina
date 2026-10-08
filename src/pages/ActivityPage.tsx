@@ -55,7 +55,7 @@ export function ActivityPage() {
       : todayIsoDate();
   });
   const [historySearch, setHistorySearch] = useState("");
-  const { enabled, startAttempt } = useExperiment();
+  const { enabled, recordUse, startAttempt } = useExperiment();
   useExperimentExposure("activity-form-confirmation");
   const confirmActivity = enabled("activity-form-confirmation");
   const [activityConfirmed, setActivityConfirmed] = useState(false);
@@ -84,6 +84,13 @@ export function ActivityPage() {
   const visibleActivities = activitiesForDay.filter((item) =>
     normalizeName(item.name).includes(searchTerm),
   );
+  const emptySearch =
+    activitiesForDay.length > 0 &&
+    searchTerm.length > 0 &&
+    visibleActivities.length === 0;
+  useExperimentExposure("activity-history-clear-search", emptySearch);
+  const clearFromEmpty =
+    emptySearch && enabled("activity-history-clear-search");
   const visibleMinutes = visibleActivities.reduce(
     (sum, item) => sum + item.durationMinutes,
     0,
@@ -418,7 +425,7 @@ export function ActivityPage() {
                   value={historySearch}
                   onChange={(event) => setHistorySearch(event.target.value)}
                 />
-                {historySearch && (
+                {historySearch && !clearFromEmpty && (
                   <button
                     className="text-link activity-clear-search"
                     type="button"
@@ -483,11 +490,28 @@ export function ActivityPage() {
                 description="Registre uma caminhada, treino ou qualquer outra atividade quando quiser."
               />
             ) : (
-              <p className="activity-history-empty">
-                {activitiesForDay.length === 0
-                  ? "Nenhuma atividade registrada neste dia. Escolha outra data para consultar o histórico."
-                  : "Nenhuma atividade corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
-              </p>
+              <>
+                <p className="activity-history-empty">
+                  {activitiesForDay.length === 0
+                    ? "Nenhuma atividade registrada neste dia. Escolha outra data para consultar o histórico."
+                    : "Nenhuma atividade corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
+                </p>
+                {clearFromEmpty && (
+                  <button
+                    className="button secondary"
+                    type="button"
+                    onClick={() => {
+                      recordUse("activity-history-clear-search");
+                      setHistorySearch("");
+                      document
+                        .getElementById("activity-history-search")
+                        ?.focus();
+                    }}
+                  >
+                    Limpar busca e ver registros
+                  </button>
+                )}
+              </>
             )}
           </section>
         </div>
