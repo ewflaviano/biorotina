@@ -48,6 +48,8 @@ async function fillActivity(user: ReturnType<typeof userEvent.setup>) {
 const form = () => within(document.querySelector("form")!);
 const history = () =>
   within(screen.getByRole("region", { name: /^Histórico de / }));
+const dailyTotal = () =>
+  within(screen.getByText("Total do dia").closest(".panel")!);
 
 function renderActivity(day?: string) {
   return render(
@@ -166,6 +168,14 @@ describe("histórico de atividades por dia", () => {
     expect(history().getByRole("status")).toHaveTextContent(
       "2 atividades · 55 min exibidos",
     );
+    expect(dailyTotal().getByText("min").closest("strong")).toHaveTextContent(
+      "55 min",
+    );
+    expect(
+      dailyTotal().getByText(
+        `2 atividades registradas em ${formatCalendarDay(today)}.`,
+      ),
+    ).toBeInTheDocument();
     expect(history().getByText("Corrída")).toBeInTheDocument();
     expect(history().queryByText("Caminhada")).not.toBeInTheDocument();
 
@@ -178,12 +188,23 @@ describe("histórico de atividades por dia", () => {
     expect(
       history().getByText("1 atividade · 35 min exibidos"),
     ).toBeInTheDocument();
+    expect(dailyTotal().getByText("min").closest("strong")).toHaveTextContent(
+      "55 min",
+    );
     await user.click(screen.getByRole("button", { name: "Limpar busca" }));
     await user.click(screen.getByRole("button", { name: "Dia anterior" }));
     expect(history().getByText("Caminhada")).toBeInTheDocument();
     expect(history().queryByText("Corrída")).not.toBeInTheDocument();
     expect(
       history().getByText("1 atividade · 40 min exibidos"),
+    ).toBeInTheDocument();
+    expect(dailyTotal().getByText("min").closest("strong")).toHaveTextContent(
+      "40 min",
+    );
+    expect(
+      dailyTotal().getByText(
+        `1 atividade registrada em ${formatCalendarDay(yesterday)}.`,
+      ),
     ).toBeInTheDocument();
     expect(JSON.stringify(state.data)).toBe(before);
     expect(storage.mutate).not.toHaveBeenCalled();
@@ -203,8 +224,14 @@ describe("histórico de atividades por dia", () => {
     expect(
       history().getByText(/Nenhuma atividade registrada neste dia/),
     ).toBeInTheDocument();
+    expect(dailyTotal().getByText("min").closest("strong")).toHaveTextContent(
+      "0 min",
+    );
     await user.click(screen.getByRole("button", { name: "Ir para hoje" }));
     expect(history().getByText("Caminhada")).toBeInTheDocument();
+    expect(dailyTotal().getByText("min").closest("strong")).toHaveTextContent(
+      "20 min",
+    );
   });
 
   it("mostra o dia salvo e limpa a busca ao registrar atividade retroativa", async () => {
@@ -236,5 +263,8 @@ describe("histórico de atividades por dia", () => {
     ).toHaveValue("");
     expect(history().getByText("Caminhada")).toBeInTheDocument();
     expect(history().queryByText("Passeio")).not.toBeInTheDocument();
+    expect(dailyTotal().getByText("min").closest("strong")).toHaveTextContent(
+      "20 min",
+    );
   });
 });

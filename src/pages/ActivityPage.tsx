@@ -88,7 +88,7 @@ export function ActivityPage() {
     (sum, item) => sum + item.durationMinutes,
     0,
   );
-  const totalMinutes = data.activities.reduce(
+  const dailyMinutes = activitiesForDay.reduce(
     (sum, item) => sum + item.durationMinutes,
     0,
   );
@@ -486,13 +486,15 @@ export function ActivityPage() {
         </div>
         <aside className="side-stack">
           <div className="panel highlight">
-            <span className="eyebrow">Total registrado</span>
+            <span className="eyebrow">Total do dia</span>
             <strong className="large-value">
-              {numberPt(totalMinutes, 3)} <small>min</small>
+              {numberPt(dailyMinutes, 3)} <small>min</small>
             </strong>
             <p className="muted">
-              Em {data.activities.length} atividade
-              {data.activities.length === 1 ? "" : "s"} em todo o histórico.
+              {activitiesForDay.length} atividade
+              {activitiesForDay.length === 1 ? "" : "s"} registrada
+              {activitiesForDay.length === 1 ? "" : "s"} em{" "}
+              {formatCalendarDay(selectedDay)}.
             </p>
           </div>
           <Notice>
