@@ -92,6 +92,13 @@ export function ActivityPage() {
     (sum, item) => sum + item.durationMinutes,
     0,
   );
+  const activitiesWithCalories = activitiesForDay.filter(
+    (item) => item.caloriesKcal !== null,
+  );
+  const dailyCalories = activitiesWithCalories.reduce(
+    (sum, item) => sum + (item.caloriesKcal ?? 0),
+    0,
+  );
   const shortcuts = activityShortcuts(data.activities);
   const latestWeight = [...data.weights].sort((a, b) =>
     b.measuredAt.localeCompare(a.measuredAt),
@@ -496,6 +503,14 @@ export function ActivityPage() {
               {activitiesForDay.length === 1 ? "" : "s"} em{" "}
               {formatCalendarDay(selectedDay)}.
             </p>
+            {activitiesWithCalories.length > 0 && (
+              <p className="muted">
+                <strong>{numberPt(dailyCalories, 3)} kcal</strong> estimadas ou
+                informadas em {activitiesWithCalories.length} de{" "}
+                {activitiesForDay.length} atividade
+                {activitiesForDay.length === 1 ? "" : "s"}.
+              </p>
+            )}
           </div>
           <Notice>
             Calorias estimadas são aproximações. Você pode ajustar ou apagar o

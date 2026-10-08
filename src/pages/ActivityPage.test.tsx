@@ -68,6 +68,8 @@ function addActivity(
   hour: number,
   name: string,
   durationMinutes: number,
+  caloriesKcal: number | null = null,
+  caloriesSource?: "estimated" | "manual",
 ) {
   const occurredAt = new Date(
     `${day}T${String(hour).padStart(2, "0")}:15:00`,
@@ -78,7 +80,8 @@ function addActivity(
     occurredAt,
     name,
     durationMinutes,
-    caloriesKcal: null,
+    caloriesKcal,
+    ...(caloriesSource ? { caloriesSource } : {}),
   });
 }
 
@@ -150,6 +153,40 @@ describe("confirmação experimental do formulário de atividades", () => {
 });
 
 describe("histórico de atividades por dia", () => {
+  it("soma calorias disponíveis na data escolhida sem incluir outro dia ou a busca", async () => {
+    const user = userEvent.setup();
+    const today = todayIsoDate();
+    const yesterday = shiftCalendarDay(today, -1);
+    addActivity(today, 7, "Caminhada", 30, 120, "estimated");
+    addActivity(today, 8, "Corrida", 20, 160, "manual");
+    addActivity(today, 9, "Alongamento", 15);
+    addActivity(yesterday, 7, "Bicicleta", 40, 400, "estimated");
+
+    renderActivity();
+    expect(dailyTotal().getByText(/280 kcal/)).toBeInTheDocument();
+    expect(dailyTotal().getByText(/em 2 de 3 atividades/)).toBeInTheDocument();
+    await user.type(
+      screen.getByRole("searchbox", { name: "Buscar atividade neste dia" }),
+      "caminhada",
+    );
+    expect(dailyTotal().getByText(/280 kcal/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dia anterior" }));
+    expect(dailyTotal().getByText(/400 kcal/)).toBeInTheDocument();
+    expect(dailyTotal().getByText(/em 1 de 1 atividade/)).toBeInTheDocument();
+  });
+
+  it("omite calorias sem valor, mas mostra zero quando foi informado", async () => {
+    const user = userEvent.setup();
+    const today = todayIsoDate();
+    const yesterday = shiftCalendarDay(today, -1);
+    addActivity(today, 7, "Caminhada", 30);
+    addActivity(yesterday, 7, "Alongamento", 20, 0, "manual");
+    renderActivity();
+    expect(dailyTotal().queryByText(/kcal/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dia anterior" }));
+    expect(dailyTotal().getByText(/0 kcal/)).toBeInTheDocument();
+  });
+
   it("começa em hoje e combina dia e busca sem alterar registros", async () => {
     const user = userEvent.setup();
     const today = todayIsoDate();
