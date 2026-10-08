@@ -143,6 +143,8 @@ function SettingsPageContent() {
         comparison.localTotal > 0 ||
         data.profile.displayName !== "" ||
         data.profile.heightCm !== null ||
+        data.profile.ageYears !== null ||
+        data.profile.formulaParameter !== null ||
         data.hydrationReminderTimes.length > 0;
       if (hasLocalData) downloadJson(data, "-antes-da-importacao");
       await replaceIfRevision(

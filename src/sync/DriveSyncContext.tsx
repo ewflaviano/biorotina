@@ -42,7 +42,12 @@ import {
 function hasLocalContent(data: AppData): boolean {
   return (
     totalRecords(data) > 0 ||
-    Boolean(data.profile.displayName || data.profile.heightCm) ||
+    Boolean(
+      data.profile.displayName ||
+      data.profile.heightCm ||
+      data.profile.ageYears ||
+      data.profile.formulaParameter,
+    ) ||
     data.hydrationReminderTimes.length > 0
   );
 }

@@ -67,6 +67,8 @@ export async function loadLegacyData(): Promise<AppData | null> {
   return totalRecords(data) > 0 ||
     data.profile.displayName ||
     data.profile.heightCm ||
+    data.profile.ageYears ||
+    data.profile.formulaParameter ||
     data.hydrationReminderTimes.length
     ? data
     : null;
@@ -80,7 +82,7 @@ export async function loadData(
   const saved = await db.get("app", key);
   if (!saved) return emptyData();
   const data = parseBackup(saved);
-  if (saved.schemaVersion !== 6) await db.put("app", data, key);
+  if (saved.schemaVersion !== 7) await db.put("app", data, key);
   return data;
 }
 

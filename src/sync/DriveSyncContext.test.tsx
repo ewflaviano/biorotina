@@ -141,7 +141,7 @@ beforeEach(async () => {
       createdTime: new Date(Date.now() + snapshots.length).toISOString(),
     };
     snapshots.unshift(saved);
-    expect(data.schemaVersion).toBe(6);
+    expect(data.schemaVersion).toBe(7);
     return saved;
   });
   vi.mocked(downloadDriveSnapshot).mockReset();
@@ -425,7 +425,7 @@ describe("login e sincronização automática", () => {
   it("restaura o Drive no primeiro acesso de um navegador vazio", async () => {
     const remote: AppData = {
       ...emptyData(),
-      profile: { displayName: "Ana", heightCm: 168 },
+      profile: { ...emptyData().profile, displayName: "Ana", heightCm: 168 },
     };
     snapshots.push({ id: "remote-1", createdTime: new Date().toISOString() });
     vi.mocked(downloadDriveSnapshot).mockResolvedValue(remote);
@@ -544,7 +544,7 @@ describe("login e sincronização automática", () => {
     local.profile.displayName = "Local";
     const remote: AppData = {
       ...emptyData(),
-      profile: { displayName: "Drive", heightCm: null },
+      profile: { ...emptyData().profile, displayName: "Drive", heightCm: null },
     };
     await saveData(local, account.id);
     snapshots.push({ id: "remote-1", createdTime: new Date().toISOString() });

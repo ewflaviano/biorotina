@@ -186,10 +186,10 @@ export const experimentRegistry = {
   "calorie-balance-daily": {
     assignment: "browser",
     description:
-      "Mostra a diferença parcial diária entre refeições e gastos estimados, com parâmetros informados apenas na tela.",
+      "Mostra a diferença parcial diária entre refeições e gastos estimados, com parâmetros salvos no perfil local.",
     owner: "Biorotina",
     issue: 117,
-    revision: 1,
+    revision: 2,
     reviewBy: "2026-10-15",
     removeWhen:
       "Revisar após sete dias; interromper se o cálculo induzir interpretação clínica, contar repouso duas vezes ou expuser dados pessoais.",

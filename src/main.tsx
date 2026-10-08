@@ -33,9 +33,8 @@ void startVisitAnalytics();
 
 function AppRoutes() {
   const { loading, error } = useAppData();
-  const calorieBalanceEnabled = useExperiment().enabled(
-    "calorie-balance-daily",
-  );
+  const experiment = useExperiment();
+  const calorieBalanceEnabled = experiment.enabled("calorie-balance-daily");
   if (loading) return <div className="app-loading">Abrindo Biorotina…</div>;
   if (error)
     return (
@@ -54,7 +53,9 @@ function AppRoutes() {
         <Route
           path="balanco-calorico"
           element={
-            calorieBalanceEnabled ? (
+            !experiment.ready ? (
+              <div className="app-loading">Abrindo balanço calórico…</div>
+            ) : calorieBalanceEnabled ? (
               <CalorieBalancePage />
             ) : (
               <Navigate to="/mais" replace />

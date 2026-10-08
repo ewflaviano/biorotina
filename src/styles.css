@@ -2813,15 +2813,25 @@ button.habit-week-cell {
 }
 .calorie-balance-layout {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   max-width: 900px;
 }
-.calorie-balance-layout .panel {
-  min-width: 0;
+.balance-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 20px;
+}
+.balance-heading h2 {
+  margin: 0;
+}
+.balance-heading .day-picker {
+  width: min(100%, 320px);
 }
 .balance-inputs {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-  margin: 18px 0;
+  margin: 14px 0;
 }
 .balance-context {
   color: var(--color-text-secondary);
@@ -2833,13 +2843,13 @@ button.habit-week-cell {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
-  margin: 14px 0;
+  margin: 4px 0 0;
 }
 .balance-value small {
   font-size: 16px;
 }
 .balance-breakdown {
-  margin: 22px 0 0;
+  margin: 0;
 }
 .balance-breakdown > div {
   display: flex;
@@ -2856,6 +2866,11 @@ button.habit-week-cell {
   font-weight: 700;
   margin: 0;
   font-variant-numeric: tabular-nums;
+}
+.balance-incomplete {
+  color: var(--color-warning);
+  font-size: 13px;
+  margin: 0;
 }
 .activity-history-empty {
   margin: 0;

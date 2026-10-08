@@ -7,7 +7,7 @@ ou à lógica de lembretes e cobrança.
 ## Formatos cobertos
 
 - **Dados persistidos e backup importado:** `appDataSchema` valida o formato
-  atual; `parseBackup` aceita apenas as versões 1 a 6 e migra as versões
+  atual; `parseBackup` aceita apenas as versões 1 a 7 e migra as versões
   conhecidas antes de devolver dados para o app.
 - **Respostas da IA:** `analysisSchema` limita a descrição, os alimentos e as
   calorias recebidas do Gemini ou do simulador local.

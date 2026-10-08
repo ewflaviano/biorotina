@@ -24,6 +24,8 @@ function containsRecords(data: ExitBackup["data"]): boolean {
     Boolean(
       data.profile.displayName ||
       data.profile.heightCm ||
+      data.profile.ageYears ||
+      data.profile.formulaParameter ||
       data.hydrationReminderTimes.length,
     )
   );

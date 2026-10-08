@@ -9,13 +9,15 @@ import { AppDataProvider } from "../state/AppDataContext";
 import { DriveSyncProvider } from "../sync/DriveSyncContext";
 import { Layout } from "./Layout";
 
-const experimentState = vi.hoisted(() => ({ enabled: false }));
+const experimentState = vi.hoisted(() => ({ enabled: false, balance: false }));
 const recordUse = vi.hoisted(() => vi.fn());
 
 vi.mock("../experiments/ExperimentContext", () => ({
   useExperiment: () => ({
     enabled: (key: string) =>
-      key === "mobile-nav-meal-priority" && experimentState.enabled,
+      key === "mobile-nav-meal-priority"
+        ? experimentState.enabled
+        : key === "calorie-balance-daily" && experimentState.balance,
     recordUse,
   }),
   useExperimentExposure: vi.fn(),
@@ -23,6 +25,7 @@ vi.mock("../experiments/ExperimentContext", () => ({
 
 beforeEach(async () => {
   experimentState.enabled = false;
+  experimentState.balance = false;
   recordUse.mockClear();
   vi.mocked(useExperimentExposure).mockClear();
   vi.stubGlobal("matchMedia", () => ({
@@ -45,6 +48,10 @@ function renderNavigation() {
               <Route path="/mais" element={<MorePage />} />
               <Route path="/peso" element={<p>Página de medidas</p>} />
               <Route path="/alimentacao" element={<p>Página de refeições</p>} />
+              <Route
+                path="/balanco-calorico"
+                element={<p>Página do balanço</p>}
+              />
             </Route>
           </Routes>
         </MemoryRouter>
@@ -54,6 +61,37 @@ function renderNavigation() {
 }
 
 describe("experimento da barra móvel", () => {
+  it("oferece acesso ao balanço na barra lateral do desktop para participantes", async () => {
+    const view = renderNavigation();
+    await screen.findByRole("heading", { name: "Mais áreas" });
+    const side = screen.getByRole("complementary", {
+      name: "Navegação principal",
+    });
+    expect(
+      within(side).queryByRole("link", { name: "Balanço calórico" }),
+    ).toBeNull();
+    experimentState.balance = true;
+    view.rerender(
+      <AppDataProvider>
+        <DriveSyncProvider>
+          <MemoryRouter initialEntries={["/mais"]}>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/mais" element={<MorePage />} />
+                <Route
+                  path="/balanco-calorico"
+                  element={<p>Página do balanço</p>}
+                />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </DriveSyncProvider>
+      </AppDataProvider>,
+    );
+    expect(
+      within(side).getByRole("link", { name: "Balanço calórico" }),
+    ).toBeInTheDocument();
+  });
   it("mantém Medidas na barra e Alimentação em Mais no controle", async () => {
     const user = userEvent.setup();
     renderNavigation();

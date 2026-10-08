@@ -49,6 +49,9 @@ export function mergeAppData(preferred: AppData, incoming: AppData) {
   merged.profile = {
     displayName: preferred.profile.displayName || incoming.profile.displayName,
     heightCm: preferred.profile.heightCm ?? incoming.profile.heightCm,
+    ageYears: preferred.profile.ageYears ?? incoming.profile.ageYears,
+    formulaParameter:
+      preferred.profile.formulaParameter ?? incoming.profile.formulaParameter,
   };
   merged.hydrationReminderTimes =
     preferred.hydrationReminderTimes.length > 0

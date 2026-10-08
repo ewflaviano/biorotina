@@ -2,6 +2,7 @@ import {
   Activity,
   Apple,
   CalendarDays,
+  ChartNoAxesCombined,
   Cloud,
   CloudAlert,
   CloudCheck,
@@ -114,6 +115,7 @@ export function Layout() {
     return () => query.removeEventListener("change", update);
   }, []);
   useExperimentExposure("mobile-nav-meal-priority", mobileNavVisible);
+  useExperimentExposure("calorie-balance-daily", !mobileNavVisible);
   useExperimentExposure(
     "onboarding-install-prompt",
     location.pathname === "/" && analyticsPreference !== "unselected",
@@ -172,6 +174,18 @@ export function Layout() {
               <span>{label}</span>
             </NavLink>
           ))}
+          {experiment.enabled("calorie-balance-daily") && (
+            <NavLink
+              to="/balanco-calorico"
+              className={({ isActive }) =>
+                `nav-link${isActive ? " active" : ""}`
+              }
+              onClick={() => experiment.recordUse("calorie-balance-daily")}
+            >
+              <ChartNoAxesCombined size={20} aria-hidden="true" />
+              <span>Balanço calórico</span>
+            </NavLink>
+          )}
         </nav>
         <div className="side-bottom">
           <NavLink
