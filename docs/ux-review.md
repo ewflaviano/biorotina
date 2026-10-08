@@ -27,7 +27,7 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 2. Para uma atividade do catálogo, o app sugere calorias a partir de MET, duração e último peso; sem peso, indica a referência de 70 kg. A pessoa pode ajustar, limpar ou voltar à estimativa. O botão de informação mostra a fórmula, o MET e código da atividade escolhida e o link para a fonte.
 3. **Agora** corrige a hora sugerida quando necessário.
 4. O histórico começa em hoje e permite escolher qualquer dia até a data atual pelo mesmo seletor da home. A busca por nome, sem distinção de acentos ou maiúsculas, atua dentro do dia escolhido; a tela informa quantidade e minutos exibidos. **Repetir** preenche nome, duração e calorias anteriores com data/hora atual; **Excluir** tem desfazer. Valores estimados e informados são identificados.
-5. O cartão de minutos acompanha a data escolhida no histórico e soma todas as atividades desse dia, independentemente da busca por nome. Dias vazios mostram zero, sem penalização.
+5. O cartão de minutos acompanha a data escolhida no histórico e soma todas as atividades desse dia, independentemente da busca por nome. Quando há valores de calorias, mostra a soma dos valores estimados ou informados e quantas atividades têm esse dado; registros sem calorias ficam fora da soma. Dias vazios mostram zero minuto, sem penalização.
 
 **Próxima melhoria possível:** edição de detalhes de uma atividade passada quando o histórico crescer.
 
