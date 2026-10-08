@@ -49,11 +49,13 @@ describe("tela experimental de balanço calórico", () => {
     expect(recordUse).toHaveBeenCalledWith("calorie-balance-daily");
   });
 
-  it("calcula o dia com parâmetros transitórios e atualiza ao trocar data", () => {
+  it("mostra o cálculo com dados salvos logo após escolher o dia", () => {
     const today = todayIsoDate();
     const yesterday = shiftCalendarDay(today, -1);
     const at = (day: string) => new Date(`${day}T12:00:00`).toISOString();
     state.data!.profile.heightCm = 170;
+    state.data!.profile.ageYears = 30;
+    state.data!.profile.formulaParameter = "female";
     state.data!.weights.push({
       id: crypto.randomUUID(),
       createdAt: at(yesterday),
@@ -76,18 +78,17 @@ describe("tela experimental de balanço calórico", () => {
         <CalorieBalancePage />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/Para calcular, informe/)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/Idade nesse dia/), {
-      target: { value: "30" },
-    });
-    fireEvent.change(screen.getByLabelText("Parâmetro da fórmula"), {
-      target: { value: "female" },
-    });
-    expect(screen.getByText(/Para calcular, informe/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Idade em anos/)).toBeNull();
     fireEvent.change(screen.getByLabelText("Dia do balanço calórico"), {
       target: { value: yesterday },
     });
     expect(screen.getByRole("status")).toHaveTextContent("+348 kcal");
+    expect(screen.getByText("Consumidas")).toBeInTheDocument();
+    expect(screen.queryByText(/não é o déficit real/)).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Entenda este cálculo" }),
+    );
+    expect(screen.getByText(/não o déficit real do dia/)).toBeInTheDocument();
     expect(recordUse).toHaveBeenCalledWith("calorie-balance-daily");
     expect(JSON.stringify(state.data)).toBe(initial);
   });

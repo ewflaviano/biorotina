@@ -35,8 +35,12 @@ describe("contratos de dados", () => {
         ([key]) => !key.startsWith("hydration") && !key.startsWith("habit"),
       ),
     );
-    const migrated = parseBackup({ ...legacy, schemaVersion: 1 });
-    expect(migrated.schemaVersion).toBe(6);
+    const migrated = parseBackup({
+      ...legacy,
+      schemaVersion: 1,
+      profile: { displayName: "", heightCm: null },
+    });
+    expect(migrated.schemaVersion).toBe(7);
     expect(appDataSchema.safeParse(migrated).success).toBe(true);
   });
 

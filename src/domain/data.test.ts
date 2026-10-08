@@ -19,8 +19,13 @@ import {
 describe("modelo e backup", () => {
   it("cria um documento vazio com versão explícita e sem dados pessoais", () => {
     const data = emptyData();
-    expect(data.schemaVersion).toBe(6);
-    expect(data.profile).toEqual({ displayName: "", heightCm: null });
+    expect(data.schemaVersion).toBe(7);
+    expect(data.profile).toEqual({
+      displayName: "",
+      heightCm: null,
+      ageYears: null,
+      formulaParameter: null,
+    });
     expect(totalRecords(data)).toBe(0);
     expect(appDataSchema.parse(data)).toEqual(data);
   });
@@ -97,8 +102,12 @@ describe("modelo e backup", () => {
         ([key]) => !key.startsWith("hydration") && !key.startsWith("habit"),
       ),
     );
-    const migrated = parseBackup({ ...oldData, schemaVersion: 1 });
-    expect(migrated.schemaVersion).toBe(6);
+    const migrated = parseBackup({
+      ...oldData,
+      schemaVersion: 1,
+      profile: { displayName: "Ana", heightCm: null },
+    });
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.profile.displayName).toBe("Ana");
     expect(migrated.hydrationEntries).toEqual([]);
     expect(migrated.hydrationReminderTimes).toEqual([]);
@@ -112,6 +121,7 @@ describe("modelo e backup", () => {
     const old = {
       ...oldCurrent,
       schemaVersion: 2,
+      profile: { displayName: "", heightCm: null },
       medications: [
         {
           id: crypto.randomUUID(),
@@ -135,6 +145,7 @@ describe("modelo e backup", () => {
     const old = {
       ...oldCurrent,
       schemaVersion: 3,
+      profile: { displayName: "", heightCm: null },
       meals: [
         {
           id: crypto.randomUUID(),
@@ -158,15 +169,39 @@ describe("modelo e backup", () => {
     const previous = Object.fromEntries(
       Object.entries(current).filter(([key]) => !key.startsWith("habit")),
     );
-    const migrated = parseBackup({ ...previous, schemaVersion: 5 });
-    expect(migrated.schemaVersion).toBe(6);
+    const migrated = parseBackup({
+      ...previous,
+      schemaVersion: 5,
+      profile: { displayName: "Ana", heightCm: null },
+    });
+    expect(migrated.schemaVersion).toBe(7);
     expect(migrated.profile.displayName).toBe("Ana");
     expect(migrated.habits).toEqual([]);
     expect(migrated.habitLogs).toEqual([]);
   });
 
+  it("migra o perfil da versão 6 e inclui os dados novos no backup", () => {
+    const legacy = {
+      ...emptyData(),
+      schemaVersion: 6,
+      profile: { displayName: "Ana", heightCm: 168 },
+    };
+    const migrated = parseBackup(legacy);
+    expect(migrated.profile).toEqual({
+      displayName: "Ana",
+      heightCm: 168,
+      ageYears: null,
+      formulaParameter: null,
+    });
+    migrated.profile.ageYears = 31;
+    migrated.profile.formulaParameter = "female";
+    expect(parseBackup(JSON.parse(JSON.stringify(migrated))).profile).toEqual(
+      migrated.profile,
+    );
+  });
+
   it("rejeita versões futuras para evitar interpretar um formato desconhecido", () => {
-    expect(() => parseBackup({ ...emptyData(), schemaVersion: 7 })).toThrow();
+    expect(() => parseBackup({ ...emptyData(), schemaVersion: 8 })).toThrow();
   });
 
   it("rejeita valores de saúde impossíveis ou malformados na importação", () => {

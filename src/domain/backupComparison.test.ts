@@ -115,7 +115,14 @@ describe("comparação de backup", () => {
         ([key]) => key !== "habits" && key !== "habitLogs",
       ),
     );
-    const incoming = parseBackup({ ...legacy, schemaVersion: 5 });
+    const incoming = parseBackup({
+      ...legacy,
+      schemaVersion: 5,
+      profile: {
+        displayName: local.profile.displayName,
+        heightCm: local.profile.heightCm,
+      },
+    });
     incoming.weights[0] = {
       note: "",
       weightKg: 70,

@@ -8,7 +8,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { emptyData } from "../domain/data";
+import { emptyData, parseBackup } from "../domain/data";
 import { WeightPage } from "./WeightPage";
 
 const experiment = vi.hoisted(() => ({
@@ -53,6 +53,49 @@ beforeEach(() => {
   experiment.recordUse.mockReset();
   storage.mutate.mockReset().mockResolvedValue(undefined);
   storage.removeWithUndo.mockReset().mockResolvedValue(undefined);
+});
+
+describe("dados do balanço em Medidas", () => {
+  it("salva idade e parâmetro no perfil incluído no backup", async () => {
+    experiment.enabled = true;
+    render(
+      <MemoryRouter>
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText("Idade em anos"), {
+      target: { value: "30" },
+    });
+    fireEvent.change(screen.getByLabelText("Parâmetro da fórmula"), {
+      target: { value: "female" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar dados" }));
+    await waitFor(() => expect(storage.mutate).toHaveBeenCalledOnce());
+    const updated = storage.mutate.mock.calls[0][0](emptyData());
+    expect(
+      parseBackup(JSON.parse(JSON.stringify(updated))).profile,
+    ).toMatchObject({
+      ageYears: 30,
+      formulaParameter: "female",
+    });
+  });
+
+  it("recusa idade fora da faixa sem persistir", () => {
+    experiment.enabled = true;
+    render(
+      <MemoryRouter>
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText("Idade em anos"), {
+      target: { value: "17" },
+    });
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Salvar dados" }).closest("form")!,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("18 e 100");
+    expect(storage.mutate).not.toHaveBeenCalled();
+  });
 });
 
 describe("atalho experimental no histórico de peso vazio", () => {

@@ -61,6 +61,25 @@ export function WeightPage() {
   const [saving, setSaving] = useState(false);
   const [heightSaving, setHeightSaving] = useState(false);
   const [heightMessage, setHeightMessage] = useState("");
+  const profileAge = data.profile.ageYears?.toString() ?? "";
+  const profileParameter = data.profile.formulaParameter ?? "";
+  const [ageDraft, setAgeDraft] = useState({ profileAge, value: profileAge });
+  const [parameterDraft, setParameterDraft] = useState<{
+    profileParameter: "" | "female" | "male";
+    value: "" | "female" | "male";
+  }>({
+    profileParameter,
+    value: profileParameter,
+  });
+  const ageInput =
+    ageDraft.profileAge === profileAge ? ageDraft.value : profileAge;
+  const formulaParameter =
+    parameterDraft.profileParameter === profileParameter
+      ? parameterDraft.value
+      : profileParameter;
+  const [balanceSaving, setBalanceSaving] = useState(false);
+  const [balanceMessage, setBalanceMessage] = useState("");
+  const [balanceError, setBalanceError] = useState("");
   const [prefilled, setPrefilled] = useState(false);
   const [actionError, setActionError] = useState("");
   const [editingEntry, setEditingEntry] = useState<WeightEntry | null>(null);
@@ -185,6 +204,38 @@ export function WeightPage() {
     }
   }
 
+  async function saveBalanceProfile(event: FormEvent) {
+    event.preventDefault();
+    if (balanceSaving) return;
+    setBalanceError("");
+    setBalanceMessage("");
+    const trimmedAge = ageInput.trim();
+    const ageYears = trimmedAge === "" ? null : Number(trimmedAge);
+    if (
+      ageYears !== null &&
+      (!Number.isInteger(ageYears) || ageYears < 18 || ageYears > 100)
+    ) {
+      setBalanceError("Informe uma idade entre 18 e 100 anos.");
+      return;
+    }
+    setBalanceSaving(true);
+    try {
+      await mutate((current) => ({
+        ...current,
+        profile: {
+          ...current.profile,
+          ageYears,
+          formulaParameter: formulaParameter || null,
+        },
+      }));
+      setBalanceMessage("Dados salvos no perfil.");
+    } catch {
+      setBalanceError("Não foi possível salvar. Tente novamente.");
+    } finally {
+      setBalanceSaving(false);
+    }
+  }
+
   function repeatWeight(item: WeightEntry) {
     setWeightConfirmed(false);
     setValue(inputDecimal(item.weightKg));
@@ -296,7 +347,12 @@ export function WeightPage() {
               </span>
               <div>
                 <h2 id="altura">Sua altura</h2>
-                <p>Usamos essa medida apenas para calcular o IMC.</p>
+                <p>
+                  Usamos essa medida para calcular o IMC
+                  {enabled("calorie-balance-daily")
+                    ? " e o balanço calórico."
+                    : "."}
+                </p>
               </div>
             </div>
             <form onSubmit={saveHeight} className="measurement-height-form">
@@ -324,6 +380,74 @@ export function WeightPage() {
               </p>
             )}
           </section>
+          {enabled("calorie-balance-daily") && (
+            <section className="panel" aria-labelledby="dados-balanco">
+              <h2 id="dados-balanco">Dados do balanço calórico</h2>
+              <form
+                onSubmit={saveBalanceProfile}
+                className="form-grid balance-inputs"
+              >
+                <div className="field">
+                  <label htmlFor="balance-profile-age">Idade em anos</label>
+                  <input
+                    id="balance-profile-age"
+                    type="number"
+                    inputMode="numeric"
+                    min="18"
+                    max="100"
+                    step="1"
+                    value={ageInput}
+                    onChange={(event) => {
+                      setAgeDraft({ profileAge, value: event.target.value });
+                      setBalanceMessage("");
+                    }}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="balance-profile-parameter">
+                    Parâmetro da fórmula
+                  </label>
+                  <select
+                    id="balance-profile-parameter"
+                    value={formulaParameter}
+                    onChange={(event) => {
+                      setParameterDraft({
+                        profileParameter,
+                        value: event.target.value as "" | "female" | "male",
+                      });
+                      setBalanceMessage("");
+                    }}
+                  >
+                    <option value="">Não informado</option>
+                    <option value="female">Feminino</option>
+                    <option value="male">Masculino</option>
+                  </select>
+                </div>
+                <button className="button secondary" disabled={balanceSaving}>
+                  {balanceSaving ? "Salvando…" : "Salvar dados"}
+                </button>
+              </form>
+              {balanceError && (
+                <p className="form-error" role="alert">
+                  {balanceError}
+                </p>
+              )}
+              {balanceMessage && (
+                <p role="status" className="template-note">
+                  {balanceMessage}
+                </p>
+              )}
+              <InfoDisclosure label="Sobre estes dados">
+                <p>
+                  A equação de repouso usa estes dois parâmetros junto de peso e
+                  altura. A fórmula publicada oferece apenas as opções feminino
+                  e masculino; você pode deixar a seleção vazia. Os dados ficam
+                  no perfil local e entram no backup JSON e no Drive opcional.
+                  Atualize a idade quando necessário.
+                </p>
+              </InfoDisclosure>
+            </section>
+          )}
           <section className="panel" aria-labelledby="novo-peso">
             <h2 id="novo-peso">Registrar peso</h2>
             <p className="muted">Cada registro entra no seu histórico.</p>

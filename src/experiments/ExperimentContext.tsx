@@ -31,6 +31,7 @@ const LOCAL_MODE = import.meta.env.VITE_BIOROTINA_LOCAL_MODE === "true";
 const LOCAL_FORCE = import.meta.env.VITE_BIOROTINA_LOCAL_FORCE_EXPERIMENT;
 type FinishAttempt = (outcome: "success" | "error") => void;
 interface ExperimentValue {
+  ready: boolean;
   betaTester: boolean;
   setBetaTester: (enabled: boolean) => boolean;
   enabled: (key: ExperimentKey) => boolean;
@@ -41,6 +42,7 @@ interface ExperimentValue {
 }
 const Context = createContext<ExperimentValue | null>(null);
 const disabledExperiments: ExperimentValue = {
+  ready: true,
   betaTester: false,
   setBetaTester: () => false,
   enabled: () => false,
@@ -68,7 +70,8 @@ export function ExperimentProvider({ children }: { children: ReactNode }) {
     assignments: Assignments;
     accountId: string | null;
     betaTester: boolean;
-  }>({ assignments: {}, accountId: null, betaTester });
+    loaded: boolean;
+  }>({ assignments: {}, accountId: null, betaTester, loaded: false });
   const previous = useRef<Assignments>({});
   const exposed = useRef(new Set<string>());
 
@@ -112,7 +115,7 @@ export function ExperimentProvider({ children }: { children: ReactNode }) {
             recordExperimentMetric(key, old, "rollback");
         }
         previous.current = assignments;
-        setState({ assignments, accountId, betaTester });
+        setState({ assignments, accountId, betaTester, loaded: true });
       }
       pending = false;
     };
@@ -212,6 +215,10 @@ export function ExperimentProvider({ children }: { children: ReactNode }) {
   return (
     <Context.Provider
       value={{
+        ready:
+          (!API || state.loaded) &&
+          state.accountId === accountId &&
+          state.betaTester === betaTester,
         betaTester,
         setBetaTester,
         enabled,

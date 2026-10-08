@@ -133,15 +133,23 @@ describe("persistência local", () => {
       ),
     );
     const db = await openDB("biorotina", 3);
-    await db.put("app", { ...oldData, schemaVersion: 1 }, "main");
+    await db.put(
+      "app",
+      {
+        ...oldData,
+        schemaVersion: 1,
+        profile: { displayName: "Bia", heightCm: null },
+      },
+      "main",
+    );
     db.close();
     const loaded = await loadData();
-    expect(loaded.schemaVersion).toBe(6);
+    expect(loaded.schemaVersion).toBe(7);
     expect(loaded.profile.displayName).toBe("Bia");
     expect(
       await (await openDB("biorotina", 3)).get("app", "main"),
     ).toMatchObject({
-      schemaVersion: 6,
+      schemaVersion: 7,
     });
   });
 });
