@@ -9,6 +9,13 @@ import {
 } from "../billing/client";
 import { prepareMealImage } from "../ai/gemini";
 import { FoodPage } from "./FoodPage";
+import type { MealEntry } from "../domain/data";
+
+const historyState = vi.hoisted(() => ({ meals: [] as MealEntry[] }));
+const experimentState = vi.hoisted(() => ({
+  enabled: false,
+  recordUse: vi.fn(),
+}));
 
 const activePlan: PlanStatus = {
   active: true,
@@ -25,9 +32,16 @@ const activePlan: PlanStatus = {
 
 vi.mock("../state/AppDataContext", () => ({
   useAppData: () => ({
-    data: { meals: [] },
+    data: { meals: historyState.meals },
     mutate: vi.fn(),
     removeWithUndo: vi.fn(),
+  }),
+}));
+vi.mock("../experiments/ExperimentContext", () => ({
+  useExperimentExposure: vi.fn(),
+  useExperiment: () => ({
+    enabled: () => experimentState.enabled,
+    recordUse: experimentState.recordUse,
   }),
 }));
 vi.mock("../sync/DriveSyncContext", () => ({
@@ -47,12 +61,50 @@ vi.mock("../ai/gemini", () => ({
 }));
 
 beforeEach(() => {
+  historyState.meals = [];
+  experimentState.enabled = false;
+  experimentState.recordUse.mockReset();
   vi.mocked(getTrialConfig).mockResolvedValue(true);
   vi.mocked(getPlanStatus).mockResolvedValue(activePlan);
   vi.mocked(prepareMealImage).mockResolvedValue({
     dataUrl: "data:image/jpeg;base64,AA==",
     base64: "AA==",
   });
+});
+
+it("restaura a lista e o foco ao limpar uma busca sem resultados na variante", () => {
+  experimentState.enabled = true;
+  const now = new Date().toISOString();
+  historyState.meals = [
+    {
+      id: "meal-test",
+      name: "Refeição sintética",
+      eatenAt: now,
+      createdAt: now,
+      caloriesKcal: null,
+      foods: [],
+      photoAssisted: false,
+    },
+  ];
+  render(
+    <MemoryRouter>
+      <FoodPage />
+    </MemoryRouter>,
+  );
+  const search = screen.getByRole("searchbox", {
+    name: "Buscar refeição neste dia",
+  });
+  fireEvent.change(search, { target: { value: "sem-correspondência" } });
+  expect(screen.queryByRole("button", { name: "Limpar busca" })).toBeNull();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Limpar busca e ver registros" }),
+  );
+  expect(search).toHaveValue("");
+  expect(search).toHaveFocus();
+  expect(screen.getByText("Refeição sintética")).toBeInTheDocument();
+  expect(experimentState.recordUse).toHaveBeenCalledWith(
+    "food-history-clear-search",
+  );
 });
 
 describe("opções de foto para assinantes", () => {
