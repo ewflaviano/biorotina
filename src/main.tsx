@@ -10,6 +10,7 @@ import { DailyRecordsPage } from "./pages/DailyRecordsPage";
 import { WeightPage } from "./pages/WeightPage";
 import { ActivityPage } from "./pages/ActivityPage";
 import { FoodPage } from "./pages/FoodPage";
+import { CalorieBalancePage } from "./pages/CalorieBalancePage";
 import { MedicationPage } from "./pages/MedicationPage";
 import { HydrationPage } from "./pages/HydrationPage";
 import { HabitsPage } from "./pages/HabitsPage";
@@ -25,12 +26,15 @@ import { DriveSyncProvider } from "./sync/DriveSyncContext";
 import { ErrorBoundary } from "./observability/ErrorBoundary";
 import { installGlobalErrorHandlers } from "./observability/client";
 import { ExperimentProvider } from "./experiments/ExperimentContext";
+import { useExperiment } from "./experiments/ExperimentContext";
 
 installGlobalErrorHandlers();
 void startVisitAnalytics();
 
 function AppRoutes() {
   const { loading, error } = useAppData();
+  const experiment = useExperiment();
+  const calorieBalanceEnabled = experiment.enabled("calorie-balance-daily");
   if (loading) return <div className="app-loading">Abrindo Biorotina…</div>;
   if (error)
     return (
@@ -46,6 +50,18 @@ function AppRoutes() {
         <Route path="peso" element={<WeightPage />} />
         <Route path="atividades" element={<ActivityPage />} />
         <Route path="alimentacao" element={<FoodPage />} />
+        <Route
+          path="balanco-calorico"
+          element={
+            !experiment.ready ? (
+              <div className="app-loading">Abrindo balanço calórico…</div>
+            ) : calorieBalanceEnabled ? (
+              <CalorieBalancePage />
+            ) : (
+              <Navigate to="/mais" replace />
+            )
+          }
+        />
         <Route path="medicamentos" element={<MedicationPage />} />
         <Route path="hidratacao" element={<HydrationPage />} />
         <Route path="habitos" element={<HabitsPage />} />

@@ -15,6 +15,7 @@ import { Layout } from "../components/Layout";
 import { emptyData, todayIsoDate, type AppData } from "../domain/data";
 import { AppDataProvider, useAppData } from "../state/AppDataContext";
 import { loadData, saveData } from "../storage/indexedDb";
+import { reportClientError } from "../observability/client";
 import { DriveBackup } from "./DriveBackup";
 import { DriveSyncProvider } from "./DriveSyncContext";
 import { downloadJson } from "./download";
@@ -28,6 +29,7 @@ import {
   renewGoogle,
   uploadDriveSnapshot,
   GoogleReconnectRequiredError,
+  GoogleDriveHttpError,
   type DriveSnapshot,
 } from "./google";
 
@@ -46,6 +48,7 @@ vi.mock("./google", async (importOriginal) => {
   };
 });
 vi.mock("./download", () => ({ downloadJson: vi.fn() }));
+vi.mock("../observability/client", () => ({ reportClientError: vi.fn() }));
 
 const account = {
   id: "account-1",
@@ -141,7 +144,7 @@ beforeEach(async () => {
       createdTime: new Date(Date.now() + snapshots.length).toISOString(),
     };
     snapshots.unshift(saved);
-    expect(data.schemaVersion).toBe(6);
+    expect(data.schemaVersion).toBe(7);
     return saved;
   });
   vi.mocked(downloadDriveSnapshot).mockReset();
@@ -425,7 +428,7 @@ describe("login e sincronização automática", () => {
   it("restaura o Drive no primeiro acesso de um navegador vazio", async () => {
     const remote: AppData = {
       ...emptyData(),
-      profile: { displayName: "Ana", heightCm: 168 },
+      profile: { ...emptyData().profile, displayName: "Ana", heightCm: 168 },
     };
     snapshots.push({ id: "remote-1", createdTime: new Date().toISOString() });
     vi.mocked(downloadDriveSnapshot).mockResolvedValue(remote);
@@ -544,7 +547,7 @@ describe("login e sincronização automática", () => {
     local.profile.displayName = "Local";
     const remote: AppData = {
       ...emptyData(),
-      profile: { displayName: "Drive", heightCm: null },
+      profile: { ...emptyData().profile, displayName: "Drive", heightCm: null },
     };
     await saveData(local, account.id);
     snapshots.push({ id: "remote-1", createdTime: new Date().toISOString() });
@@ -615,6 +618,38 @@ describe("login e sincronização automática", () => {
     expect(snapshots.map(({ id: snapshotId }) => snapshotId)).toContain(
       "remote-1",
     );
+  });
+
+  it("registra somente o status HTTP de uma falha ao juntar versões", async () => {
+    const local = emptyData();
+    local.profile.displayName = "Local";
+    const remote = emptyData();
+    remote.profile.displayName = "Drive";
+    await saveData(local, account.id);
+    snapshots.push({ id: "remote-1", createdTime: new Date().toISOString() });
+    vi.mocked(downloadDriveSnapshot).mockResolvedValue(remote);
+    vi.mocked(listDriveSnapshots)
+      .mockImplementationOnce(async () => [...snapshots])
+      .mockRejectedValueOnce(new GoogleDriveHttpError("Falha simulada", 503));
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Entrar com Google para sincronizar",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Juntar registros" }),
+    );
+    await waitFor(() =>
+      expect(reportClientError).toHaveBeenCalledWith(
+        "drive",
+        "drive_sync_failed",
+        "drive_merge",
+        503,
+      ),
+    );
+    expect((await loadData(account.id)).profile.displayName).toBe("Local");
   });
 
   it("permite juntar registros sem conta a uma conta que já tem dados no Drive", async () => {

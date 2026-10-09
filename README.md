@@ -7,13 +7,13 @@ Biorotina é um aplicativo web gratuito, feito primeiro para celular, para acomp
 ## Dados sob controle da pessoa
 
 - Uso inicial sem conta, com dados guardados localmente no navegador.
-- Exportação e importação de arquivo JSON para cópia e recuperação dos registros.
+- Exportação e importação de arquivo JSON para cópia e recuperação dos registros. Antes de importar, a tela compara o arquivo com os dados deste navegador e mostra o que será substituído.
 - Sincronização opcional com o **Google Drive da própria pessoa** para usar os dados em outro navegador ou dispositivo.
 - Registros locais separados por conta Google. Ao sair, o app apaga os dados e a chave pessoal deste navegador; se houver alterações pendentes, oferece esperar, baixar JSON ou apagar sem backup.
 - Sem banco de dados central de registros de saúde operado pelo projeto; o serviço de avisos guarda dados técnicos da inscrição e horários. O plano de IA guarda somente estado da assinatura e uso diário.
 - Métricas de acesso e diagnósticos de erros opcionais, sem publicidade e sem envio de registros de saúde. Um aviso breve permite aceitar ou recusar; a escolha pode ser alterada em Configurações.
 
-O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação têm a ação **Repetir**, que prepara um novo registro sem salvá-lo automaticamente, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; a entrega agendada foi confirmada em iPhone e Android.
+O armazenamento local, a cópia JSON e a sincronização automática opcional com o Drive já funcionam. Os históricos permitem excluir registros com opção de **Desfazer** enquanto o app está aberto; Peso, Atividade e Alimentação têm a ação **Repetir**, que prepara um novo registro sem salvá-lo automaticamente, e Hidratação permite repetir o volume em um toque. Na tela de atividades, os atalhos priorizam o que a pessoa já pratica. Hábitos mostra uma visão semanal dos dias com registros, com acesso ao histórico detalhado de cada dia. Medicamentos podem ser editados e ter vários registros de uso no mesmo dia; cada registro feito por engano pode ser removido. O envio Web Push usa consentimento por dispositivo e um serviço em Rust na AWS, inclusive quando a página está fechada; a entrega agendada foi confirmada em iPhone e Android.
 
 A tela **Hoje** permite escolher uma data para consultar o resumo e os registros daquele dia. **Registros por dia** mostra a lista completa das áreas na data escolhida, sem alterar os dados. No celular, a barra inferior oferece Hoje, Medidas, Atividade, Água e Mais.
 

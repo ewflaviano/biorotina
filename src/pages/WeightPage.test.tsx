@@ -1,13 +1,21 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { emptyData } from "../domain/data";
+import { emptyData, parseBackup } from "../domain/data";
 import { WeightPage } from "./WeightPage";
 
 const experiment = vi.hoisted(() => ({
   enabled: false,
   startAttempt: vi.fn(),
   finish: vi.fn(),
+  recordUse: vi.fn(),
 }));
 const storage = vi.hoisted(() => ({
   mutate: vi.fn(),
@@ -18,6 +26,7 @@ vi.mock("../experiments/ExperimentContext", () => ({
   useExperiment: () => ({
     enabled: () => experiment.enabled,
     startAttempt: experiment.startAttempt,
+    recordUse: experiment.recordUse,
   }),
 }));
 vi.mock("../state/AppDataContext", () => ({
@@ -26,7 +35,7 @@ vi.mock("../state/AppDataContext", () => ({
       ...emptyData(),
       weights: [
         {
-          id: "test-weight",
+          id: "00000000-0000-4000-8000-000000000002",
           weightKg: 70,
           measuredAt: "2026-09-27T12:00:00Z",
           createdAt: "2026-09-27T12:00:00Z",
@@ -41,8 +50,205 @@ vi.mock("../state/AppDataContext", () => ({
 beforeEach(() => {
   experiment.enabled = false;
   experiment.startAttempt.mockImplementation(() => experiment.finish);
+  experiment.recordUse.mockReset();
   storage.mutate.mockReset().mockResolvedValue(undefined);
   storage.removeWithUndo.mockReset().mockResolvedValue(undefined);
+});
+
+describe("dados do balanço em Medidas", () => {
+  it("salva idade e parâmetro no perfil incluído no backup", async () => {
+    experiment.enabled = true;
+    render(
+      <MemoryRouter>
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText("Idade em anos"), {
+      target: { value: "30" },
+    });
+    fireEvent.change(screen.getByLabelText("Parâmetro da fórmula"), {
+      target: { value: "female" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar dados" }));
+    await waitFor(() => expect(storage.mutate).toHaveBeenCalledOnce());
+    const updated = storage.mutate.mock.calls[0][0](emptyData());
+    expect(
+      parseBackup(JSON.parse(JSON.stringify(updated))).profile,
+    ).toMatchObject({
+      ageYears: 30,
+      formulaParameter: "female",
+    });
+  });
+
+  it("recusa idade fora da faixa sem persistir", () => {
+    experiment.enabled = true;
+    render(
+      <MemoryRouter>
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText("Idade em anos"), {
+      target: { value: "17" },
+    });
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Salvar dados" }).closest("form")!,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("18 e 100");
+    expect(storage.mutate).not.toHaveBeenCalled();
+  });
+});
+
+describe("atalho experimental no histórico de peso vazio", () => {
+  it("mantém o controle sem atalho", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-29" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByRole("button", { name: /Ver medidas de/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("abre o último dia anterior com medida e registra o uso", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-29" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Ver medidas de 27 de setembro de 2026",
+      }),
+    );
+    expect(screen.getByText("70 kg")).toBeInTheDocument();
+    expect(screen.getByLabelText("Data do histórico de medidas")).toHaveFocus();
+    expect(
+      screen.queryByRole("button", { name: /Ver medidas de/ }),
+    ).not.toBeInTheDocument();
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "weight-history-last-day-shortcut",
+    );
+  });
+
+  it("não oferece atalho quando só há medida posterior", () => {
+    experiment.enabled = true;
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-26" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByRole("button", { name: /Ver medidas de/ }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("edição experimental do histórico de peso", () => {
+  it("mantém o controle sem ação de edição", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("button", { name: /Editar peso de/ })).toBeNull();
+  });
+
+  it("pré-preenche e salva a mesma medida, mantendo foco e sem alterar novos registros", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    const edit = screen.getByRole("button", { name: /Editar peso de/ });
+    await user.click(edit);
+    const editForm = screen.getByRole("form", {
+      name: "Editar medida de peso",
+    });
+    const input = within(editForm).getByLabelText("Peso em kg");
+    expect(input).toHaveValue("70");
+    expect(input).toHaveFocus();
+    expect(experiment.recordUse).toHaveBeenCalledWith("weight-history-edit");
+    await user.clear(input);
+    await user.type(input, "71,5");
+    await user.type(
+      within(editForm).getByLabelText(/Observação/),
+      " corrigida",
+    );
+    await user.click(
+      within(editForm).getByRole("button", { name: "Salvar alteração" }),
+    );
+    expect(
+      await screen.findByText("Medida atualizada no histórico."),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(edit).toHaveFocus());
+    const data = emptyData();
+    data.weights = [
+      {
+        id: "00000000-0000-4000-8000-000000000002",
+        weightKg: 70,
+        measuredAt: "2026-09-27T12:00:00Z",
+        createdAt: "2026-09-27T12:00:00Z",
+        note: "",
+      },
+    ];
+    const updated = storage.mutate.mock.calls[0][0](data);
+    expect(updated.weights).toEqual([
+      { ...data.weights[0], weightKg: 71.5, note: "corrigida" },
+    ]);
+    expect(experiment.startAttempt).toHaveBeenCalledWith("weight-history-edit");
+    expect(experiment.finish).toHaveBeenCalledWith("success");
+  });
+
+  it("preserva o rascunho após falha e restaura foco ao cancelar", async () => {
+    experiment.enabled = true;
+    storage.mutate.mockRejectedValueOnce(new Error("Falha simulada"));
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    const edit = screen.getByRole("button", { name: /Editar peso de/ });
+    await user.click(edit);
+    const editForm = screen.getByRole("form", {
+      name: "Editar medida de peso",
+    });
+    const input = within(editForm).getByLabelText("Peso em kg");
+    await user.clear(input);
+    await user.type(input, "72");
+    await user.click(
+      within(editForm).getByRole("button", { name: "Salvar alteração" }),
+    );
+    expect(await within(editForm).findByRole("alert")).toHaveTextContent(
+      "Falha simulada",
+    );
+    expect(input).toHaveValue("72");
+    expect(
+      screen.queryByText("Medida atualizada no histórico."),
+    ).not.toBeInTheDocument();
+    await user.click(
+      within(editForm).getByRole("button", { name: "Cancelar" }),
+    );
+    expect(edit).toHaveFocus();
+    expect(experiment.finish).toHaveBeenCalledWith("error");
+  });
 });
 
 const form = () =>
@@ -56,7 +262,13 @@ async function save(user: ReturnType<typeof userEvent.setup>) {
 describe("confirmação experimental do formulário de peso", () => {
   it("mantém controle sem confirmação e mede a tentativa concluída", async () => {
     const user = userEvent.setup();
-    render(<WeightPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     await save(user);
     expect(storage.mutate).toHaveBeenCalledOnce();
     expect(form().queryByRole("status")).not.toBeInTheDocument();
@@ -75,7 +287,13 @@ describe("confirmação experimental do formulário de peso", () => {
       }),
     );
     const user = userEvent.setup();
-    const view = render(<WeightPage />);
+    const view = render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     await save(user);
     const button = screen.getByRole("button", { name: "Salvando…" });
     expect(button).toHaveAttribute("aria-disabled", "true");
@@ -93,14 +311,26 @@ describe("confirmação experimental do formulário de peso", () => {
     expect(screen.getByLabelText("Peso em kg")).toHaveValue("");
     expect(experiment.finish).toHaveBeenCalledWith("success");
     experiment.enabled = false;
-    view.rerender(<WeightPage />);
+    view.rerender(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     expect(form().queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("limpa ao editar e não confirma falha após sucesso", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
-    render(<WeightPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     await save(user);
     expect(await screen.findByText(confirmation)).toBeInTheDocument();
     await user.type(screen.getByLabelText("Peso em kg"), "71");
@@ -118,7 +348,13 @@ describe("confirmação experimental do formulário de peso", () => {
   it("mede validação recusada sem persistir ou anunciar sucesso", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
-    render(<WeightPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     await user.type(screen.getByLabelText("Peso em kg"), "-1");
     await user.click(screen.getByRole("button", { name: "Salvar medida" }));
     expect(await screen.findByRole("alert")).toBeInTheDocument();
@@ -130,16 +366,28 @@ describe("confirmação experimental do formulário de peso", () => {
   it("limpa sucesso ao editar nota, repetir e excluir", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
-    render(<WeightPage />);
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
     await save(user);
     await user.type(screen.getByLabelText(/Observação/), "teste");
     expect(screen.queryByText(confirmation)).not.toBeInTheDocument();
     await save(user);
+    fireEvent.change(screen.getByLabelText("Data do histórico de medidas"), {
+      target: { value: "2026-09-27" },
+    });
     await user.click(screen.getByRole("button", { name: /Repetir peso/ }));
     expect(screen.queryByText(confirmation)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Peso em kg")).toHaveFocus();
     await user.click(screen.getByRole("button", { name: "Salvar medida" }));
     expect(await screen.findByText(confirmation)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Data do histórico de medidas"), {
+      target: { value: "2026-09-27" },
+    });
     await user.click(screen.getByRole("button", { name: /Excluir peso/ }));
     await waitFor(() => expect(storage.removeWithUndo).toHaveBeenCalledOnce());
     expect(screen.queryByText(confirmation)).not.toBeInTheDocument();

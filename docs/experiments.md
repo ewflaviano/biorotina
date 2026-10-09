@@ -1,5 +1,32 @@
 # Experimentos e liberação gradual
 
+## Balanço calórico diário experimental (#117)
+
+`calorie-balance-daily`, revisão 2, controla o link em Mais, o acesso na barra
+lateral do desktop e a rota `/balanco-calorico`.
+A tela consulta apenas os registros locais do dia selecionado. A equação
+Mifflin–St Jeor estima gasto em repouso com o último peso registrado até o dia,
+altura do perfil, idade adulta e parâmetro feminino/masculino salvos em Medidas.
+Idade e parâmetro ficam no perfil local, entram no backup JSON e sincronizam
+diretamente com o Drive quando a pessoa optar por isso. Backups da versão 6
+migram para a versão 7 com esses campos vazios. O cálculo usa somente calorias
+registradas nas refeições e a parcela acima de 1 MET das atividades estimadas;
+calorias manuais de atividades não entram, pois não distinguem gasto bruto e
+adicional. Refeições sem calorias
+e atividades excluídas aparecem como lacunas. Sem refeição com valor não há
+diferença numérica. A diferença é parcial e não representa déficit real,
+orientação clínica ou meta. A interface não faz recomendações alimentares.
+
+Fonte da equação: [Mifflin et al. (1990)](https://pubmed.ncbi.nlm.nih.gov/2305711/).
+Fonte do uso de MET: [Compêndio de Atividades Físicas para Adultos](https://pacompendium.com/adult-compendium/).
+Não há dependência nova nem envio de dados de saúde ao backend próprio.
+As métricas consentidas registram exposição ao abrir Mais no celular ou ao
+exibir a barra lateral no desktop, nos dois braços,
+uso do link e navegação por dias no braço experimental, apenas com chave,
+revisão, braço, origem da adesão e evento técnico. O kill switch desliga link
+e rota. Revisar compreensão do caráter parcial e eventuais falhas de cálculo
+antes de ampliar a exposição.
+
 Cada experimento entra no registro tipado `src/experiments/registry.ts` com
 issue, hipótese, responsável, revisão e condição de remoção. Configuração
 remota só opera chaves conhecidas. A infraestrutura de coortes/medição foi
@@ -44,8 +71,19 @@ Pessoas conectadas podem usar
 sinaliza `forced` somente após validar sessão. Anônimos não forçam o gate;
 um kill switch sempre vence, inclusive para participantes forçados. É possível
 aderir sem configuração remota; falha de leitura/configuração inválida desliga
-inclusive a adesão. Tráfego forçado é excluído das métricas comparativas.
+inclusive a adesão. Tráfego forçado aparece no relatório como participação
+manual, separado dos grupos sorteados.
 O header não é guardado em dados pessoais, backups ou logs.
+
+Em Configurações, **Programa beta** guarda uma preferência somente nesta
+instalação. Ao ativá-la, a pessoa participa de todos os experimentos de
+interface por navegador que estejam habilitados, mesmo fora da porcentagem
+sorteada. Configuração ausente/inválida, recurso desabilitado e kill switch
+continuam desligados. Experimentos de conta e operações protegidas no servidor
+não mudam. A preferência não vai para backup, Drive ou backend. Sair do programa
+restaura o sorteio persistente do navegador. Exposição e ações consentidas
+entram no relatório como participação manual; não se inferem resultados A/B
+dessa população autoselecionada.
 
 ## Configuração e rollback
 
@@ -76,11 +114,14 @@ prazos e condições de remoção seguem no registro tipado.
 ## Medição consentida na AWS
 
 `POST /api/telemetry/experiment` aceita somente `experiment`, `revision`, `arm`
-(`control`/`experiment`), `outcome` e `environment`. Chaves e resultados são
+(`control`/`experiment`), `outcome`, `environment` e `manual` booleano
+(opcional para clientes anteriores). Chaves e resultados são
 enums fechados; revisão limitada; corpo máximo de 512 bytes. Não envia cookie,
 ID de conta/navegador, número sorteado, valor/data de registro, rota, erro livre
 ou dados de saúde. O backend escreve somente essas dimensões e campos fixos
-`kind=experiment_metric` e `service=frontend`, com retenção de 14 dias.
+`service=frontend` e `kind=experiment_metric` ou
+`kind=experiment_metric_manual`, com retenção de 14 dias. O último identifica
+testes por adesão beta ou header, sem identificar quem participou.
 
 Sem consentimento de métricas, nada é enviado. Revogar interrompe novos envios.
 Aceitar depois registra apenas a exposição atual, sem recuperar ações passadas.
@@ -95,6 +136,7 @@ de melhor esforço, não um ledger confiável de operações.
   atalhos; peso cobre o formulário de Medidas; atividades cobre o formulário de
   Atividades e o formulário de Hábitos; onboarding usa a página inicial elegível à decisão de instalação.
   A consulta diária cobre apenas datas vazias com dia anterior ou posterior registrado, conforme a chave.
+  O atalho do histórico de peso cobre apenas um dia sem medidas com medida anterior.
   Atribuir uma configuração em outra página não conta como exposição.
 - `success`/`error`: resultado de cada tentativa concluída de salvar pelo
   formulário de água/peso/atividades/hábitos ou atalho/repetição de água, em ambos os braços. Erro inclui validação e
@@ -109,7 +151,10 @@ de melhor esforço, não um ledger confiável de operações.
   administrativos de rollback.
 
 Taxa de sucesso = success / (success + error), calculada separadamente por
-chave/revisão/braço no mesmo período. Exposição é contagem de carregamentos
+chave/revisão/origem da participação/braço no mesmo período. A origem é
+`randomized` ou `manual`; somente grupos sorteados servem para comparar braços.
+Os testes manuais ajudam a observar uso e erros, mas são autoselecionados.
+Exposição é contagem de carregamentos
 observados, não usuários únicos. Repetição de visitas, consentimento, bloqueios,
 limites, atraso de ingestão e múltiplos dispositivos afetam as contagens.
 Não inferir causalidade com amostra insuficiente nem tratar falta de eventos
@@ -125,7 +170,7 @@ AWS_PROFILE=biorotina AWS_REGION=sa-east-1 npm run report-experiments -- \
   --since 2026-09-26T00:00:00Z --until 2026-09-27T00:00:00Z
 ```
 
-Retorna JSON agregado por chave/revisão/braço: exposure, success, error, use,
+Retorna JSON agregado por chave/revisão/origem/braço: exposure, success, error, use,
 rollback, completedAttempts e successRate (null sem tentativas concluídas).
 Padrão: últimas 24 horas, ambiente production. `--environment development`
 separa ensaios sintéticos; janela máxima 14 dias. A consulta nunca retorna
@@ -197,3 +242,74 @@ revisão. O uso do botão sozinho não demonstra causalidade; validar compreens�
 e acessibilidade antes de ampliar. Promover ou remover após sete dias; sem
 evidência suficiente, desligar. Interromper por navegação incorreta ou
 regressão de privacidade ou acessibilidade.
+
+## Atalho no histórico de peso vazio — #96
+
+`weight-history-last-day-shortcut`, revisão 1, responsável Biorotina, revisão
+até 11/10/2026: quando o dia escolhido em Medidas não tem medidas e há uma
+medida anterior, oferece um botão para consultar o último dia com medida. O
+controle mantém a escolha manual da data. Sem configuração remota, permanece
+desligado; adesão de teste autenticada e kill switch seguem as regras acima.
+Após deploy, iniciar em 5%. Medir exposições consentidas dos dois braços na
+condição elegível, `use` no clique, erros e rollback na mesma revisão. Não
+enviar datas nem valores de medidas na telemetria. Promover ou remover após
+sete dias conforme uso e avaliação de acessibilidade; sem evidência suficiente,
+desligar. Interromper por navegação incorreta ou regressão de privacidade ou
+acessibilidade.
+
+## Limpeza da busca vazia em medicamentos — #109
+
+`medication-history-clear-search`, revisão 1, responsável Biorotina, revisar
+até 14/10/2026: quando o histórico do dia contém usos, mas a busca não encontra
+um nome, move a ação de limpar para o estado vazio e restaura a lista com foco no campo. Controle
+mantém a instrução atual. Sem configuração remota, fica desligado; adesão
+autenticada e kill switch seguem as regras acima. Após deploy, iniciar em 5%.
+Medir exposição consentida dos dois braços somente no vazio elegível, `use`
+no clique, erros e rollback na mesma revisão. Não enviar texto buscado, nomes
+ou registros. Promover ou remover após sete dias conforme uso e avaliação de
+acessibilidade; sem dados suficientes, desligar. Interromper por foco incorreto,
+perda de dados ou vazamento de busca.
+
+## Limpeza da busca vazia em atividades — #122
+
+`activity-history-clear-search`, revisão 1, responsável Biorotina, revisar
+até 15/10/2026: quando há atividades no dia mas a busca não encontra nenhuma,
+a variante oferece uma ação única junto ao resultado vazio, restaura a lista e
+foca o campo. O controle mantém a ação acima do resumo. Sem configuração remota,
+permanece no controle; testes conectados podem usar o header de força. Após o
+deploy, iniciar em 5% com kill switch disponível. Medir exposição consentida
+nos dois braços somente no vazio elegível, `use` no clique da variante, erros e
+rollback na mesma revisão. Não enviar busca, nomes ou registros. Promover ou
+remover após sete dias conforme uso e avaliação de acessibilidade; sem dados
+suficientes, desligar. Interromper por foco incorreto, perda da lista ou
+vazamento da busca.
+
+## Limpeza da busca vazia em refeições — #124
+
+`food-history-clear-search`, revisão 1, responsável Biorotina, revisar até
+16/10/2026: quando há refeições no dia mas a busca não encontra nenhuma, a
+variante oferece uma ação única junto ao resultado vazio, restaura a lista e
+foca o campo. O controle mantém a ação no campo. Sem configuração remota,
+permanece no controle; testes conectados podem usar o header de força. Após o
+deploy, iniciar em 5% com kill switch disponível. Medir exposição consentida
+nos dois braços somente no vazio elegível, `use` no clique da variante, erros e
+rollback na mesma revisão. Não enviar busca, nomes ou registros. Promover ou
+remover após sete dias conforme uso e avaliação de acessibilidade; sem dados
+suficientes, desligar. Interromper por foco incorreto, perda da lista ou
+vazamento da busca.
+
+## Refeição na barra inferior móvel — #112
+
+`mobile-nav-meal-priority`, revisão 2, liberado a 100% em 07/10/2026,
+responsável Biorotina, revisar até
+14/10/2026: testa Hoje, Atividade, Refeição, Água e Mais na barra inferior do
+celular, com Medidas em Mais. O controle mantém Hoje, Medidas, Atividade, Água e
+Mais, com Alimentação em Mais. A barra lateral do desktop e as rotas não mudam.
+Sem configuração remota, fica no controle; iniciar em 50% após o deploy do
+frontend e da API, com kill switch disponível. Medir exposição consentida dos
+dois braços somente quando a barra móvel está visível e `use` no toque em Mais,
+sem enviar rota, registro ou dado de saúde. O uso de Mais isoladamente não mede
+a facilidade de navegação; validar com pessoas e leitor de tela antes de
+promover. Promover ou remover após sete dias; sem evidência suficiente,
+desligar. Interromper por navegação incorreta, perda de acesso a Medidas ou
+regressão de acessibilidade.

@@ -1,22 +1,36 @@
 import {
   Apple,
+  ChartNoAxesCombined,
   ArrowRight,
   HeartHandshake,
   Pill,
+  Scale,
   Settings2,
   Smartphone,
   Sprout,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/Layout";
+import {
+  useExperiment,
+  useExperimentExposure,
+} from "../experiments/ExperimentContext";
 
-const links = [
-  {
-    to: "/alimentacao",
-    label: "Alimentação",
-    detail: "Refeições e histórico",
-    icon: Apple,
-  },
+const mealLink = {
+  to: "/alimentacao",
+  label: "Alimentação",
+  detail: "Refeições e histórico",
+  icon: Apple,
+};
+
+const weightLink = {
+  to: "/peso",
+  label: "Medidas",
+  detail: "Peso, altura e histórico",
+  icon: Scale,
+};
+
+const otherLinks = [
   {
     to: "/medicamentos",
     label: "Medicação",
@@ -50,6 +64,23 @@ const links = [
 ];
 
 export function MorePage() {
+  const experiment = useExperiment();
+  useExperimentExposure("calorie-balance-daily");
+  const mealInMobileNav = experiment.enabled("mobile-nav-meal-priority");
+  const links = [
+    mealInMobileNav ? weightLink : mealLink,
+    ...(experiment.enabled("calorie-balance-daily")
+      ? [
+          {
+            to: "/balanco-calorico",
+            label: "Balanço calórico",
+            detail: "Diferença parcial por dia · experimento",
+            icon: ChartNoAxesCombined,
+          },
+        ]
+      : []),
+    ...otherLinks,
+  ];
   return (
     <>
       <PageHeader
@@ -59,7 +90,16 @@ export function MorePage() {
       />
       <nav className="more-links" aria-label="Outras áreas">
         {links.map(({ to, label, detail, icon: Icon }) => (
-          <Link key={to} to={to} className="more-link">
+          <Link
+            key={to}
+            to={to}
+            className="more-link"
+            onClick={
+              to === "/balanco-calorico"
+                ? () => experiment.recordUse("calorie-balance-daily")
+                : undefined
+            }
+          >
             <span className="list-icon">
               <Icon size={22} aria-hidden="true" />
             </span>

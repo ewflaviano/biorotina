@@ -115,17 +115,26 @@ export const hydrationSchema = z
   })
   .strict();
 
+const profileV6Schema = z
+  .object({
+    displayName: z.string().max(80),
+    heightCm: z.number().positive().finite().nullable(),
+  })
+  .strict();
+
+const profileSchema = profileV6Schema
+  .extend({
+    ageYears: z.number().int().min(18).max(100).nullable(),
+    formulaParameter: z.enum(["female", "male"]).nullable(),
+  })
+  .strict();
+
 export const appDataSchema = z
   .object({
-    schemaVersion: z.literal(6),
+    schemaVersion: z.literal(7),
     revision: z.number().int().nonnegative(),
     updatedAt: z.string().datetime(),
-    profile: z
-      .object({
-        displayName: z.string().max(80),
-        heightCm: z.number().positive().finite().nullable(),
-      })
-      .strict(),
+    profile: profileSchema,
     weights: z.array(weightSchema),
     activities: z.array(activitySchema),
     meals: z.array(mealSchema),
@@ -141,7 +150,12 @@ export const appDataSchema = z
   })
   .strict();
 
-const appDataV5Schema = appDataSchema
+const appDataV6Schema = appDataSchema
+  .omit({ schemaVersion: true, profile: true })
+  .extend({ schemaVersion: z.literal(6), profile: profileV6Schema })
+  .strict();
+
+const appDataV5Schema = appDataV6Schema
   .omit({ schemaVersion: true, habits: true, habitLogs: true })
   .extend({ schemaVersion: z.literal(5) })
   .strict();
@@ -186,10 +200,15 @@ export type HydrationEntry = z.infer<typeof hydrationSchema>;
 
 export function emptyData(): AppData {
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     revision: 0,
     updatedAt: new Date().toISOString(),
-    profile: { displayName: "", heightCm: null },
+    profile: {
+      displayName: "",
+      heightCm: null,
+      ageYears: null,
+      formulaParameter: null,
+    },
     weights: [],
     activities: [],
     meals: [],
@@ -209,15 +228,17 @@ export function parseBackup(input: unknown): AppData {
     "schemaVersion" in input &&
     input.schemaVersion === 1
   ) {
-    return migrateV5(
-      migrateV4(
-        migrateV3(
-          migrateV2({
-            ...appDataV1Schema.parse(input),
-            schemaVersion: 2,
-            hydrationEntries: [],
-            hydrationReminderTimes: [],
-          }),
+    return migrateV6(
+      migrateV5(
+        migrateV4(
+          migrateV3(
+            migrateV2({
+              ...appDataV1Schema.parse(input),
+              schemaVersion: 2,
+              hydrationEntries: [],
+              hydrationReminderTimes: [],
+            }),
+          ),
         ),
       ),
     );
@@ -228,8 +249,8 @@ export function parseBackup(input: unknown): AppData {
     "schemaVersion" in input &&
     input.schemaVersion === 2
   ) {
-    return migrateV5(
-      migrateV4(migrateV3(migrateV2(appDataV2Schema.parse(input)))),
+    return migrateV6(
+      migrateV5(migrateV4(migrateV3(migrateV2(appDataV2Schema.parse(input))))),
     );
   }
   if (
@@ -238,7 +259,9 @@ export function parseBackup(input: unknown): AppData {
     "schemaVersion" in input &&
     input.schemaVersion === 3
   ) {
-    return migrateV5(migrateV4(migrateV3(appDataV3Schema.parse(input))));
+    return migrateV6(
+      migrateV5(migrateV4(migrateV3(appDataV3Schema.parse(input)))),
+    );
   }
   if (
     input !== null &&
@@ -246,14 +269,21 @@ export function parseBackup(input: unknown): AppData {
     "schemaVersion" in input &&
     input.schemaVersion === 4
   )
-    return migrateV5(migrateV4(appDataV4Schema.parse(input)));
+    return migrateV6(migrateV5(migrateV4(appDataV4Schema.parse(input))));
   if (
     input !== null &&
     typeof input === "object" &&
     "schemaVersion" in input &&
     input.schemaVersion === 5
   )
-    return migrateV5(appDataV5Schema.parse(input));
+    return migrateV6(migrateV5(appDataV5Schema.parse(input)));
+  if (
+    input !== null &&
+    typeof input === "object" &&
+    "schemaVersion" in input &&
+    input.schemaVersion === 6
+  )
+    return migrateV6(appDataV6Schema.parse(input));
   return appDataSchema.parse(input);
 }
 
@@ -297,12 +327,26 @@ function migrateV4(
   };
 }
 
-function migrateV5(input: z.infer<typeof appDataV5Schema>): AppData {
+function migrateV5(
+  input: z.infer<typeof appDataV5Schema>,
+): z.infer<typeof appDataV6Schema> {
   return {
     ...input,
     schemaVersion: 6,
     habits: [],
     habitLogs: [],
+  };
+}
+
+function migrateV6(input: z.infer<typeof appDataV6Schema>): AppData {
+  return {
+    ...input,
+    schemaVersion: 7,
+    profile: {
+      ...input.profile,
+      ageYears: null,
+      formulaParameter: null,
+    },
   };
 }
 

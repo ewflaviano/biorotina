@@ -15,17 +15,25 @@ import {
   type ExperimentKey,
 } from "./registry";
 import {
+  browserBucket,
   resolveAssignments,
   type Assignment,
   type Assignments,
 } from "./assignment";
 import { metricsAllowed, recordExperimentMetric } from "./metrics";
+import {
+  readBetaTesterPreference,
+  writeBetaTesterPreference,
+} from "./betaTester";
 
 const API = (import.meta.env.VITE_PUSH_API_URL || "").replace(/\/$/, "");
 const LOCAL_MODE = import.meta.env.VITE_BIOROTINA_LOCAL_MODE === "true";
 const LOCAL_FORCE = import.meta.env.VITE_BIOROTINA_LOCAL_FORCE_EXPERIMENT;
 type FinishAttempt = (outcome: "success" | "error") => void;
 interface ExperimentValue {
+  ready: boolean;
+  betaTester: boolean;
+  setBetaTester: (enabled: boolean) => boolean;
   enabled: (key: ExperimentKey) => boolean;
   recordUse: (key: ExperimentKey) => void;
   recordExposure: (key: ExperimentKey) => boolean;
@@ -34,6 +42,9 @@ interface ExperimentValue {
 }
 const Context = createContext<ExperimentValue | null>(null);
 const disabledExperiments: ExperimentValue = {
+  ready: true,
+  betaTester: false,
+  setBetaTester: () => false,
   enabled: () => false,
   recordUse: () => undefined,
   recordExposure: () => false,
@@ -43,7 +54,7 @@ const disabledExperiments: ExperimentValue = {
   },
 };
 const exposureId = (key: ExperimentKey, a: Assignment) =>
-  `${key}:${a.revision}:${a.arm}`;
+  `${key}:${a.revision}:${a.arm}:${a.forced ? "manual" : "randomized"}`;
 function headers() {
   const result = new Headers();
   if (LOCAL_MODE && LOCAL_FORCE)
@@ -54,10 +65,13 @@ function headers() {
 export function ExperimentProvider({ children }: { children: ReactNode }) {
   const { account } = useDriveSync();
   const accountId = account?.id ?? null;
+  const [betaTester, setBetaTesterState] = useState(readBetaTesterPreference);
   const [state, setState] = useState<{
     assignments: Assignments;
     accountId: string | null;
-  }>({ assignments: {}, accountId: null });
+    betaTester: boolean;
+    loaded: boolean;
+  }>({ assignments: {}, accountId: null, betaTester, loaded: false });
   const previous = useRef<Assignments>({});
   const exposed = useRef(new Set<string>());
 
@@ -84,6 +98,8 @@ export function ExperimentProvider({ children }: { children: ReactNode }) {
           assignments = await resolveAssignments(
             await response.json(),
             accountId !== null,
+            browserBucket,
+            betaTester,
           );
       } catch {
         /* Failed refresh disables experiments, without unhandled rejections. */
@@ -99,7 +115,7 @@ export function ExperimentProvider({ children }: { children: ReactNode }) {
             recordExperimentMetric(key, old, "rollback");
         }
         previous.current = assignments;
-        setState({ assignments, accountId });
+        setState({ assignments, accountId, betaTester, loaded: true });
       }
       pending = false;
     };
@@ -110,10 +126,17 @@ export function ExperimentProvider({ children }: { children: ReactNode }) {
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [accountId]);
+  }, [accountId, betaTester]);
+
+  const setBetaTester = useCallback((enabled: boolean) => {
+    if (!writeBetaTesterPreference(enabled)) return false;
+    setBetaTesterState(enabled);
+    return true;
+  }, []);
 
   const assignmentFor = useCallback(
     (key: ExperimentKey) => {
+      if (state.betaTester !== betaTester) return undefined;
       const assignment = state.assignments[key];
       if (
         (assignment?.forced ||
@@ -123,7 +146,7 @@ export function ExperimentProvider({ children }: { children: ReactNode }) {
         return undefined;
       return assignment;
     },
-    [state, accountId],
+    [state, accountId, betaTester],
   );
   const enabled = useCallback(
     (key: ExperimentKey) => assignmentFor(key)?.arm === "experiment",
@@ -134,7 +157,6 @@ export function ExperimentProvider({ children }: { children: ReactNode }) {
       const assignment = assignmentFor(key);
       if (
         !assignment ||
-        assignment.forced ||
         !metricsAllowed() ||
         document.visibilityState === "hidden"
       )
@@ -192,7 +214,19 @@ export function ExperimentProvider({ children }: { children: ReactNode }) {
 
   return (
     <Context.Provider
-      value={{ enabled, recordUse, recordExposure, startAttempt, confirmDemo }}
+      value={{
+        ready:
+          (!API || state.loaded) &&
+          state.accountId === accountId &&
+          state.betaTester === betaTester,
+        betaTester,
+        setBetaTester,
+        enabled,
+        recordUse,
+        recordExposure,
+        startAttempt,
+        confirmDemo,
+      }}
     >
       {children}
     </Context.Provider>

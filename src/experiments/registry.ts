@@ -106,6 +106,116 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por navegação incorreta ou regressão de privacidade ou acessibilidade.",
   },
+  "weight-history-edit": {
+    assignment: "browser",
+    description:
+      "Permite corrigir uma medida de peso diretamente no histórico.",
+    owner: "Biorotina",
+    issue: 92,
+    revision: 1,
+    reviewBy: "2026-10-10",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por perda de dados, falha de persistência ou acessibilidade.",
+  },
+  "weight-history-last-day-shortcut": {
+    assignment: "browser",
+    description:
+      "Oferece o último dia com medida anterior quando o histórico de peso selecionado está vazio.",
+    owner: "Biorotina",
+    issue: 96,
+    revision: 1,
+    reviewBy: "2026-10-11",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por navegação incorreta ou regressão de privacidade ou acessibilidade.",
+  },
+  "hydration-history-last-day-shortcut": {
+    assignment: "browser",
+    description:
+      "Oferece o último dia anterior com água quando o histórico selecionado está vazio.",
+    owner: "Biorotina",
+    issue: 100,
+    revision: 1,
+    reviewBy: "2026-10-12",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por navegação incorreta ou regressão de privacidade ou acessibilidade.",
+  },
+  "habit-history-clear-search": {
+    assignment: "browser",
+    description:
+      "Oferece limpar a busca junto ao resultado vazio no histórico de hábitos.",
+    owner: "Biorotina",
+    issue: 102,
+    revision: 1,
+    reviewBy: "2026-10-13",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por foco incorreto, perda de dados ou envio do texto buscado à telemetria.",
+  },
+  "medication-history-clear-search": {
+    assignment: "browser",
+    description:
+      "Oferece limpar a busca junto ao resultado vazio no histórico de medicamentos.",
+    owner: "Biorotina",
+    issue: 109,
+    revision: 1,
+    reviewBy: "2026-10-14",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por foco incorreto, perda de dados ou envio da busca à telemetria.",
+  },
+  "activity-history-clear-search": {
+    assignment: "browser",
+    description:
+      "Oferece limpar a busca junto ao resultado vazio no histórico de atividades.",
+    owner: "Biorotina",
+    issue: 122,
+    revision: 1,
+    reviewBy: "2026-10-15",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por foco incorreto, perda da lista ou envio da busca à telemetria.",
+  },
+  "food-history-clear-search": {
+    assignment: "browser",
+    description:
+      "Oferece limpar a busca junto ao resultado vazio no histórico de refeições.",
+    owner: "Biorotina",
+    issue: 124,
+    revision: 1,
+    reviewBy: "2026-10-16",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por foco incorreto, perda da lista ou envio da busca à telemetria.",
+  },
+  "food-daily-calories": {
+    assignment: "browser",
+    description:
+      "Mostra as calorias informadas no dia selecionado no histórico de refeições.",
+    owner: "Biorotina",
+    issue: 104,
+    revision: 1,
+    reviewBy: "2026-10-13",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por soma incorreta, leitura ambígua ou regressão de acessibilidade.",
+  },
+  "mobile-nav-meal-priority": {
+    assignment: "browser",
+    description:
+      "Testa Refeição na barra inferior do celular e Medidas em Mais.",
+    owner: "Biorotina",
+    issue: 112,
+    revision: 1,
+    reviewBy: "2026-10-14",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por navegação incorreta, perda de acesso a Medidas ou regressão de acessibilidade.",
+  },
+  "calorie-balance-daily": {
+    assignment: "browser",
+    description:
+      "Mostra a diferença parcial diária entre refeições e gastos estimados, com parâmetros salvos no perfil local.",
+    owner: "Biorotina",
+    issue: 117,
+    revision: 2,
+    reviewBy: "2026-10-15",
+    removeWhen:
+      "Revisar após sete dias; interromper se o cálculo induzir interpretação clínica, contar repouso duas vezes ou expuser dados pessoais.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;

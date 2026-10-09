@@ -1,5 +1,11 @@
 import { Ruler, Scale } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent,
+} from "react";
 import {
   bmi,
   bmiCategory,
@@ -16,9 +22,20 @@ import {
 import { EmptyState, Notice, PageHeader } from "../components/Layout";
 import { WeightTrend } from "../components/ProgressCharts";
 import { DateTimeField } from "../components/DateTimeField";
+import { formatCalendarDay } from "../domain/dailyRecords";
+import {
+  HistoryDayControls,
+  historyDayOf,
+  isOnHistoryDay,
+  useHistoryDay,
+} from "../components/HistoryDayControls";
 import { InfoDisclosure } from "../components/InfoDisclosure";
 import { useAppData } from "../state/AppDataContext";
-import { removeEntry, restoreEntry } from "../domain/recordActions";
+import {
+  editWeightEntry,
+  removeEntry,
+  restoreEntry,
+} from "../domain/recordActions";
 import {
   useExperiment,
   useExperimentExposure,
@@ -27,9 +44,12 @@ import type { WeightEntry } from "../domain/data";
 
 export function WeightPage() {
   const { data, mutate, removeWithUndo } = useAppData();
-  const { enabled, startAttempt } = useExperiment();
+  const [selectedDay, setSelectedDay] = useHistoryDay();
+  const { enabled, recordUse, startAttempt } = useExperiment();
   useExperimentExposure("weight-form-confirmation");
+  useExperimentExposure("weight-history-edit", data.weights.length > 0);
   const confirmWeight = enabled("weight-form-confirmation");
+  const canEditHistory = enabled("weight-history-edit");
   const [weightConfirmed, setWeightConfirmed] = useState(false);
   const [value, setValue] = useState("");
   const [height, setHeight] = useState(
@@ -41,10 +61,67 @@ export function WeightPage() {
   const [saving, setSaving] = useState(false);
   const [heightSaving, setHeightSaving] = useState(false);
   const [heightMessage, setHeightMessage] = useState("");
+  const profileAge = data.profile.ageYears?.toString() ?? "";
+  const profileParameter = data.profile.formulaParameter ?? "";
+  const [ageDraft, setAgeDraft] = useState({ profileAge, value: profileAge });
+  const [parameterDraft, setParameterDraft] = useState<{
+    profileParameter: "" | "female" | "male";
+    value: "" | "female" | "male";
+  }>({
+    profileParameter,
+    value: profileParameter,
+  });
+  const ageInput =
+    ageDraft.profileAge === profileAge ? ageDraft.value : profileAge;
+  const formulaParameter =
+    parameterDraft.profileParameter === profileParameter
+      ? parameterDraft.value
+      : profileParameter;
+  const [balanceSaving, setBalanceSaving] = useState(false);
+  const [balanceMessage, setBalanceMessage] = useState("");
+  const [balanceError, setBalanceError] = useState("");
   const [prefilled, setPrefilled] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [editingEntry, setEditingEntry] = useState<WeightEntry | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editWhen, setEditWhen] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [editError, setEditError] = useState("");
+  const [editDateInvalid, setEditDateInvalid] = useState(false);
+  const [editConfirmed, setEditConfirmed] = useState(false);
+  const editValueRef = useRef<HTMLInputElement>(null);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocusAfterEdit = useRef(false);
+  const focusDayAfterEdit = useRef(false);
+  const editingEntryId = editingEntry?.id;
+  useEffect(() => {
+    if (editingEntryId && canEditHistory) editValueRef.current?.focus();
+  }, [editingEntryId, canEditHistory]);
+  useEffect(() => {
+    if (returnFocusAfterEdit.current && !saving && !editingEntryId) {
+      editButtonRef.current?.focus();
+      returnFocusAfterEdit.current = false;
+    }
+  }, [saving, editingEntryId]);
+  useEffect(() => {
+    if (focusDayAfterEdit.current && !saving && !editingEntryId) {
+      document.getElementById("weight-history-date")?.focus();
+      focusDayAfterEdit.current = false;
+    }
+  }, [saving, editingEntryId, selectedDay]);
   const weights = [...data.weights].sort((a, b) =>
     b.measuredAt.localeCompare(a.measuredAt),
+  );
+  const historyWeights = weights.filter((item) =>
+    isOnHistoryDay(item.measuredAt, selectedDay),
+  );
+  const lastWeightDay = weights.reduce<string | null>((last, item) => {
+    const day = historyDayOf(item.measuredAt);
+    return day < selectedDay && (last === null || day > last) ? day : last;
+  }, null);
+  useExperimentExposure(
+    "weight-history-last-day-shortcut",
+    historyWeights.length === 0 && lastWeightDay !== null,
   );
   const latest = weights[0];
   const previous = weights[1];
@@ -84,6 +161,7 @@ export function WeightPage() {
       setNote("");
       setWhen(toLocalDateTime(new Date().toISOString()));
       setPrefilled(false);
+      setSelectedDay(historyDayOf(measuredAt));
       if (confirmWeight) setWeightConfirmed(true);
       finish("success");
     } catch (cause) {
@@ -126,6 +204,38 @@ export function WeightPage() {
     }
   }
 
+  async function saveBalanceProfile(event: FormEvent) {
+    event.preventDefault();
+    if (balanceSaving) return;
+    setBalanceError("");
+    setBalanceMessage("");
+    const trimmedAge = ageInput.trim();
+    const ageYears = trimmedAge === "" ? null : Number(trimmedAge);
+    if (
+      ageYears !== null &&
+      (!Number.isInteger(ageYears) || ageYears < 18 || ageYears > 100)
+    ) {
+      setBalanceError("Informe uma idade entre 18 e 100 anos.");
+      return;
+    }
+    setBalanceSaving(true);
+    try {
+      await mutate((current) => ({
+        ...current,
+        profile: {
+          ...current.profile,
+          ageYears,
+          formulaParameter: formulaParameter || null,
+        },
+      }));
+      setBalanceMessage("Dados salvos no perfil.");
+    } catch {
+      setBalanceError("Não foi possível salvar. Tente novamente.");
+    } finally {
+      setBalanceSaving(false);
+    }
+  }
+
   function repeatWeight(item: WeightEntry) {
     setWeightConfirmed(false);
     setValue(inputDecimal(item.weightKg));
@@ -138,6 +248,7 @@ export function WeightPage() {
 
   async function deleteWeight(item: WeightEntry) {
     setWeightConfirmed(false);
+    setEditConfirmed(false);
     setActionError("");
     try {
       await removeWithUndo(
@@ -147,6 +258,73 @@ export function WeightPage() {
       );
     } catch {
       setActionError("Não foi possível excluir o peso. Tente novamente.");
+    }
+  }
+
+  function startEditing(
+    item: WeightEntry,
+    event: MouseEvent<HTMLButtonElement>,
+  ) {
+    if (!canEditHistory) return;
+    recordUse("weight-history-edit");
+    editButtonRef.current = event.currentTarget;
+    setEditingEntry(item);
+    setEditValue(inputDecimal(item.weightKg));
+    setEditWhen(toLocalDateTime(item.measuredAt));
+    setEditNote(item.note);
+    setEditError("");
+    setEditDateInvalid(false);
+    setEditConfirmed(false);
+  }
+
+  function cancelEditing() {
+    setEditingEntry(null);
+    setEditError("");
+    editButtonRef.current?.focus();
+  }
+
+  async function saveEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!editingEntry || !canEditHistory || saving) return;
+    const finish = startAttempt("weight-history-edit");
+    setEditError("");
+    setSaving(true);
+    try {
+      if (editDateInvalid) throw new Error("Informe uma data válida.");
+      const weightKg = parseDecimal(editValue, "um peso");
+      if (weightKg > MAX_WEIGHT_KG)
+        throw new Error(
+          `Confira o peso: o máximo aceito é ${MAX_WEIGHT_KG} kg.`,
+        );
+      const measuredAt =
+        editWhen === toLocalDateTime(editingEntry.measuredAt)
+          ? editingEntry.measuredAt
+          : fromLocalDateTime(editWhen);
+      await mutate((current) =>
+        editWeightEntry(
+          current,
+          editingEntry,
+          weightKg,
+          measuredAt,
+          editNote.trim(),
+        ),
+      );
+      const nextDay = historyDayOf(measuredAt);
+      returnFocusAfterEdit.current = nextDay === selectedDay;
+      focusDayAfterEdit.current = nextDay !== selectedDay;
+      setSelectedDay(nextDay);
+      setEditingEntry(null);
+      setEditConfirmed(true);
+      finish("success");
+    } catch (cause) {
+      finish("error");
+      setEditError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível alterar a medida.",
+      );
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -169,7 +347,12 @@ export function WeightPage() {
               </span>
               <div>
                 <h2 id="altura">Sua altura</h2>
-                <p>Usamos essa medida apenas para calcular o IMC.</p>
+                <p>
+                  Usamos essa medida para calcular o IMC
+                  {enabled("calorie-balance-daily")
+                    ? " e o balanço calórico."
+                    : "."}
+                </p>
               </div>
             </div>
             <form onSubmit={saveHeight} className="measurement-height-form">
@@ -197,6 +380,74 @@ export function WeightPage() {
               </p>
             )}
           </section>
+          {enabled("calorie-balance-daily") && (
+            <section className="panel" aria-labelledby="dados-balanco">
+              <h2 id="dados-balanco">Dados do balanço calórico</h2>
+              <form
+                onSubmit={saveBalanceProfile}
+                className="form-grid balance-inputs"
+              >
+                <div className="field">
+                  <label htmlFor="balance-profile-age">Idade em anos</label>
+                  <input
+                    id="balance-profile-age"
+                    type="number"
+                    inputMode="numeric"
+                    min="18"
+                    max="100"
+                    step="1"
+                    value={ageInput}
+                    onChange={(event) => {
+                      setAgeDraft({ profileAge, value: event.target.value });
+                      setBalanceMessage("");
+                    }}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="balance-profile-parameter">
+                    Parâmetro da fórmula
+                  </label>
+                  <select
+                    id="balance-profile-parameter"
+                    value={formulaParameter}
+                    onChange={(event) => {
+                      setParameterDraft({
+                        profileParameter,
+                        value: event.target.value as "" | "female" | "male",
+                      });
+                      setBalanceMessage("");
+                    }}
+                  >
+                    <option value="">Não informado</option>
+                    <option value="female">Feminino</option>
+                    <option value="male">Masculino</option>
+                  </select>
+                </div>
+                <button className="button secondary" disabled={balanceSaving}>
+                  {balanceSaving ? "Salvando…" : "Salvar dados"}
+                </button>
+              </form>
+              {balanceError && (
+                <p className="form-error" role="alert">
+                  {balanceError}
+                </p>
+              )}
+              {balanceMessage && (
+                <p role="status" className="template-note">
+                  {balanceMessage}
+                </p>
+              )}
+              <InfoDisclosure label="Sobre estes dados">
+                <p>
+                  A equação de repouso usa estes dois parâmetros junto de peso e
+                  altura. A fórmula publicada oferece apenas as opções feminino
+                  e masculino; você pode deixar a seleção vazia. Os dados ficam
+                  no perfil local e entram no backup JSON e no Drive opcional.
+                  Atualize a idade quando necessário.
+                </p>
+              </InfoDisclosure>
+            </section>
+          )}
           <section className="panel" aria-labelledby="novo-peso">
             <h2 id="novo-peso">Registrar peso</h2>
             <p className="muted">Cada registro entra no seu histórico.</p>
@@ -275,16 +526,43 @@ export function WeightPage() {
             </form>
           </section>
           <section className="panel" aria-labelledby="historico-peso">
-            <h2 id="historico-peso">Histórico</h2>
+            <HistoryDayControls
+              title="Histórico"
+              headingId="historico-peso"
+              pickerId="weight-history-date"
+              pickerLabel="Data do histórico de medidas"
+              day={selectedDay}
+              onDayChange={(day) => {
+                setSelectedDay(day);
+                setEditingEntry(null);
+                setEditConfirmed(false);
+                returnFocusAfterEdit.current = false;
+                focusDayAfterEdit.current = false;
+              }}
+              summary={
+                weights.length
+                  ? `${historyWeights.length} medida${historyWeights.length === 1 ? "" : "s"} exibida${historyWeights.length === 1 ? "" : "s"}`
+                  : undefined
+              }
+            />
+            {canEditHistory && (
+              <p role="status" aria-atomic="true" className="small muted">
+                {editConfirmed ? "Medida atualizada no histórico." : ""}
+              </p>
+            )}
             {actionError && (
               <p className="form-error" role="alert">
                 {actionError}
               </p>
             )}
+            <p className="small muted">
+              O gráfico mostra todas as medidas, independentemente do dia
+              escolhido.
+            </p>
             <WeightTrend entries={weights} />
-            {weights.length ? (
+            {historyWeights.length ? (
               <ul className="entry-list">
-                {weights.map((item) => (
+                {historyWeights.map((item) => (
                   <li key={item.id}>
                     <div>
                       <strong>{inputDecimal(item.weightKg)} kg</strong>
@@ -294,6 +572,23 @@ export function WeightPage() {
                       </small>
                     </div>
                     <div className="entry-actions">
+                      {canEditHistory && (
+                        <button
+                          type="button"
+                          className="entry-action"
+                          aria-label={`Editar peso de ${dateTimePt(item.measuredAt)}`}
+                          aria-expanded={editingEntryId === item.id}
+                          aria-controls={
+                            editingEntryId === item.id
+                              ? `weight-edit-${item.id}`
+                              : undefined
+                          }
+                          disabled={saving}
+                          onClick={(event) => startEditing(item, event)}
+                        >
+                          Editar
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="entry-action"
@@ -311,15 +606,106 @@ export function WeightPage() {
                         Excluir
                       </button>
                     </div>
+                    {canEditHistory && editingEntryId === item.id && (
+                      <form
+                        id={`weight-edit-${item.id}`}
+                        className="record-edit-form"
+                        onSubmit={saveEdit}
+                        aria-labelledby={`weight-edit-title-${item.id}`}
+                      >
+                        <h3 id={`weight-edit-title-${item.id}`}>
+                          Editar medida de peso
+                        </h3>
+                        <div className="field">
+                          <label htmlFor={`weight-edit-value-${item.id}`}>
+                            Peso em kg
+                          </label>
+                          <input
+                            ref={editValueRef}
+                            id={`weight-edit-value-${item.id}`}
+                            inputMode="decimal"
+                            value={editValue}
+                            onChange={(event) => {
+                              setEditValue(event.target.value);
+                              setEditError("");
+                            }}
+                            required
+                          />
+                        </div>
+                        <DateTimeField
+                          id={`weight-edit-date-${item.id}`}
+                          value={editWhen}
+                          onChange={(value) => {
+                            setEditWhen(value);
+                            setEditDateInvalid(false);
+                            setEditError("");
+                          }}
+                          onInvalidDate={() => setEditDateInvalid(true)}
+                        />
+                        <div className="field">
+                          <label htmlFor={`weight-edit-note-${item.id}`}>
+                            Observação (opcional)
+                          </label>
+                          <input
+                            id={`weight-edit-note-${item.id}`}
+                            maxLength={500}
+                            value={editNote}
+                            onChange={(event) => {
+                              setEditNote(event.target.value);
+                              setEditError("");
+                            }}
+                          />
+                        </div>
+                        {editError && (
+                          <p className="form-error" role="alert">
+                            {editError}
+                          </p>
+                        )}
+                        <div className="record-edit-actions">
+                          <button
+                            type="button"
+                            className="button secondary"
+                            onClick={cancelEditing}
+                            disabled={saving}
+                          >
+                            Cancelar
+                          </button>
+                          <button className="button primary" disabled={saving}>
+                            {saving ? "Salvando…" : "Salvar alteração"}
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : weights.length === 0 ? (
               <EmptyState
                 icon={Scale}
                 title="Sua primeira medida"
                 description="Registre um peso quando quiser começar a acompanhar sua evolução."
               />
+            ) : (
+              <>
+                <p className="history-day-empty">
+                  Nenhuma medida registrada neste dia. Escolha outra data para
+                  consultar o histórico.
+                </p>
+                {lastWeightDay &&
+                  enabled("weight-history-last-day-shortcut") && (
+                    <button
+                      className="button secondary diary-more"
+                      type="button"
+                      onClick={() => {
+                        recordUse("weight-history-last-day-shortcut");
+                        setSelectedDay(lastWeightDay);
+                        document.getElementById("weight-history-date")?.focus();
+                      }}
+                    >
+                      Ver medidas de {formatCalendarDay(lastWeightDay)}
+                    </button>
+                  )}
+              </>
             )}
           </section>
         </div>

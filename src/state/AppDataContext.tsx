@@ -92,17 +92,18 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    const initialScope = scopeRef.current;
     prepareAccountScopes(hasRememberedGoogleAccount())
-      .then(() => loadDataState(scopeRef.current))
+      .then(() => loadDataState(initialScope))
       .then((saved) => {
-        if (!active) return;
+        if (!active || scopeRef.current !== initialScope) return;
         current.current = saved.data;
         epochRef.current = saved.epoch;
         setData(saved.data);
         setLoading(false);
       })
       .catch(() => {
-        if (!active) return;
+        if (!active || scopeRef.current !== initialScope) return;
         reportClientError("storage", "local_storage_failed", "storage_read");
         setError(
           "Não foi possível abrir os dados neste navegador. Seus registros não foram alterados.",

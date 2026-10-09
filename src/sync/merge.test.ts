@@ -56,11 +56,22 @@ describe("mergeAppData", () => {
     local.profile.heightCm = 170;
     local.hydrationReminderTimes = ["09:00"];
     const remote = emptyData();
-    remote.profile = { displayName: "Ana", heightCm: 160 };
+    remote.profile = {
+      ...remote.profile,
+      displayName: "Ana",
+      heightCm: 160,
+      ageYears: 30,
+      formulaParameter: "female",
+    };
     remote.hydrationReminderTimes = ["09:00", "14:00"];
 
     const result = mergeAppData(local, remote);
-    expect(result.data.profile).toEqual({ displayName: "Ana", heightCm: 170 });
+    expect(result.data.profile).toEqual({
+      displayName: "Ana",
+      heightCm: 170,
+      ageYears: 30,
+      formulaParameter: "female",
+    });
     expect(result.data.hydrationReminderTimes).toEqual(["09:00"]);
   });
 });

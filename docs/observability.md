@@ -83,9 +83,11 @@ lista de campos permitidos e evitar exportar logs brutos da plataforma AWS.
 ## Experimentos por navegador
 
 Métricas consentidas dos dois braços usam `POST /api/telemetry/experiment` e
-`kind=experiment_metric` no grupo de telemetria. Não possuem `code`, portanto
+`kind=experiment_metric` para sorteados ou `kind=experiment_metric_manual` para
+adesão beta/header no grupo de telemetria. Não possuem `code`, portanto
 não entram na consulta de erros `filter ispresent(code)`. O esquema aceita
-somente chave conhecida, revisão, braço, resultado e ambiente, sem IDs,
+somente chave conhecida, revisão, braço, resultado, ambiente e marcador
+booleano de participação manual, sem IDs,
 número sorteado, dados de registros ou mensagens livres. Consultar agregados
 com `npm run report-experiments`; sem depender do Analytics. Sem consentimento,
 o app não envia métricas. Limites, denominadores e interpretação estão em

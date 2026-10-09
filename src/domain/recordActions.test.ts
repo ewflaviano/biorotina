@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { emptyData, parseBackup } from "./data";
 import {
   editHydrationEntry,
+  editWeightEntry,
   removeEntry,
   removeMedication,
   restoreEntry,
@@ -76,6 +77,77 @@ describe("remoção e restauração de registros", () => {
     expect(restored.medications).toEqual([first, second]);
     expect(restored.medicationLogs).toEqual([firstLog, secondLog]);
     expect(restoreMedication(restored, first, [firstLog])).toBe(restored);
+  });
+});
+
+describe("edição de peso", () => {
+  const original = {
+    id: "00000000-0000-4000-8000-000000000002",
+    createdAt: "2026-09-30T10:00:00.000Z",
+    measuredAt: "2026-09-30T10:00:00.000Z",
+    weightKg: 70,
+    note: "Inicial",
+  };
+
+  it("mantém ID, criação e compatibilidade com backup ao corrigir medida", () => {
+    const data = emptyData();
+    data.weights = [original];
+    const updated = editWeightEntry(
+      data,
+      original,
+      71.5,
+      "2026-10-01T09:00:00.000Z",
+      "Corrigida",
+    );
+    expect(updated.weights).toEqual([
+      {
+        ...original,
+        weightKg: 71.5,
+        measuredAt: "2026-10-01T09:00:00.000Z",
+        note: "Corrigida",
+      },
+    ]);
+    expect(data.weights).toEqual([original]);
+    expect(parseBackup(JSON.parse(JSON.stringify(updated)))).toEqual(updated);
+    expect(
+      editWeightEntry(
+        updated,
+        updated.weights[0],
+        71.5,
+        updated.weights[0].measuredAt,
+        "Corrigida",
+      ),
+    ).toBe(updated);
+  });
+
+  it("recusa conflito e peso fora do intervalo", () => {
+    const data = emptyData();
+    data.weights = [original];
+    expect(() =>
+      editWeightEntry(
+        { ...data, weights: [] },
+        original,
+        71,
+        original.measuredAt,
+        "",
+      ),
+    ).toThrow("mudou");
+    expect(() =>
+      editWeightEntry(
+        { ...data, weights: [{ ...original, note: "Outra" }] },
+        original,
+        71,
+        original.measuredAt,
+        "",
+      ),
+    ).toThrow("mudou");
+    expect(() =>
+      editWeightEntry(data, original, 351, original.measuredAt, ""),
+    ).toThrow("máximo");
+    expect(() =>
+      editWeightEntry(data, original, 0, original.measuredAt, ""),
+    ).toThrow();
+    expect(() => editWeightEntry(data, original, 71, "inválido", "")).toThrow();
   });
 });
 

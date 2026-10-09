@@ -1,9 +1,20 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { openDB } from "idb";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { emptyData, toLocalDateTime, type AppData } from "../src/domain/data";
+import {
+  emptyData,
+  todayIsoDate,
+  toLocalDateTime,
+  type AppData,
+} from "../src/domain/data";
 import { ActivityPage } from "../src/pages/ActivityPage";
 import { DashboardPage } from "../src/pages/DashboardPage";
 import { FoodPage } from "../src/pages/FoodPage";
@@ -260,6 +271,9 @@ describe("hidratação", () => {
       },
     ];
     const user = await renderPage(<HydrationPage />, initial);
+    fireEvent.change(screen.getByLabelText("Data do histórico de água"), {
+      target: { value: toLocalDateTime(past).slice(0, 10) },
+    });
     await user.click(
       await screen.findByRole("button", { name: "Repetir 330 ml de água" }),
     );
@@ -270,8 +284,11 @@ describe("hidratação", () => {
     expect(entries[0].amountMl).toBe(330);
     expect(entries[0].id).not.toBe(entries[1].id);
     expect(entries[0].drankAt).not.toBe(past);
+    fireEvent.change(screen.getByLabelText("Data do histórico de água"), {
+      target: { value: toLocalDateTime(past).slice(0, 10) },
+    });
     await user.click(
-      screen.getAllByRole("button", { name: /Excluir água de 330 ml em/ })[1],
+      screen.getByRole("button", { name: /Excluir água de 330 ml em/ }),
     );
     await waitFor(async () =>
       expect((await loadData()).hydrationEntries).toHaveLength(1),
@@ -365,6 +382,9 @@ describe("registro de peso", () => {
       },
     ];
     const user = await renderPage(<WeightPage />, initial);
+    fireEvent.change(screen.getByLabelText("Data do histórico de medidas"), {
+      target: { value: toLocalDateTime(past).slice(0, 10) },
+    });
     await user.click(screen.getByRole("button", { name: /Repetir peso de/ }));
     expect(screen.getByLabelText("Peso em kg")).toHaveValue("72,125");
     expect(screen.getByLabelText("Data")).not.toHaveValue("2026-01-01");
@@ -479,6 +499,9 @@ describe("atividade e alimentação", () => {
       },
     ];
     const user = await renderPage(<ActivityPage />, initial);
+    fireEvent.change(screen.getByLabelText("Data do histórico de atividades"), {
+      target: { value: toLocalDateTime(past).slice(0, 10) },
+    });
     await user.click(screen.getByRole("button", { name: /Repetir Caminhada/ }));
     expect(screen.getByLabelText("Atividade")).toHaveValue("Caminhada");
     expect(screen.getByLabelText("Duração em minutos")).toHaveValue("35,5");
@@ -531,6 +554,9 @@ describe("atividade e alimentação", () => {
       },
     ];
     const user = await renderPage(<FoodPage />, initial);
+    fireEvent.change(screen.getByLabelText("Data do histórico de refeições"), {
+      target: { value: toLocalDateTime(past).slice(0, 10) },
+    });
     await user.click(screen.getByRole("button", { name: /Repetir Lanche/ }));
     expect(screen.getByLabelText("Descrição")).toHaveValue("Lanche");
     expect(screen.getByLabelText(/Calorias consumidas/)).toHaveValue("230,125");
@@ -734,6 +760,173 @@ describe("medicação", () => {
   });
 });
 
+describe("históricos por dia", () => {
+  const previous = "2026-01-01T12:00:00.000Z";
+  const later = "2026-01-02T12:00:00.000Z";
+  const record = (at: string) => ({ id: crypto.randomUUID(), createdAt: at });
+
+  function sampleData() {
+    const data = emptyData();
+    data.weights = [
+      { ...record(previous), measuredAt: previous, weightKg: 71, note: "" },
+      { ...record(later), measuredAt: later, weightKg: 72, note: "" },
+    ];
+    data.meals = [
+      {
+        ...record(previous),
+        eatenAt: previous,
+        name: "Café fictício",
+        caloriesKcal: null,
+        foods: [],
+        photoAssisted: false,
+      },
+      {
+        ...record(later),
+        eatenAt: later,
+        name: "Lanche fictício",
+        caloriesKcal: null,
+        foods: [],
+        photoAssisted: false,
+      },
+    ];
+    data.hydrationEntries = [
+      { ...record(previous), drankAt: previous, amountMl: 200 },
+      {
+        ...record(previous),
+        drankAt: "2026-01-01T15:00:00.000Z",
+        amountMl: 250,
+      },
+      { ...record(later), drankAt: later, amountMl: 500 },
+    ];
+    const medicationId = crypto.randomUUID();
+    data.medications = [
+      {
+        ...record(previous),
+        id: medicationId,
+        name: "Medicamento fictício",
+        dose: 1,
+        unit: "unidade",
+        reminderTimes: [],
+        reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
+      },
+    ];
+    data.medicationLogs = [
+      { ...record(previous), medicationId, takenAt: previous },
+      { ...record(later), medicationId, takenAt: later },
+    ];
+    const habitId = crypto.randomUUID();
+    data.habits = [
+      {
+        ...record(previous),
+        id: habitId,
+        name: "Leitura fictícia",
+        reminderTimes: [],
+        reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
+      },
+    ];
+    data.habitLogs = [
+      { ...record(previous), habitId, completedAt: previous },
+      { ...record(later), habitId, completedAt: later },
+    ];
+    return data;
+  }
+
+  it.each([
+    {
+      page: <WeightPage />,
+      label: "Data do histórico de medidas",
+      heading: "Histórico",
+      first: "71 kg",
+      second: "72 kg",
+    },
+    {
+      page: <FoodPage />,
+      label: "Data do histórico de refeições",
+      heading: "Histórico",
+      first: "Café fictício",
+      second: "Lanche fictício",
+    },
+    {
+      page: <HydrationPage />,
+      label: "Data do histórico de água",
+      heading: "Histórico",
+      first: "200 ml",
+      second: "500 ml",
+    },
+    {
+      page: <MedicationPage />,
+      label: "Data do histórico de usos de medicação",
+      heading: "Histórico de uso",
+      first: "Medicamento fictício",
+      second: "Medicamento fictício",
+    },
+    {
+      page: <HabitsPage />,
+      label: "Data do histórico de hábitos",
+      heading: "Histórico",
+      first: "Leitura fictícia",
+      second: "Leitura fictícia",
+    },
+  ])(
+    "mostra somente o dia escolhido em $label",
+    async ({ page, label, heading, first, second }) => {
+      await renderPage(page, sampleData());
+      const history = screen.getByRole("region", { name: new RegExp(heading) });
+      const picker = screen.getByLabelText(label);
+      expect(picker).toHaveValue(todayIsoDate());
+      expect(within(history).queryByText(first)).not.toBeInTheDocument();
+      fireEvent.change(picker, { target: { value: "2026-01-01" } });
+      expect(within(history).getAllByText(first)).not.toHaveLength(0);
+      if (first !== second)
+        expect(within(history).queryByText(second)).not.toBeInTheDocument();
+      if (label === "Data do histórico de água")
+        expect(
+          within(history).getByText(/2 registros · 450 ml exibidos/),
+        ).toBeInTheDocument();
+      fireEvent.change(picker, { target: { value: "2026-01-02" } });
+      expect(within(history).getAllByText(second)).not.toHaveLength(0);
+      if (first !== second)
+        expect(within(history).queryByText(first)).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([
+    {
+      page: <FoodPage />,
+      label: "Data do histórico de refeições",
+      search: "Buscar refeição neste dia",
+      name: "Café fictício",
+    },
+    {
+      page: <MedicationPage />,
+      label: "Data do histórico de usos de medicação",
+      search: "Buscar medicamento neste dia",
+      name: "Medicamento fictício",
+    },
+    {
+      page: <HabitsPage />,
+      label: "Data do histórico de hábitos",
+      search: "Buscar hábito neste dia",
+      name: "Leitura fictícia",
+    },
+  ])(
+    "busca nomes dentro do dia em $label",
+    async ({ page, label, search, name }) => {
+      const user = await renderPage(page, sampleData());
+      fireEvent.change(screen.getByLabelText(label), {
+        target: { value: "2026-01-01" },
+      });
+      const input = screen.getByLabelText(search);
+      await user.type(input, "sem resultado");
+      expect(
+        screen.getByText(/corresponde à busca neste dia/i),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Limpar busca" }));
+      expect(screen.getAllByText(name).length).toBeGreaterThan(0);
+    },
+  );
+});
+
 describe("configurações e backup", () => {
   it("recusa importar um backup com peso fora da faixa de entrada", async () => {
     const user = await renderPage(<SettingsPage />);
@@ -796,12 +989,11 @@ describe("configurações e backup", () => {
       }),
     );
     expect(
-      await screen.findByText("Arquivo pronto para importar"),
+      await screen.findByText("Compare antes de importar"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Água: 0")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Última alteração no arquivo:/),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Água")).toBeInTheDocument();
+    expect(screen.getByText("Registros de hábitos")).toBeInTheDocument();
+    expect(screen.getByText(/última alteração:/)).toBeInTheDocument();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     await user.click(
       screen.getByRole("button", { name: "Importar este arquivo" }),
@@ -824,7 +1016,7 @@ describe("configurações e backup", () => {
         type: "application/json",
       }),
     );
-    await screen.findByText("Arquivo pronto para importar");
+    await screen.findByText("Compare antes de importar");
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     await user.click(
       screen.getByRole("button", { name: "Importar este arquivo" }),

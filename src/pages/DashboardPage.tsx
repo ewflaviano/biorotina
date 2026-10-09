@@ -173,7 +173,7 @@ export function DashboardPage() {
           />
         </div>
         <div className="metric-grid">
-          <Link to="/peso" className="metric-card">
+          <Link to="/peso" state={{ day: selectedDay }} className="metric-card">
             <div className="metric-top">
               <span>Peso no dia</span>
               <Scale size={19} />
@@ -188,7 +188,11 @@ export function DashboardPage() {
                 : "Nenhuma medida neste dia"}
             </p>
           </Link>
-          <Link to="/atividades" className="metric-card">
+          <Link
+            to="/atividades"
+            state={{ day: selectedDay }}
+            className="metric-card"
+          >
             <div className="metric-top">
               <span>
                 {viewingToday ? "Movimento hoje" : "Movimento no dia"}
@@ -211,7 +215,11 @@ export function DashboardPage() {
               {day.activities.length === 1 ? "" : "s"}
             </p>
           </Link>
-          <Link to="/alimentacao" className="metric-card">
+          <Link
+            to="/alimentacao"
+            state={{ day: selectedDay }}
+            className="metric-card"
+          >
             <div className="metric-top">
               <span>
                 {viewingToday ? "Alimentação hoje" : "Alimentação no dia"}
@@ -228,7 +236,11 @@ export function DashboardPage() {
                 : "Calorias opcionais"}
             </p>
           </Link>
-          <Link to="/medicamentos" className="metric-card">
+          <Link
+            to="/medicamentos"
+            state={{ day: selectedDay }}
+            className="metric-card"
+          >
             <div className="metric-top">
               <span>
                 {viewingToday ? "Medicação hoje" : "Medicação no dia"}
@@ -245,7 +257,11 @@ export function DashboardPage() {
                 : "Nenhum uso informado neste dia"}
             </p>
           </Link>
-          <Link to="/hidratacao" className="metric-card">
+          <Link
+            to="/hidratacao"
+            state={{ day: selectedDay }}
+            className="metric-card"
+          >
             <div className="metric-top">
               <span>{viewingToday ? "Água hoje" : "Água no dia"}</span>
               <Droplets size={19} />
@@ -258,7 +274,11 @@ export function DashboardPage() {
               {day.hydrationEntries.length === 1 ? "" : "s"} de água
             </p>
           </Link>
-          <Link to="/habitos" className="metric-card">
+          <Link
+            to="/habitos"
+            state={{ day: selectedDay }}
+            className="metric-card"
+          >
             <div className="metric-top">
               <span>{viewingToday ? "Hábitos hoje" : "Hábitos no dia"}</span>
               <Sprout size={19} />

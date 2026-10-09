@@ -2,6 +2,7 @@ import {
   Activity,
   Apple,
   CalendarDays,
+  ChartNoAxesCombined,
   Cloud,
   CloudAlert,
   CloudCheck,
@@ -18,7 +19,7 @@ import {
   Sprout,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { InstallPrompt } from "./InstallApp";
 import { GuestLoginPrompt } from "./GuestLoginPrompt";
@@ -71,13 +72,30 @@ const desktopNav = [
   },
 ] as const;
 
-const mobileNav = [
+const moreNavItem = {
+  to: "/mais",
+  label: "Mais áreas",
+  mobileLabel: "Mais",
+  icon: LayoutGrid,
+} as const;
+
+const defaultMobileNav = [
   desktopNav[0],
   desktopNav[1],
   desktopNav[2],
   desktopNav[5],
-  { to: "/mais", label: "Mais áreas", mobileLabel: "Mais", icon: LayoutGrid },
+  moreNavItem,
 ] as const;
+
+const mealMobileNav = [
+  desktopNav[0],
+  desktopNav[2],
+  desktopNav[3],
+  desktopNav[5],
+  moreNavItem,
+] as const;
+
+const mobileNavQuery = "(max-width: 899px)";
 
 export function Layout() {
   const { data, undoLabel, undoCount, undoLast, dismissUndo } = useAppData();
@@ -85,6 +103,19 @@ export function Layout() {
   const analyticsPreference = useAnalyticsPreference();
   const experiment = useExperiment();
   const location = useLocation();
+  const [mobileNavVisible, setMobileNavVisible] = useState(
+    () => window.matchMedia?.(mobileNavQuery).matches ?? false,
+  );
+  useEffect(() => {
+    const query = window.matchMedia?.(mobileNavQuery);
+    if (!query) return;
+    const update = () => setMobileNavVisible(query.matches);
+    query.addEventListener("change", update);
+    update();
+    return () => query.removeEventListener("change", update);
+  }, []);
+  useExperimentExposure("mobile-nav-meal-priority", mobileNavVisible);
+  useExperimentExposure("calorie-balance-daily", !mobileNavVisible);
   useExperimentExposure(
     "onboarding-install-prompt",
     location.pathname === "/" && analyticsPreference !== "unselected",
@@ -103,6 +134,9 @@ export function Layout() {
   const onboardingInstallExperiment = experiment.enabled(
     "onboarding-install-prompt",
   );
+  const mobileNav = experiment.enabled("mobile-nav-meal-priority")
+    ? mealMobileNav
+    : defaultMobileNav;
 
   async function handleUndo() {
     setUndoFailure(null);
@@ -140,6 +174,18 @@ export function Layout() {
               <span>{label}</span>
             </NavLink>
           ))}
+          {experiment.enabled("calorie-balance-daily") && (
+            <NavLink
+              to="/balanco-calorico"
+              className={({ isActive }) =>
+                `nav-link${isActive ? " active" : ""}`
+              }
+              onClick={() => experiment.recordUse("calorie-balance-daily")}
+            >
+              <ChartNoAxesCombined size={20} aria-hidden="true" />
+              <span>Balanço calórico</span>
+            </NavLink>
+          )}
         </nav>
         <div className="side-bottom">
           <NavLink
@@ -302,6 +348,11 @@ export function Layout() {
               key={to}
               to={to}
               aria-label={mobileLabel}
+              onClick={
+                to === "/mais"
+                  ? () => experiment.recordUse("mobile-nav-meal-priority")
+                  : undefined
+              }
               className={({ isActive }) =>
                 `bottom-link${isActive || (to === "/" && location.pathname === "/diario") || (to === "/mais" && location.pathname !== "/diario" && !mobileNav.some((item) => item.to === location.pathname)) ? " active" : ""}`
               }

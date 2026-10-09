@@ -105,7 +105,7 @@ export function DailyRecordsPage() {
                   const Icon = area.icon;
                   return (
                     <li key={`${record.kind}:${record.id}`}>
-                      <Link to={area.to}>
+                      <Link to={area.to} state={{ day: view.day }}>
                         <span className="list-icon" aria-hidden="true">
                           <Icon size={19} />
                         </span>

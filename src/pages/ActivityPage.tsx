@@ -1,5 +1,6 @@
 import { Activity } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+import { useLocation } from "react-router-dom";
 import {
   dateTimePt,
   fromLocalDateTime,
@@ -9,7 +10,13 @@ import {
   parseDecimal,
   parseOptionalCalories,
   toLocalDateTime,
+  todayIsoDate,
 } from "../domain/data";
+import { DayPicker } from "../components/DayPicker";
+import {
+  formatCalendarDay,
+  isSelectableCalendarDay,
+} from "../domain/dailyRecords";
 import { EmptyState, Notice, PageHeader } from "../components/Layout";
 import { useAppData } from "../state/AppDataContext";
 import { DateTimeField } from "../components/DateTimeField";
@@ -31,9 +38,24 @@ import {
 
 const referenceWeightKg = 70;
 
+function normalizeName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+}
+
 export function ActivityPage() {
   const { data, mutate, removeWithUndo } = useAppData();
-  const { enabled, startAttempt } = useExperiment();
+  const location = useLocation();
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const requestedDay = (location.state as { day?: unknown } | null)?.day;
+    return isSelectableCalendarDay(requestedDay)
+      ? requestedDay
+      : todayIsoDate();
+  });
+  const [historySearch, setHistorySearch] = useState("");
+  const { enabled, recordUse, startAttempt } = useExperiment();
   useExperimentExposure("activity-form-confirmation");
   const confirmActivity = enabled("activity-form-confirmation");
   const [activityConfirmed, setActivityConfirmed] = useState(false);
@@ -48,11 +70,40 @@ export function ActivityPage() {
   const [saving, setSaving] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
   const [actionError, setActionError] = useState("");
-  const activities = [...data.activities].sort((a, b) =>
-    b.occurredAt.localeCompare(a.occurredAt),
+  const activitiesForDay = useMemo(
+    () =>
+      data.activities
+        .filter(
+          (item) =>
+            toLocalDateTime(item.occurredAt).slice(0, 10) === selectedDay,
+        )
+        .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)),
+    [data.activities, selectedDay],
   );
-  const totalMinutes = activities.reduce(
+  const searchTerm = normalizeName(historySearch.trim());
+  const visibleActivities = activitiesForDay.filter((item) =>
+    normalizeName(item.name).includes(searchTerm),
+  );
+  const emptySearch =
+    activitiesForDay.length > 0 &&
+    searchTerm.length > 0 &&
+    visibleActivities.length === 0;
+  useExperimentExposure("activity-history-clear-search", emptySearch);
+  const clearFromEmpty =
+    emptySearch && enabled("activity-history-clear-search");
+  const visibleMinutes = visibleActivities.reduce(
     (sum, item) => sum + item.durationMinutes,
+    0,
+  );
+  const dailyMinutes = activitiesForDay.reduce(
+    (sum, item) => sum + item.durationMinutes,
+    0,
+  );
+  const activitiesWithCalories = activitiesForDay.filter(
+    (item) => item.caloriesKcal !== null,
+  );
+  const dailyCalories = activitiesWithCalories.reduce(
+    (sum, item) => sum + (item.caloriesKcal ?? 0),
     0,
   );
   const shortcuts = activityShortcuts(data.activities);
@@ -112,6 +163,8 @@ export function ActivityPage() {
       setCaloriesMode("estimated");
       setWhen(toLocalDateTime(new Date().toISOString()));
       setPrefilled(false);
+      setSelectedDay(toLocalDateTime(occurredAt).slice(0, 10));
+      setHistorySearch("");
       if (confirmActivity) setActivityConfirmed(true);
       finish("success");
     } catch (cause) {
@@ -348,16 +401,56 @@ export function ActivityPage() {
               </button>
             </form>
           </section>
-          <section className="panel">
-            <h2>Histórico</h2>
+          <section className="panel" aria-labelledby="activity-history-title">
+            <div className="activity-history-heading">
+              <h2 id="activity-history-title">
+                Histórico de {formatCalendarDay(selectedDay)}
+              </h2>
+              <DayPicker
+                id="activity-history-date"
+                label="Data do histórico de atividades"
+                value={selectedDay}
+                onChange={setSelectedDay}
+              />
+            </div>
+            {data.activities.length > 0 && (
+              <div className="field activity-history-search">
+                <label htmlFor="activity-history-search">
+                  Buscar atividade neste dia
+                </label>
+                <input
+                  id="activity-history-search"
+                  type="search"
+                  placeholder="Ex.: Caminhada"
+                  value={historySearch}
+                  onChange={(event) => setHistorySearch(event.target.value)}
+                />
+                {historySearch && !clearFromEmpty && (
+                  <button
+                    className="text-link activity-clear-search"
+                    type="button"
+                    onClick={() => setHistorySearch("")}
+                  >
+                    Limpar busca
+                  </button>
+                )}
+              </div>
+            )}
             {actionError && (
               <p className="form-error" role="alert">
                 {actionError}
               </p>
             )}
-            {activities.length ? (
+            {data.activities.length > 0 && (
+              <p className="activity-history-summary" role="status">
+                {visibleActivities.length} atividade
+                {visibleActivities.length === 1 ? "" : "s"} ·{" "}
+                {numberPt(visibleMinutes, 3)} min exibidos
+              </p>
+            )}
+            {visibleActivities.length ? (
               <ul className="entry-list">
-                {activities.map((item) => (
+                {visibleActivities.map((item) => (
                   <li key={item.id}>
                     <div>
                       <strong>{item.name}</strong>
@@ -390,25 +483,58 @@ export function ActivityPage() {
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : data.activities.length === 0 ? (
               <EmptyState
                 icon={Activity}
                 title="Movimento no seu ritmo"
                 description="Registre uma caminhada, treino ou qualquer outra atividade quando quiser."
               />
+            ) : (
+              <>
+                <p className="activity-history-empty">
+                  {activitiesForDay.length === 0
+                    ? "Nenhuma atividade registrada neste dia. Escolha outra data para consultar o histórico."
+                    : "Nenhuma atividade corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
+                </p>
+                {clearFromEmpty && (
+                  <button
+                    className="button secondary"
+                    type="button"
+                    onClick={() => {
+                      recordUse("activity-history-clear-search");
+                      setHistorySearch("");
+                      document
+                        .getElementById("activity-history-search")
+                        ?.focus();
+                    }}
+                  >
+                    Limpar busca e ver registros
+                  </button>
+                )}
+              </>
             )}
           </section>
         </div>
         <aside className="side-stack">
           <div className="panel highlight">
-            <span className="eyebrow">Total registrado</span>
+            <span className="eyebrow">Total do dia</span>
             <strong className="large-value">
-              {numberPt(totalMinutes, 3)} <small>min</small>
+              {numberPt(dailyMinutes, 3)} <small>min</small>
             </strong>
             <p className="muted">
-              Em {activities.length} atividade
-              {activities.length === 1 ? "" : "s"}.
+              {activitiesForDay.length} atividade
+              {activitiesForDay.length === 1 ? "" : "s"} registrada
+              {activitiesForDay.length === 1 ? "" : "s"} em{" "}
+              {formatCalendarDay(selectedDay)}.
             </p>
+            {activitiesWithCalories.length > 0 && (
+              <p className="muted">
+                <strong>{numberPt(dailyCalories, 3)} kcal</strong> estimadas ou
+                informadas em {activitiesWithCalories.length} de{" "}
+                {activitiesForDay.length} atividade
+                {activitiesForDay.length === 1 ? "" : "s"}.
+              </p>
+            )}
           </div>
           <Notice>
             Calorias estimadas são aproximações. Você pode ajustar ou apagar o

@@ -30,6 +30,16 @@ const FEATURES: &[&str] = &[
     "medication-form-confirmation",
     "daily-records-last-day-shortcut",
     "daily-records-next-day-shortcut",
+    "weight-history-edit",
+    "weight-history-last-day-shortcut",
+    "hydration-history-last-day-shortcut",
+    "habit-history-clear-search",
+    "medication-history-clear-search",
+    "activity-history-clear-search",
+    "food-history-clear-search",
+    "food-daily-calories",
+    "mobile-nav-meal-priority",
+    "calorie-balance-daily",
 ];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 

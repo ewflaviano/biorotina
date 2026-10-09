@@ -14,10 +14,11 @@ export function PrivacyPage() {
           <h2>Registros de saúde</h2>
           <p>
             Peso, atividades, alimentação, hidratação, medicamentos, hábitos e
-            perfil ficam no armazenamento deste navegador. Se você conectar o
-            Google Drive, uma cópia JSON vai diretamente para a área privada do
-            app no seu Drive. A Biorotina não recebe esses registros em um banco
-            de dados próprio.
+            perfil, incluindo idade e parâmetro da fórmula quando informados,
+            ficam no armazenamento deste navegador. Se você conectar o Google
+            Drive, uma cópia JSON vai diretamente para a área privada do app no
+            seu Drive. A Biorotina não recebe esses registros em um banco de
+            dados próprio.
           </p>
           <p>
             Você pode consultar e apagar registros no app, exportar uma cópia e

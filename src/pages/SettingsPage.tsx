@@ -2,6 +2,7 @@ import {
   Cloud,
   Download,
   FileJson2,
+  FlaskConical,
   ShieldCheck,
   ChartNoAxesCombined,
   Upload,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -21,6 +23,7 @@ import {
   validateAnthropometrics,
   type AppData,
 } from "../domain/data";
+import { compareBackup } from "../domain/backupComparison";
 import { Notice, PageHeader } from "../components/Layout";
 import { useAppData } from "../state/AppDataContext";
 import { downloadJson } from "../sync/download";
@@ -31,9 +34,19 @@ import { Link } from "react-router-dom";
 import { loadLegacyData } from "../storage/indexedDb";
 import { PushControl } from "../components/PushControl";
 import { InfoDisclosure } from "../components/InfoDisclosure";
+import { useExperiment } from "../experiments/ExperimentContext";
+
+const recordsLabel = (count: number) =>
+  `${count} ${count === 1 ? "registro" : "registros"}`;
 
 export function SettingsPage() {
-  const { data, scope, mutate, replace } = useAppData();
+  const { scope } = useAppData();
+  return <SettingsPageContent key={scope ?? "guest"} />;
+}
+
+function SettingsPageContent() {
+  const { data, scope, mutate, replaceIfRevision } = useAppData();
+  const experiment = useExperiment();
   const profileKey = JSON.stringify(data.profile);
   const [draft, setDraft] = useState({
     profileKey,
@@ -43,9 +56,20 @@ export function SettingsPage() {
     draft.profileKey === profileKey ? draft.name : data.profile.displayName;
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [preview, setPreview] = useState<AppData | null>(null);
+  const [preview, setPreview] = useState<{
+    data: AppData;
+    scope: string | null;
+    reviewedRevision: number;
+  } | null>(null);
   const [legacy, setLegacy] = useState<AppData | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const activePreview = preview?.scope === scope ? preview : null;
+  const comparison = useMemo(
+    () => (activePreview ? compareBackup(data, activePreview.data) : null),
+    [activePreview, data],
+  );
+  const needsReview =
+    activePreview !== null && activePreview.reviewedRevision !== data.revision;
 
   useEffect(() => {
     if (scope !== null) return;
@@ -79,6 +103,7 @@ export function SettingsPage() {
     setMessage("");
     const file = event.target.files?.[0];
     if (!file) return;
+    event.target.value = "";
     try {
       if (file.size > 10_000_000)
         throw new Error(
@@ -86,7 +111,7 @@ export function SettingsPage() {
         );
       const parsed = parseBackup(JSON.parse(await file.text()));
       validateAnthropometrics(parsed);
-      setPreview(parsed);
+      setPreview({ data: parsed, scope, reviewedRevision: data.revision });
     } catch (cause) {
       setError(
         cause instanceof Error &&
@@ -99,27 +124,43 @@ export function SettingsPage() {
   }
 
   async function importBackup() {
-    if (!preview) return;
-    const existing = totalRecords(data);
-    const incoming = totalRecords(preview);
+    if (!activePreview || !comparison) return;
+    if (needsReview) {
+      setError(
+        "Os dados deste navegador mudaram. Confira a comparação atualizada antes de importar.",
+      );
+      return;
+    }
     if (
       !window.confirm(
-        `Este arquivo tem ${incoming} registros. Ele substituirá os ${existing} registros e o perfil deste navegador. Deseja continuar?`,
+        `O arquivo substituirá ${recordsLabel(comparison.localTotal)} e o perfil deste navegador por ${recordsLabel(comparison.incomingTotal)}. Registros exclusivos deste navegador: ${comparison.onlyLocal}; registros com o mesmo identificador e conteúdo diferente: ${comparison.changed}. Deseja continuar?`,
       )
     )
       return;
     setError("");
     try {
-      if (existing) downloadJson(data, "-antes-da-importacao");
-      await replace(preview);
+      const hasLocalData =
+        comparison.localTotal > 0 ||
+        data.profile.displayName !== "" ||
+        data.profile.heightCm !== null ||
+        data.profile.ageYears !== null ||
+        data.profile.formulaParameter !== null ||
+        data.hydrationReminderTimes.length > 0;
+      if (hasLocalData) downloadJson(data, "-antes-da-importacao");
+      await replaceIfRevision(
+        activePreview.reviewedRevision,
+        activePreview.data,
+      );
       setPreview(null);
       if (fileInput.current) fileInput.current.value = "";
       setMessage(
-        "Importação concluída. Uma cópia dos dados anteriores foi preparada para download quando havia registros locais.",
+        "Importação concluída. Uma cópia dos dados anteriores foi preparada para download quando havia dados locais.",
       );
-    } catch {
+    } catch (cause) {
       setError(
-        "Não foi possível importar. Os dados anteriores continuam neste navegador.",
+        cause instanceof Error && cause.message.startsWith("Os dados")
+          ? "Os dados deste navegador mudaram. Confira a comparação atualizada antes de importar."
+          : "Não foi possível importar. Os dados anteriores continuam neste navegador.",
       );
     }
   }
@@ -219,32 +260,105 @@ export function SettingsPage() {
               Escolher backup
             </label>
           </div>
-          {preview && (
+          {activePreview && comparison && (
             <div className="import-preview">
-              <strong>Arquivo pronto para importar</strong>
+              <strong>Compare antes de importar</strong>
               <p>
-                {totalRecords(preview)} registros · perfil{" "}
-                {preview.profile.displayName ? "preenchido" : "sem nome"}. A
-                importação substitui os dados deste navegador.
+                Arquivo validado · última alteração:{" "}
+                {dateTimePt(activePreview.data.updatedAt)}. A importação
+                substitui todos os dados deste navegador; ela não une os
+                registros.
               </p>
-              <p>
-                Última alteração no arquivo: {dateTimePt(preview.updatedAt)}.
-              </p>
-              <ul className="backup-preview-list">
-                <li>Peso: {preview.weights.length}</li>
-                <li>Atividades: {preview.activities.length}</li>
-                <li>Refeições: {preview.meals.length}</li>
-                <li>Água: {preview.hydrationEntries.length}</li>
-                <li>Medicamentos: {preview.medications.length}</li>
-                <li>Registros de uso: {preview.medicationLogs.length}</li>
-              </ul>
-              <button
-                className="button secondary"
-                type="button"
-                onClick={importBackup}
+              <div className="backup-comparison-totals">
+                <div>
+                  <span>Neste navegador</span>
+                  <strong>{comparison.localTotal}</strong>{" "}
+                  {comparison.localTotal === 1 ? "registro" : "registros"}
+                </div>
+                <div>
+                  <span>No arquivo</span>
+                  <strong>{comparison.incomingTotal}</strong>{" "}
+                  {comparison.incomingTotal === 1 ? "registro" : "registros"}
+                </div>
+              </div>
+              <div
+                className="backup-comparison-list"
+                aria-label="Comparação por categoria"
               >
-                Importar este arquivo
-              </button>
+                {comparison.categories.map((category) => (
+                  <div
+                    className="backup-comparison-category"
+                    key={category.key}
+                  >
+                    <strong>{category.label}</strong>
+                    <div>
+                      <span>
+                        Só aqui <b>{category.onlyLocal}</b>
+                      </span>
+                      <span>
+                        Só no arquivo <b>{category.onlyIncoming}</b>
+                      </span>
+                      <span>
+                        Alterados <b>{category.changed}</b>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p
+                className={`backup-comparison-note${
+                  comparison.onlyLocal === 0 &&
+                  comparison.changed === 0 &&
+                  !comparison.profileChanged &&
+                  !comparison.hydrationRemindersChanged
+                    ? " backup-comparison-note-safe"
+                    : ""
+                }`}
+              >
+                {comparison.onlyLocal > 0
+                  ? `${recordsLabel(comparison.onlyLocal)} ${comparison.onlyLocal === 1 ? "exclusivo" : "exclusivos"} deste navegador ${comparison.onlyLocal === 1 ? "deixará" : "deixarão"} de estar ${comparison.onlyLocal === 1 ? "disponível" : "disponíveis"} após a importação.`
+                  : "Nenhum registro exclusivo deste navegador será removido."}{" "}
+                Registros com o mesmo identificador e conteúdo diferente:{" "}
+                {comparison.changed}.
+                {comparison.profileChanged && " O perfil é diferente."}
+                {comparison.hydrationRemindersChanged &&
+                  " Os horários de lembrete de água são diferentes."}
+              </p>
+              <p>
+                Se houver dados locais, uma cópia anterior será preparada para
+                download. Confira se o arquivo foi guardado.
+                {scope !== null &&
+                  " Em uma conta conectada, a substituição poderá ser sincronizada com o Google Drive."}
+              </p>
+              {needsReview ? (
+                <div className="backup-comparison-review" role="status">
+                  <p>
+                    Os dados deste navegador mudaram. Confira os novos números
+                    antes de continuar.
+                  </p>
+                  <button
+                    className="button secondary"
+                    type="button"
+                    onClick={() => {
+                      setPreview({
+                        ...activePreview,
+                        reviewedRevision: data.revision,
+                      });
+                      setError("");
+                    }}
+                  >
+                    Conferi a comparação atualizada
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="button secondary"
+                  type="button"
+                  onClick={importBackup}
+                >
+                  Importar este arquivo
+                </button>
+              )}
             </div>
           )}
           <Notice kind="warning">
@@ -303,6 +417,53 @@ export function SettingsPage() {
               um backup regularmente.
             </p>
           </InfoDisclosure>
+        </section>
+        <section className="panel">
+          <div className="card-title">
+            <span className="list-icon">
+              <FlaskConical size={20} aria-hidden="true" />
+            </span>
+            <div>
+              <h2>Programa beta</h2>
+              <p>
+                Experimente novidades de interface antes da liberação geral.
+              </p>
+            </div>
+          </div>
+          <p>
+            {experiment.betaTester
+              ? "O programa beta está ativo nesta instalação. Você recebe os testes de interface disponíveis."
+              : "Participe dos testes de interface disponíveis nesta instalação, independentemente do sorteio."}
+          </p>
+          <p>
+            Recursos pausados continuam desligados. Esta escolha não altera seus
+            registros nem vai para o backup. Com seu consentimento, os testes
+            aparecem nas métricas como participação manual, separada dos grupos
+            sorteados.
+          </p>
+          <button
+            className="button secondary"
+            type="button"
+            onClick={() => {
+              const enabled = !experiment.betaTester;
+              if (!experiment.setBetaTester(enabled)) {
+                setError(
+                  "Não foi possível guardar a preferência neste navegador.",
+                );
+                return;
+              }
+              setError("");
+              setMessage(
+                enabled
+                  ? "Programa beta ativado nesta instalação. Os testes disponíveis serão atualizados."
+                  : "Programa beta desativado nesta instalação. A distribuição normal será restaurada.",
+              );
+            }}
+          >
+            {experiment.betaTester
+              ? "Sair do programa beta"
+              : "Virar beta tester"}
+          </button>
         </section>
         <section className="panel">
           <div className="card-title">

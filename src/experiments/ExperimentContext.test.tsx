@@ -25,18 +25,24 @@ vi.mock("./assignment", async (importOriginal) => {
   const original = await importOriginal<typeof import("./assignment")>();
   return {
     ...original,
-    resolveAssignments: (payload: unknown, authenticated: boolean) =>
+    resolveAssignments: (
+      payload: unknown,
+      authenticated: boolean,
+      _bucketFor: unknown,
+      betaTester: boolean,
+    ) =>
       original.resolveAssignments(
         payload,
         authenticated,
         async () => state.bucket,
+        betaTester,
       ),
   };
 });
 vi.mock("./metrics", () => ({
   metricsAllowed: () => state.allowed,
   recordExperimentMetric: (...args: unknown[]) => {
-    if (!state.allowed || (args[1] as { forced: boolean }).forced) return false;
+    if (!state.allowed) return false;
     state.events.push(args);
     return true;
   },
@@ -67,6 +73,10 @@ function Probe({ visible = true }: { visible?: boolean }) {
       >
         Start
       </button>
+      <button onClick={() => experiment.setBetaTester(!experiment.betaTester)}>
+        Beta
+      </button>
+      <span data-testid="beta">{experiment.betaTester ? "on" : "off"}</span>
     </>
   );
 }
@@ -83,6 +93,7 @@ beforeEach(() => {
   state.allowed = true;
   state.events = [];
   state.finish = null;
+  localStorage.removeItem("biorotina.beta-tester.v1");
   forced = [];
   config = { enabled: true, killSwitch: false, rolloutPercent: 5, revision: 2 };
   vi.stubGlobal(
@@ -223,7 +234,7 @@ it("consentimento tardio mede só exposição atual, sem recuperar ações anter
   state.finish?.("success");
   expect(state.events).toHaveLength(1);
 });
-it("separa header forçado de tráfego real e remove adesão no logout", async () => {
+it("mede header forçado como manual e remove adesão no logout", async () => {
   state.account = { id: "synthetic" };
   forced = [key];
   const ui = render(view());
@@ -232,16 +243,48 @@ it("separa header forçado de tráfego real e remove adesão no logout", async (
   );
   fireEvent.click(screen.getByText("Start"));
   state.finish?.("success");
-  expect(state.events).toHaveLength(0);
+  expect(state.events.map((event) => event[2])).toEqual([
+    "exposure",
+    "success",
+  ]);
+  expect(state.events[0][1]).toEqual({
+    arm: "experiment",
+    revision: 2,
+    forced: true,
+  });
   state.account = null;
   ui.rerender(view());
   expect(screen.getByTestId("arm")).toHaveTextContent("control");
-  await waitFor(() => expect(state.events).toHaveLength(1));
-  expect(state.events[0][1]).toEqual({
+  await waitFor(() => expect(state.events).toHaveLength(4));
+  expect(state.events[2][2]).toBe("rollback");
+  expect(state.events[2][1]).toMatchObject({ forced: true });
+  expect(state.events[3][1]).toEqual({
     arm: "control",
     revision: 2,
     forced: false,
   });
+});
+
+it("guarda adesão beta local, mede como manual e volta ao sorteio ao sair", async () => {
+  render(view());
+  await waitFor(() =>
+    expect(screen.getByTestId("arm")).toHaveTextContent("control"),
+  );
+  fireEvent.click(screen.getByText("Beta"));
+  expect(localStorage.getItem("biorotina.beta-tester.v1")).toBe("enabled");
+  await waitFor(() =>
+    expect(screen.getByTestId("arm")).toHaveTextContent("experiment"),
+  );
+  expect(state.events.at(-1)?.[1]).toEqual({
+    arm: "experiment",
+    revision: 2,
+    forced: true,
+  });
+  fireEvent.click(screen.getByText("Beta"));
+  expect(localStorage.getItem("biorotina.beta-tester.v1")).toBeNull();
+  await waitFor(() =>
+    expect(screen.getByTestId("arm")).toHaveTextContent("control"),
+  );
 });
 
 it("resposta atrasada da sessão anterior não reativa experimento após kill switch", async () => {

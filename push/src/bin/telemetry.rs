@@ -120,6 +120,16 @@ enum Experiment {
     MedicationFormConfirmation,
     DailyRecordsLastDayShortcut,
     DailyRecordsNextDayShortcut,
+    WeightHistoryEdit,
+    WeightHistoryLastDayShortcut,
+    HydrationHistoryLastDayShortcut,
+    HabitHistoryClearSearch,
+    MedicationHistoryClearSearch,
+    ActivityHistoryClearSearch,
+    FoodHistoryClearSearch,
+    FoodDailyCalories,
+    MobileNavMealPriority,
+    CalorieBalanceDaily,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -142,6 +152,8 @@ struct ExperimentMetric {
     experiment: Experiment,
     revision: u32,
     arm: Arm,
+    #[serde(default)]
+    manual: bool,
     outcome: Outcome,
     environment: Environment,
 }
@@ -152,7 +164,7 @@ async fn record_experiment(Json(event): Json<ExperimentMetric>) -> StatusCode {
     // No cookies, IPs, IDs, buckets, free text or original request body are logged.
     eprintln!(
         "{}",
-        json!({ "kind": "experiment_metric", "service": "frontend",
+        json!({ "kind": if event.manual { "experiment_metric_manual" } else { "experiment_metric" }, "service": "frontend",
         "experiment": event.experiment, "revision": event.revision, "arm": event.arm,
         "outcome": event.outcome, "environment": event.environment })
     );
@@ -222,6 +234,30 @@ mod tests {
                 .status(),
             StatusCode::NO_CONTENT
         );
+        for key in [
+            "weight-history-edit",
+            "weight-history-last-day-shortcut",
+            "hydration-history-last-day-shortcut",
+            "habit-history-clear-search",
+            "medication-history-clear-search",
+            "activity-history-clear-search",
+            "food-history-clear-search",
+            "food-daily-calories",
+            "calorie-balance-daily",
+        ] {
+            let mut metric = valid.clone();
+            metric["experiment"] = json!(key);
+            assert_eq!(
+                client
+                    .post(&url)
+                    .json(&metric)
+                    .send()
+                    .await
+                    .unwrap()
+                    .status(),
+                StatusCode::NO_CONTENT
+            );
+        }
         let mut weight = valid.clone();
         weight["experiment"] = json!("weight-form-confirmation");
         assert_eq!(
@@ -322,6 +358,33 @@ mod tests {
                     StatusCode::NO_CONTENT
                 );
             }
+        }
+        let mut manual = base.clone();
+        manual["manual"] = json!(true);
+        assert_eq!(
+            record_experiment(Json(serde_json::from_value(manual).unwrap())).await,
+            StatusCode::NO_CONTENT
+        );
+        let mut invalid_manual = base.clone();
+        invalid_manual["manual"] = json!("true");
+        assert!(serde_json::from_value::<ExperimentMetric>(invalid_manual).is_err());
+        for key in [
+            "weight-history-edit",
+            "weight-history-last-day-shortcut",
+            "hydration-history-last-day-shortcut",
+            "habit-history-clear-search",
+            "medication-history-clear-search",
+            "activity-history-clear-search",
+            "food-history-clear-search",
+            "food-daily-calories",
+            "calorie-balance-daily",
+        ] {
+            let mut value = base.clone();
+            value["experiment"] = json!(key);
+            assert_eq!(
+                record_experiment(Json(serde_json::from_value(value).unwrap())).await,
+                StatusCode::NO_CONTENT
+            );
         }
         for field in ["account", "bucket", "token", "amount", "url", "message"] {
             let mut value = base.clone();
