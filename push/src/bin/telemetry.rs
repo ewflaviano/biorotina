@@ -126,6 +126,7 @@ enum Experiment {
     HabitHistoryClearSearch,
     MedicationHistoryClearSearch,
     ActivityHistoryClearSearch,
+    FoodHistoryClearSearch,
     FoodDailyCalories,
     MobileNavMealPriority,
     CalorieBalanceDaily,
@@ -240,6 +241,7 @@ mod tests {
             "habit-history-clear-search",
             "medication-history-clear-search",
             "activity-history-clear-search",
+            "food-history-clear-search",
             "food-daily-calories",
             "calorie-balance-daily",
         ] {
@@ -373,6 +375,7 @@ mod tests {
             "habit-history-clear-search",
             "medication-history-clear-search",
             "activity-history-clear-search",
+            "food-history-clear-search",
             "food-daily-calories",
             "calorie-balance-daily",
         ] {

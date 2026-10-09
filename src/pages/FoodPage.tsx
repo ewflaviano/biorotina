@@ -110,6 +110,13 @@ export function FoodPage() {
   const visibleMeals = mealsForDay.filter((item) =>
     normalizeHistoryName(item.name).includes(searchTerm),
   );
+  const emptySearch =
+    mealsForDay.length > 0 &&
+    searchTerm.length > 0 &&
+    visibleMeals.length === 0;
+  useExperimentExposure("food-history-clear-search", emptySearch);
+  const clearFromEmpty =
+    emptySearch && experiment.enabled("food-history-clear-search");
   const totalCalories = meals.reduce(
     (sum, item) => sum + (item.caloriesKcal ?? 0),
     0,
@@ -810,6 +817,7 @@ export function FoodPage() {
                       placeholder: "Ex.: Almoço",
                       value: historySearch,
                       onChange: setHistorySearch,
+                      showClearAction: !clearFromEmpty,
                     }
                   : undefined
               }
@@ -872,11 +880,26 @@ export function FoodPage() {
                 description="Adicione uma refeição quando quiser começar. As calorias não são obrigatórias."
               />
             ) : (
-              <p className="history-day-empty">
-                {mealsForDay.length === 0
-                  ? "Nenhuma refeição registrada neste dia. Escolha outra data para consultar o histórico."
-                  : "Nenhuma refeição corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
-              </p>
+              <>
+                <p className="history-day-empty">
+                  {mealsForDay.length === 0
+                    ? "Nenhuma refeição registrada neste dia. Escolha outra data para consultar o histórico."
+                    : "Nenhuma refeição corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
+                </p>
+                {clearFromEmpty && (
+                  <button
+                    className="button secondary"
+                    type="button"
+                    onClick={() => {
+                      experiment.recordUse("food-history-clear-search");
+                      setHistorySearch("");
+                      document.getElementById("food-history-search")?.focus();
+                    }}
+                  >
+                    Limpar busca e ver registros
+                  </button>
+                )}
+              </>
             )}
           </section>
         </div>
