@@ -74,6 +74,8 @@ indisponibilidade pode ser publicada primeiro e registrada em seguida.
 3. O CI roda em todo PR. Ele sempre verifica a seleção de arquivos e padrões conhecidos de credenciais; também executa as verificações de frontend e/ou backend conforme as áreas alteradas. **PRs não publicam na AWS.**
 4. Aguarde os checks e a revisão. Ajuste a branch se houver comentários. Depois do merge em `master`, o CI publica apenas as áreas alteradas.
 
+A proteção da `master` exige PR, checks `changes`, `validate_frontend` e `validate_backend` aprovados, branch atualizada e conversas resolvidas; bloqueia exclusão e force push. Apenas a conta `inovaprog` pode integrar PRs nessa branch. O GitHub não exige aprovação formal de outra pessoa: comentários ou aprovações de contribuidores não autorizam o merge. Aguarde a decisão do mantenedor e não envie commits diretamente para `master`.
+
 Não envie arquivos `.env`, backups, dados reais de saúde ou credenciais. O verificador automático de segredos cobre padrões comuns, mas cada contribuição ainda precisa de revisão humana.
 
 ## Licença e segurança
