@@ -582,7 +582,12 @@ export function DriveSyncProvider({
         "Backup do Drive restaurado. A versão local anterior foi baixada em JSON.",
       );
     } catch (cause) {
-      reportClientError("drive", "drive_sync_failed", "drive_restore");
+      reportClientError(
+        "drive",
+        "drive_sync_failed",
+        "drive_restore",
+        cause instanceof GoogleDriveHttpError ? cause.status : undefined,
+      );
       setError(
         cause instanceof Error
           ? cause.message

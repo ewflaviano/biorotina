@@ -90,8 +90,7 @@ describe("atalho experimental no histórico de água vazio", () => {
     );
   });
 
-  it("não aparece quando há somente um dia posterior", () => {
-    experiment.enabled = true;
+  it("mantém o controle sem atalho quando há somente um dia posterior", () => {
     render(
       <MemoryRouter
         initialEntries={[{ pathname: "/", state: { day: "2026-09-24" } }]}
@@ -100,6 +99,32 @@ describe("atalho experimental no histórico de água vazio", () => {
       </MemoryRouter>,
     );
     expect(screen.queryByRole("button", { name: /Ver água de/ })).toBeNull();
+  });
+
+  it("abre o primeiro dia posterior com água e foca o seletor", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-24" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Ver água de 25 de setembro de 2026",
+      }),
+    );
+    expect(
+      within(screen.getByRole("region", { name: /Histórico de/ })).getByText(
+        "200 ml",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Data do histórico de água")).toHaveFocus();
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "hydration-history-next-day-shortcut",
+    );
   });
 });
 
