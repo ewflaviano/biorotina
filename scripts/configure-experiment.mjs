@@ -25,6 +25,7 @@ if (
     "weight-history-edit",
     "weight-history-last-day-shortcut",
     "hydration-history-last-day-shortcut",
+    "hydration-history-next-day-shortcut",
     "habit-history-clear-search",
     "medication-history-clear-search",
     "activity-history-clear-search",

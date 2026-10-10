@@ -105,9 +105,17 @@ export function HydrationPage() {
     const day = historyDayOf(entry.drankAt);
     return day < selectedDay && (last === null || day > last) ? day : last;
   }, null);
+  const nextHydrationDay = entries.reduce<string | null>((next, entry) => {
+    const day = historyDayOf(entry.drankAt);
+    return day > selectedDay && (next === null || day < next) ? day : next;
+  }, null);
   useExperimentExposure(
     "hydration-history-last-day-shortcut",
     historyEntries.length === 0 && lastHydrationDay !== null,
+  );
+  useExperimentExposure(
+    "hydration-history-next-day-shortcut",
+    historyEntries.length === 0 && nextHydrationDay !== null,
   );
   const historyTotalMl = historyEntries.reduce(
     (sum, entry) => sum + entry.amountMl,
@@ -551,6 +559,20 @@ export function HydrationPage() {
                       }}
                     >
                       Ver água de {formatCalendarDay(lastHydrationDay)}
+                    </button>
+                  )}
+                {nextHydrationDay &&
+                  enabled("hydration-history-next-day-shortcut") && (
+                    <button
+                      className="button secondary"
+                      type="button"
+                      onClick={() => {
+                        recordUse("hydration-history-next-day-shortcut");
+                        focusDayAfterShortcut.current = true;
+                        setSelectedDay(nextHydrationDay);
+                      }}
+                    >
+                      Ver água de {formatCalendarDay(nextHydrationDay)}
                     </button>
                   )}
               </>

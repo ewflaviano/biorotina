@@ -652,6 +652,50 @@ describe("login e sincronização automática", () => {
     expect((await loadData(account.id)).profile.displayName).toBe("Local");
   });
 
+  it.each([
+    [new GoogleDriveHttpError("Falha simulada", 503), 503],
+    [new Error("Falha local simulada"), undefined],
+  ])(
+    "classifica falha ao restaurar sem expor detalhes",
+    async (failure, status) => {
+      const local = emptyData();
+      local.profile.displayName = "Local";
+      const remote = emptyData();
+      remote.profile.displayName = "Drive";
+      await saveData(local, account.id);
+      snapshots.push({ id: "remote-1", createdTime: new Date().toISOString() });
+      vi.mocked(downloadDriveSnapshot).mockResolvedValue(remote);
+      vi.mocked(listDriveSnapshots)
+        .mockImplementationOnce(async () => [...snapshots])
+        .mockRejectedValueOnce(failure);
+      const user = userEvent.setup();
+      render(<App />);
+      await user.click(
+        await screen.findByRole("button", {
+          name: "Entrar com Google para sincronizar",
+        }),
+      );
+      const confirmation = vi.spyOn(window, "confirm").mockReturnValue(true);
+      await user.click(
+        await screen.findByRole("link", { name: "Ver detalhes" }),
+      );
+      await user.click(
+        await screen.findByRole("button", { name: "Usar backup do Drive" }),
+      );
+      await waitFor(() =>
+        expect(reportClientError).toHaveBeenCalledWith(
+          "drive",
+          "drive_sync_failed",
+          "drive_restore",
+          status,
+        ),
+      );
+      expect((await loadData(account.id)).profile.displayName).toBe("Local");
+      expect(downloadJson).toHaveBeenCalledTimes(0);
+      confirmation.mockRestore();
+    },
+  );
+
   it("permite juntar registros sem conta a uma conta que já tem dados no Drive", async () => {
     const guest = emptyData();
     guest.hydrationEntries.push({
