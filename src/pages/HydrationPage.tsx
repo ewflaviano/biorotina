@@ -39,11 +39,16 @@ import {
   useExperimentExposure,
 } from "../experiments/ExperimentContext";
 import type { HydrationEntry } from "../domain/data";
+import { useOptionalDriveSync } from "../sync/DriveSyncContext";
 
 export function HydrationPage() {
   const { data, mutate, removeWithUndo } = useAppData();
   const [selectedDay, setSelectedDay] = useHistoryDay();
   const { enabled, recordUse, startAttempt } = useExperiment();
+  const drive = useOptionalDriveSync();
+  useExperimentExposure("initial-sync-before-entry");
+  const waitingForInitialSync =
+    enabled("initial-sync-before-entry") && drive?.initialSyncReady === false;
   useExperimentExposure("hydration-quick-confirmation");
   useExperimentExposure("hydration-form-confirmation");
   const confirmQuickAdd = enabled("hydration-quick-confirmation");
@@ -140,6 +145,7 @@ export function HydrationPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (waitingForInitialSync) return;
     const finish = startAttempt("hydration-form-confirmation");
     setWaterError("");
     setFormConfirmed(false);
@@ -171,6 +177,7 @@ export function HydrationPage() {
     amountMl: number,
     source: "hero" | "history" = "hero",
   ) {
+    if (waitingForInitialSync) return;
     const finish = startAttempt("hydration-quick-confirmation");
     setQuickConfirmation(null);
     setFormConfirmed(false);
@@ -336,13 +343,20 @@ export function HydrationPage() {
                   key={value}
                   className="button secondary compact"
                   type="button"
-                  disabled={saving}
+                  disabled={saving || waitingForInitialSync}
                   onClick={() => quickAdd(value)}
                 >
                   <Plus size={15} aria-hidden="true" /> {value} ml
                 </button>
               ))}
             </div>
+            {waitingForInitialSync && (
+              <p role="status" className="small muted">
+                {drive?.status === "conflict"
+                  ? "Concilie seus registros do Drive para adicionar água."
+                  : "Conferindo seus registros no Drive. Você poderá adicionar água em instantes."}
+              </p>
+            )}
             {confirmQuickAdd && (
               <p role="status" aria-atomic="true" className="small muted">
                 {quickConfirmation === "hero"
@@ -391,7 +405,10 @@ export function HydrationPage() {
                   {waterError}
                 </p>
               )}
-              <button className="button primary" disabled={saving}>
+              <button
+                className="button primary"
+                disabled={saving || waitingForInitialSync}
+              >
                 {saving ? "Salvando…" : "Salvar água"}
               </button>
             </form>
@@ -461,7 +478,7 @@ export function HydrationPage() {
                         type="button"
                         className="entry-action"
                         aria-label={`Repetir ${inputDecimal(entry.amountMl)} ml de água`}
-                        disabled={saving}
+                        disabled={saving || waitingForInitialSync}
                         onClick={() => quickAdd(entry.amountMl, "history")}
                       >
                         Repetir

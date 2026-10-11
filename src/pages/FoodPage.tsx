@@ -68,10 +68,14 @@ export function FoodPage() {
   const { data, mutate, removeWithUndo } = useAppData();
   const [selectedDay, setSelectedDay] = useHistoryDay();
   const experiment = useExperiment();
+  useExperimentExposure("initial-sync-before-entry");
   const showDailyCalories = experiment.enabled("food-daily-calories");
   useExperimentExposure("food-daily-calories");
   const [historySearch, setHistorySearch] = useState("");
   const drive = useDriveSync();
+  const waitingForInitialSync =
+    experiment.enabled("initial-sync-before-entry") &&
+    drive.initialSyncReady === false;
   const [name, setName] = useState("");
   const [calories, setCalories] = useState("");
   const [when, setWhen] = useState(toLocalDateTime(new Date().toISOString()));
@@ -199,6 +203,7 @@ export function FoodPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (waitingForInitialSync) return;
     setError("");
     setSaving(true);
     try {
@@ -793,7 +798,17 @@ export function FoodPage() {
                   {error}
                 </p>
               )}
-              <button className="button primary" disabled={saving}>
+              {waitingForInitialSync && (
+                <p role="status" className="small muted">
+                  {drive.status === "conflict"
+                    ? "Concilie seus registros do Drive para salvar a refeição."
+                    : "Conferindo seus registros no Drive. Você poderá salvar a refeição em instantes."}
+                </p>
+              )}
+              <button
+                className="button primary"
+                disabled={saving || waitingForInitialSync}
+              >
                 {saving ? "Salvando…" : "Salvar refeição"}
               </button>
             </form>

@@ -42,6 +42,7 @@ const FEATURES: &[&str] = &[
     "food-daily-calories",
     "mobile-nav-meal-priority",
     "calorie-balance-daily",
+    "initial-sync-before-entry",
 ];
 const CACHE_FOR: Duration = Duration::from_secs(60);
 

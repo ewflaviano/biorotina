@@ -77,6 +77,7 @@ interface DriveSyncValue {
   status: DriveSyncStatus;
   busy: boolean;
   hasPendingChanges: boolean;
+  initialSyncReady: boolean;
   message: string;
   error: string;
   drivePermissionPrompt: boolean;
@@ -121,6 +122,9 @@ export function DriveSyncProvider({
   const [error, setError] = useState("");
   const [drivePermissionPrompt, setDrivePermissionPrompt] = useState(false);
   const [settledRevision, setSettledRevision] = useState<number | null>(null);
+  const [initialSyncAccountId, setInitialSyncAccountId] = useState<
+    string | null
+  >(null);
   const [guestCopyAvailable, setGuestCopyAvailable] = useState(false);
   const canCopyGuest = Boolean(
     account &&
@@ -281,6 +285,8 @@ export function DriveSyncProvider({
           )
             rerun.current = true;
         } while (rerun.current && accountRef.current?.id === connected.id);
+        if (accountRef.current?.id === connected.id)
+          setInitialSyncAccountId(connected.id);
       } catch (cause) {
         reportClientError(
           "drive",
@@ -316,7 +322,11 @@ export function DriveSyncProvider({
     renewal.current ??= renewGoogle(googleClientId);
     void renewal.current
       .then(async (restored) => {
-        if (!restored || cancelled || accountRef.current) return;
+        if (cancelled || accountRef.current) return;
+        if (!restored) {
+          setStatus("reconnect-required");
+          return;
+        }
         await switchScope(restored.id);
         rememberGoogleAccount(restored);
         accountRef.current = restored;
@@ -330,8 +340,10 @@ export function DriveSyncProvider({
           "drive_reconnect_required",
           "google_restore_session",
         );
-        if (!cancelled && !accountRef.current)
+        if (!cancelled && !accountRef.current) {
           setMessage("Toque em Entrar para reconectar sua conta Google.");
+          setStatus("reconnect-required");
+        }
       });
     return () => {
       cancelled = true;
@@ -364,6 +376,7 @@ export function DriveSyncProvider({
           ? "authorization-needed"
           : "pending",
       );
+      setInitialSyncAccountId(null);
       setDrivePermissionPrompt(connected.driveAuthorized === false);
     } catch (cause) {
       reportClientError(
@@ -442,6 +455,7 @@ export function DriveSyncProvider({
         setError("");
         setMessage("");
         setStatus("disconnected");
+        setInitialSyncAccountId(null);
         setDrivePermissionPrompt(false);
         setGuestCopyAvailable(false);
       } catch {
@@ -465,6 +479,7 @@ export function DriveSyncProvider({
     setLatest(null);
     setConflict(null);
     setStatus("disconnected");
+    setInitialSyncAccountId(null);
     setGuestCopyAvailable(false);
   }, [loading, scope]);
 
@@ -527,6 +542,7 @@ export function DriveSyncProvider({
       setLatest(saved);
       setConflict(null);
       setStatus("synced");
+      setInitialSyncAccountId(connected.id);
       setSettledRevision(current.revision);
       setMessage(
         "Esta versão foi salva no Drive. O backup anterior continua disponível.",
@@ -577,6 +593,7 @@ export function DriveSyncProvider({
       });
       setConflict(null);
       setStatus("synced");
+      setInitialSyncAccountId(connected.id);
       setSettledRevision(current.revision + 1);
       setMessage(
         "Backup do Drive restaurado. A versão local anterior foi baixada em JSON.",
@@ -637,6 +654,7 @@ export function DriveSyncProvider({
       setLatest(saved);
       setConflict(null);
       setStatus("synced");
+      setInitialSyncAccountId(connected.id);
       setSettledRevision(merged.revision);
       setMessage("Registros deste navegador e do Drive foram reunidos.");
     } catch (cause) {
@@ -713,6 +731,16 @@ export function DriveSyncProvider({
     account && status === "synced" && data.revision !== settledRevision
       ? "pending"
       : status;
+  const initialSyncReady =
+    !loading &&
+    (!account
+      ? scope === null || status === "reconnect-required" || status === "error"
+      : scope === account.id &&
+        (account.driveAuthorized === false ||
+          initialSyncAccountId === account.id ||
+          status === "error" ||
+          status === "reconnect-required" ||
+          (status === "pending" && navigator.onLine === false)));
 
   return (
     <Context.Provider
@@ -729,6 +757,7 @@ export function DriveSyncProvider({
         status: visibleStatus,
         busy,
         hasPendingChanges: visibleStatus !== "synced" && hasLocalContent(data),
+        initialSyncReady,
         message,
         error,
         drivePermissionPrompt,
@@ -753,4 +782,8 @@ export function useDriveSync(): DriveSyncValue {
   const value = useContext(Context);
   if (!value) throw new Error("DriveSyncProvider ausente");
   return value;
+}
+
+export function useOptionalDriveSync(): DriveSyncValue | null {
+  return useContext(Context);
 }

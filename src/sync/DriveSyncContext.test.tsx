@@ -1,6 +1,7 @@
 import {
   cleanup,
   configure,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -17,7 +18,7 @@ import { AppDataProvider, useAppData } from "../state/AppDataContext";
 import { loadData, saveData } from "../storage/indexedDb";
 import { reportClientError } from "../observability/client";
 import { DriveBackup } from "./DriveBackup";
-import { DriveSyncProvider } from "./DriveSyncContext";
+import { DriveSyncProvider, useDriveSync } from "./DriveSyncContext";
 import { downloadJson } from "./download";
 import {
   authorizeGoogleDrive,
@@ -91,10 +92,18 @@ function RecordButton() {
   );
 }
 
+function InitialSyncMarker() {
+  const { initialSyncReady } = useDriveSync();
+  return (
+    <span data-testid="initial-sync-ready">{String(initialSyncReady)}</span>
+  );
+}
+
 function App() {
   return (
     <AppDataProvider>
       <DriveSyncProvider googleClientId="test-client-id">
+        <InitialSyncMarker />
         <MemoryRouter initialEntries={["/"]}>
           <Routes>
             <Route element={<Layout />}>
@@ -151,6 +160,37 @@ beforeEach(async () => {
 });
 
 describe("login e sincronização automática", () => {
+  it("aguarda a primeira leitura do Drive antes de liberar novos registros", async () => {
+    let finishList!: (snapshots: DriveSnapshot[]) => void;
+    vi.mocked(listDriveSnapshots).mockReturnValue(
+      new Promise((resolve) => {
+        finishList = resolve;
+      }),
+    );
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId("initial-sync-ready")).toHaveTextContent(
+        "true",
+      ),
+    );
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Entrar com Google para sincronizar",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("initial-sync-ready")).toHaveTextContent(
+        "false",
+      ),
+    );
+    finishList([]);
+    await waitFor(() =>
+      expect(screen.getByTestId("initial-sync-ready")).toHaveTextContent(
+        "true",
+      ),
+    );
+  });
   it("entra sem Drive, oferece autorização adicional e só sincroniza após permitir", async () => {
     vi.mocked(connectGoogle).mockResolvedValue({
       ...account,

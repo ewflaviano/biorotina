@@ -132,6 +132,7 @@ enum Experiment {
     FoodDailyCalories,
     MobileNavMealPriority,
     CalorieBalanceDaily,
+    InitialSyncBeforeEntry,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]

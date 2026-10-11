@@ -34,6 +34,7 @@ if (
     "food-daily-calories",
     "mobile-nav-meal-priority",
     "calorie-balance-daily",
+    "initial-sync-before-entry",
   ].includes(key) ||
   !Number.isInteger(rolloutPercent) ||
   rolloutPercent < 0 ||
