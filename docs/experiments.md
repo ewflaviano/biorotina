@@ -270,6 +270,19 @@ Promover ou remover após sete dias conforme uso e acessibilidade; sem dados
 suficientes, desligar. Interromper por navegação incorreta, foco inadequado ou
 vazamento de dados.
 
+## Atalho ao próximo dia com peso no histórico vazio — #130
+
+`weight-history-next-day-shortcut`, revisão 1, responsável Biorotina,
+revisar até 18/10/2026: quando a data escolhida não tem medidas e há um dia
+posterior registrado, oferece o primeiro dia posterior com medida. O controle
+mantém a seleção manual. Sem configuração remota, permanece desligado; adesão
+conectada e kill switch seguem as regras acima. Após deploy, iniciar em 5%.
+Medir exposição consentida nos dois braços apenas no vazio elegível, `use` no
+clique, erros e rollback na mesma revisão. Não enviar datas, pesos ou registros.
+Promover ou remover após sete dias conforme uso e acessibilidade; sem dados
+suficientes, desligar. Interromper por navegação incorreta, foco inadequado ou
+vazamento de dados.
+
 ## Limpeza da busca vazia em medicamentos — #109
 
 `medication-history-clear-search`, revisão 1, responsável Biorotina, revisar

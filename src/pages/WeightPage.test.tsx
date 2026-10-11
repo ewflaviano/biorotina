@@ -112,6 +112,19 @@ describe("atalho experimental no histórico de peso vazio", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("mantém o controle sem atalho quando só há medida posterior", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-26" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByRole("button", { name: /Ver medidas de/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("abre o último dia anterior com medida e registra o uso", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
@@ -137,8 +150,9 @@ describe("atalho experimental no histórico de peso vazio", () => {
     );
   });
 
-  it("não oferece atalho quando só há medida posterior", () => {
+  it("abre o primeiro dia posterior com medida e foca o seletor", async () => {
     experiment.enabled = true;
+    const user = userEvent.setup();
     render(
       <MemoryRouter
         initialEntries={[{ pathname: "/", state: { day: "2026-09-26" } }]}
@@ -146,9 +160,16 @@ describe("atalho experimental no histórico de peso vazio", () => {
         <WeightPage />
       </MemoryRouter>,
     );
-    expect(
-      screen.queryByRole("button", { name: /Ver medidas de/ }),
-    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", {
+        name: "Ver medidas de 27 de setembro de 2026",
+      }),
+    );
+    expect(screen.getByText("70 kg")).toBeInTheDocument();
+    expect(screen.getByLabelText("Data do histórico de medidas")).toHaveFocus();
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "weight-history-next-day-shortcut",
+    );
   });
 });
 
