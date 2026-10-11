@@ -119,9 +119,17 @@ export function WeightPage() {
     const day = historyDayOf(item.measuredAt);
     return day < selectedDay && (last === null || day > last) ? day : last;
   }, null);
+  const nextWeightDay = weights.reduce<string | null>((next, item) => {
+    const day = historyDayOf(item.measuredAt);
+    return day > selectedDay && (next === null || day < next) ? day : next;
+  }, null);
   useExperimentExposure(
     "weight-history-last-day-shortcut",
     historyWeights.length === 0 && lastWeightDay !== null,
+  );
+  useExperimentExposure(
+    "weight-history-next-day-shortcut",
+    historyWeights.length === 0 && nextWeightDay !== null,
   );
   const latest = weights[0];
   const previous = weights[1];
@@ -703,6 +711,20 @@ export function WeightPage() {
                       }}
                     >
                       Ver medidas de {formatCalendarDay(lastWeightDay)}
+                    </button>
+                  )}
+                {nextWeightDay &&
+                  enabled("weight-history-next-day-shortcut") && (
+                    <button
+                      className="button secondary diary-more"
+                      type="button"
+                      onClick={() => {
+                        recordUse("weight-history-next-day-shortcut");
+                        setSelectedDay(nextWeightDay);
+                        document.getElementById("weight-history-date")?.focus();
+                      }}
+                    >
+                      Ver medidas de {formatCalendarDay(nextWeightDay)}
                     </button>
                   )}
               </>

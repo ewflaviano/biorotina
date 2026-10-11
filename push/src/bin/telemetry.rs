@@ -122,6 +122,7 @@ enum Experiment {
     DailyRecordsNextDayShortcut,
     WeightHistoryEdit,
     WeightHistoryLastDayShortcut,
+    WeightHistoryNextDayShortcut,
     HydrationHistoryLastDayShortcut,
     HydrationHistoryNextDayShortcut,
     HabitHistoryClearSearch,
@@ -238,6 +239,7 @@ mod tests {
         for key in [
             "weight-history-edit",
             "weight-history-last-day-shortcut",
+            "weight-history-next-day-shortcut",
             "hydration-history-last-day-shortcut",
             "hydration-history-next-day-shortcut",
             "habit-history-clear-search",
@@ -373,6 +375,7 @@ mod tests {
         for key in [
             "weight-history-edit",
             "weight-history-last-day-shortcut",
+            "weight-history-next-day-shortcut",
             "hydration-history-last-day-shortcut",
             "hydration-history-next-day-shortcut",
             "habit-history-clear-search",
