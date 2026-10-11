@@ -238,6 +238,16 @@ export const experimentRegistry = {
     removeWhen:
       "Revisar após sete dias; interromper se o cálculo induzir interpretação clínica, contar repouso duas vezes ou expuser dados pessoais.",
   },
+  "initial-sync-before-entry": {
+    assignment: "browser",
+    description:
+      "Aguarda a primeira decisão do Drive antes de cadastrar água ou refeição.",
+    owner: "Biorotina",
+    revision: 1,
+    reviewBy: "2026-10-25",
+    removeWhen:
+      "Promover ou remover após avaliar conciliações, espera e acesso offline; interromper se impedir registros locais.",
+  },
 } as const;
 
 export type ExperimentKey = keyof typeof experimentRegistry;

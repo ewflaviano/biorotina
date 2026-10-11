@@ -339,3 +339,20 @@ a facilidade de navegação; validar com pessoas e leitor de tela antes de
 promover. Promover ou remover após sete dias; sem evidência suficiente,
 desligar. Interromper por navegação incorreta, perda de acesso a Medidas ou
 regressão de acessibilidade.
+
+## Cadastro após a primeira sincronização
+
+`initial-sync-before-entry`, revisão 1, responsável Biorotina, revisar até
+25/10/2026: nos formulários de água e refeição e nos atalhos de água, impede
+novos registros enquanto a primeira comparação com o Drive está em andamento.
+Os campos permanecem preenchidos e a ação volta a ficar disponível após a
+decisão. Sem conta, sem autorização do Drive, offline ou após falha de conexão,
+continua possível salvar localmente. Um conflito prévio mantém o cadastro
+bloqueado até a pessoa escolher como conciliar. Alterações posteriores à
+primeira sincronização seguem o fluxo atual. Sem configuração remota, o
+comportamento atual permanece. Medir exposições nos dois braços e observar
+conciliações, tempo de espera e registros offline antes de ampliar; desligar
+se o bloqueio impedir cadastros legítimos.
+
+Após a implantação, habilitar a revisão 1 com `rolloutPercent: 0`. O Programa
+beta recebe o fluxo experimental; os demais navegadores permanecem no controle.

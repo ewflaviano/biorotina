@@ -16,6 +16,7 @@ const experimentState = vi.hoisted(() => ({
   enabled: false,
   recordUse: vi.fn(),
 }));
+const sync = vi.hoisted(() => ({ ready: true }));
 
 const activePlan: PlanStatus = {
   active: true,
@@ -45,7 +46,10 @@ vi.mock("../experiments/ExperimentContext", () => ({
   }),
 }));
 vi.mock("../sync/DriveSyncContext", () => ({
-  useDriveSync: () => ({ account: { id: "account-1", token: "test-token" } }),
+  useDriveSync: () => ({
+    account: { id: "account-1", token: "test-token" },
+    initialSyncReady: sync.ready,
+  }),
 }));
 vi.mock("../storage/indexedDb", () => ({
   loadGeminiKey: vi.fn().mockResolvedValue(null),
@@ -61,6 +65,7 @@ vi.mock("../ai/gemini", () => ({
 }));
 
 beforeEach(() => {
+  sync.ready = true;
   historyState.meals = [];
   experimentState.enabled = false;
   experimentState.recordUse.mockReset();
@@ -70,6 +75,29 @@ beforeEach(() => {
     dataUrl: "data:image/jpeg;base64,AA==",
     base64: "AA==",
   });
+});
+
+it("mantém a refeição preenchível e aguarda o Drive para liberar o cadastro", () => {
+  experimentState.enabled = true;
+  sync.ready = false;
+  const { rerender } = render(
+    <MemoryRouter>
+      <FoodPage />
+    </MemoryRouter>,
+  );
+  expect(
+    screen.getByRole("button", { name: "Salvar refeição" }),
+  ).toBeDisabled();
+  expect(
+    screen.getByText(/Conferindo seus registros no Drive/),
+  ).toBeInTheDocument();
+  sync.ready = true;
+  rerender(
+    <MemoryRouter>
+      <FoodPage />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole("button", { name: "Salvar refeição" })).toBeEnabled();
 });
 
 it("restaura a lista e o foco ao limpar uma busca sem resultados na variante", () => {

@@ -13,6 +13,10 @@ const experiment = vi.hoisted(() => ({
   recordUse: vi.fn(),
 }));
 const storage = vi.hoisted(() => ({ mutate: vi.fn() }));
+const sync = vi.hoisted(() => ({ ready: true }));
+vi.mock("../sync/DriveSyncContext", () => ({
+  useOptionalDriveSync: () => ({ initialSyncReady: sync.ready }),
+}));
 vi.mock("../experiments/ExperimentContext", () => ({
   useExperimentExposure: vi.fn(),
   useExperiment: () => ({
@@ -45,11 +49,38 @@ vi.mock("../components/PushActivationPrompt", () => ({
 }));
 
 beforeEach(() => {
+  sync.ready = true;
   experiment.enabled = false;
   experiment.formEnabled = false;
   experiment.startAttempt.mockImplementation(() => experiment.finish);
   experiment.recordUse.mockReset();
   storage.mutate.mockReset().mockResolvedValue(undefined);
+});
+
+it("segura novos registros de água enquanto a primeira sincronização está pendente", async () => {
+  experiment.enabled = true;
+  sync.ready = false;
+  const { rerender } = render(
+    <MemoryRouter
+      initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+    >
+      <HydrationPage />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole("button", { name: "Salvar água" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "200 ml" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: /Repetir 200 ml/ })).toBeDisabled();
+  expect(storage.mutate).not.toHaveBeenCalled();
+
+  sync.ready = true;
+  rerender(
+    <MemoryRouter
+      initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+    >
+      <HydrationPage />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole("button", { name: "Salvar água" })).toBeEnabled();
 });
 
 describe("atalho experimental no histórico de água vazio", () => {
