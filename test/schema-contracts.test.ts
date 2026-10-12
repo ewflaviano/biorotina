@@ -40,7 +40,7 @@ describe("contratos de dados", () => {
       schemaVersion: 1,
       profile: { displayName: "", heightCm: null },
     });
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(appDataSchema.safeParse(migrated).success).toBe(true);
   });
 

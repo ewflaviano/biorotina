@@ -26,7 +26,8 @@ function containsRecords(data: ExitBackup["data"]): boolean {
       data.profile.heightCm ||
       data.profile.ageYears ||
       data.profile.formulaParameter ||
-      data.hydrationReminderTimes.length,
+      data.hydrationReminderTimes.length ||
+      data.hydrationQuickAmounts !== null,
     )
   );
 }
@@ -255,6 +256,16 @@ export function DriveBackup() {
                     {dateTimePt(drive.conflict.remote.createdTime)}. Escolha
                     qual versão usar.
                   </p>
+                  {JSON.stringify(data.hydrationQuickAmounts) !==
+                    JSON.stringify(
+                      drive.conflict.remoteData.hydrationQuickAmounts,
+                    ) && (
+                    <p>
+                      Os atalhos de água são diferentes. Ao juntar, os atalhos
+                      configurados deste navegador prevalecem; se ainda não
+                      foram configurados aqui, usamos os do Drive.
+                    </p>
+                  )}
                   <div className="backup-actions">
                     <button
                       className="button primary"

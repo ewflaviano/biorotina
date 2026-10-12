@@ -187,3 +187,24 @@ describe("comparação na importação manual", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+it("mostra a diferença de atalhos e prepara cópia de preferências sem registros", async () => {
+  const local = emptyData();
+  local.hydrationQuickAmounts = [350, 400, 600];
+  mocks.replaceIfRevision.mockResolvedValue(undefined);
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  setup(local);
+  chooseBackup(emptyData());
+  expect(
+    await screen.findByText(/Os atalhos de água são diferentes/),
+  ).toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Importar este arquivo" }),
+  );
+  await waitFor(() =>
+    expect(mocks.downloadJson).toHaveBeenCalledWith(
+      local,
+      "-antes-da-importacao",
+    ),
+  );
+});

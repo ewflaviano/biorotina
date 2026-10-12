@@ -42,6 +42,14 @@ export function SyncConflictPrompt() {
           mudou nas duas versões, prevalece a deste navegador; o backup antigo
           do Drive continua disponível.
         </p>
+        {JSON.stringify(data.hydrationQuickAmounts) !==
+          JSON.stringify(conflict.remoteData.hydrationQuickAmounts) && (
+          <p className="muted small">
+            Os atalhos de água são diferentes. Ao juntar, os atalhos
+            configurados deste navegador prevalecem; se ainda não foram
+            configurados aqui, usamos os do Drive.
+          </p>
+        )}
         <div className="sync-conflict-actions">
           <button
             className="button primary"
