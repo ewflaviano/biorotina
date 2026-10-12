@@ -129,7 +129,7 @@ const profileSchema = profileV6Schema
   })
   .strict();
 
-export const appDataSchema = z
+const appDataV7Schema = z
   .object({
     schemaVersion: z.literal(7),
     revision: z.number().int().nonnegative(),
@@ -150,7 +150,44 @@ export const appDataSchema = z
   })
   .strict();
 
-const appDataV6Schema = appDataSchema
+export const hydrationQuickAmountSchema = z
+  .number()
+  .int("Use um volume inteiro em ml.")
+  .min(1, "Informe um volume de pelo menos 1 ml.")
+  .max(10_000, "Informe um volume de até 10.000 ml.");
+
+export const hydrationQuickAmountsSchema = z
+  .tuple([
+    hydrationQuickAmountSchema,
+    hydrationQuickAmountSchema,
+    hydrationQuickAmountSchema,
+  ])
+  .superRefine((amounts, context) => {
+    amounts.forEach((amount, index) => {
+      if (
+        amounts.some(
+          (other, otherIndex) => otherIndex !== index && other === amount,
+        )
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: [index],
+          message: "Use três volumes diferentes.",
+        });
+      }
+    });
+  });
+
+export type HydrationQuickAmounts = z.infer<typeof hydrationQuickAmountsSchema>;
+
+export const appDataSchema = appDataV7Schema
+  .extend({
+    schemaVersion: z.literal(8),
+    hydrationQuickAmounts: hydrationQuickAmountsSchema.nullable(),
+  })
+  .strict();
+
+const appDataV6Schema = appDataV7Schema
   .omit({ schemaVersion: true, profile: true })
   .extend({ schemaVersion: z.literal(6), profile: profileV6Schema })
   .strict();
@@ -200,7 +237,7 @@ export type HydrationEntry = z.infer<typeof hydrationSchema>;
 
 export function emptyData(): AppData {
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     revision: 0,
     updatedAt: new Date().toISOString(),
     profile: {
@@ -218,10 +255,27 @@ export function emptyData(): AppData {
     habitLogs: [],
     hydrationEntries: [],
     hydrationReminderTimes: [],
+    hydrationQuickAmounts: null,
   };
 }
 
 export function parseBackup(input: unknown): AppData {
+  if (
+    input !== null &&
+    typeof input === "object" &&
+    "schemaVersion" in input &&
+    input.schemaVersion === 8
+  ) {
+    return appDataSchema.parse(input);
+  }
+  return {
+    ...parseBackupV7(input),
+    schemaVersion: 8,
+    hydrationQuickAmounts: null,
+  };
+}
+
+function parseBackupV7(input: unknown): z.infer<typeof appDataV7Schema> {
   if (
     input !== null &&
     typeof input === "object" &&
@@ -284,7 +338,7 @@ export function parseBackup(input: unknown): AppData {
     input.schemaVersion === 6
   )
     return migrateV6(appDataV6Schema.parse(input));
-  return appDataSchema.parse(input);
+  return appDataV7Schema.parse(input);
 }
 
 function migrateV2(
@@ -338,7 +392,9 @@ function migrateV5(
   };
 }
 
-function migrateV6(input: z.infer<typeof appDataV6Schema>): AppData {
+function migrateV6(
+  input: z.infer<typeof appDataV6Schema>,
+): z.infer<typeof appDataV7Schema> {
   return {
     ...input,
     schemaVersion: 7,

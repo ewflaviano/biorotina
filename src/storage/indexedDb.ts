@@ -69,7 +69,8 @@ export async function loadLegacyData(): Promise<AppData | null> {
     data.profile.heightCm ||
     data.profile.ageYears ||
     data.profile.formulaParameter ||
-    data.hydrationReminderTimes.length
+    data.hydrationReminderTimes.length ||
+    data.hydrationQuickAmounts !== null
     ? data
     : null;
 }
@@ -82,7 +83,8 @@ export async function loadData(
   const saved = await db.get("app", key);
   if (!saved) return emptyData();
   const data = parseBackup(saved);
-  if (saved.schemaVersion !== 7) await db.put("app", data, key);
+  if (saved.schemaVersion !== data.schemaVersion)
+    await db.put("app", data, key);
   return data;
 }
 

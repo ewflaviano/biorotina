@@ -75,3 +75,19 @@ describe("mergeAppData", () => {
     expect(result.data.hydrationReminderTimes).toEqual(["09:00"]);
   });
 });
+
+it("concilia atalhos sem combinar slots e preserva restauração explícita dos padrões", () => {
+  const local = emptyData();
+  const remote = emptyData();
+  remote.hydrationQuickAmounts = [350, 400, 600];
+  const adopted = mergeAppData(local, remote);
+  expect(adopted.data.hydrationQuickAmounts).toEqual([350, 400, 600]);
+  expect(adopted.changed).toBe(true);
+  local.hydrationQuickAmounts = [200, 250, 500];
+  const preferred = mergeAppData(local, remote);
+  expect(preferred.data.hydrationQuickAmounts).toEqual([200, 250, 500]);
+  expect(preferred.changed).toBe(false);
+  expect(mergeAppData(remote, local).data.hydrationQuickAmounts).toEqual([
+    350, 400, 600,
+  ]);
+});

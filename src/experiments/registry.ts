@@ -18,6 +18,16 @@ export const experimentRegistry = {
     removeWhen:
       "O convite de instalação tiver a sequência aprovada e não houver regressões no onboarding.",
   },
+  "hydration-custom-shortcuts": {
+    issue: 134,
+    assignment: "browser",
+    description: "Permite escolher os três volumes dos atalhos de água.",
+    owner: "Biorotina",
+    revision: 1,
+    reviewBy: "2026-10-19",
+    removeWhen:
+      "Promover ou remover após sete dias de avaliação; interromper por perda de preferências, falha de registro, migração ou acessibilidade.",
+  },
   "hydration-quick-confirmation": {
     assignment: "browser",
     description:

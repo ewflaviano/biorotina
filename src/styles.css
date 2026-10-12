@@ -2927,3 +2927,39 @@ button.habit-week-cell {
     width: 100%;
   }
 }
+
+.hydration-shortcuts-editor > .button.text,
+.hydration-shortcuts-editor form > .button.text {
+  background: transparent;
+  color: var(--color-action);
+  border-color: transparent;
+  padding-inline: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: normal;
+  text-align: left;
+  max-width: 100%;
+}
+.hydration-shortcuts-editor form {
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+.hydration-shortcut-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.7em), 1fr));
+  gap: 8px;
+  margin: 16px 0 12px;
+}
+.hydration-shortcut-fields input {
+  min-width: 0;
+  width: 100%;
+}
+.hydration-shortcut-fields .form-error {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 360px) {
+  .hydration-shortcut-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

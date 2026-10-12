@@ -223,7 +223,7 @@ Identificar nome, apresentação, dose, unidade, frequência e período; horári
 
 ### 9.6 Hidratação
 
-Mostrar o total de água registrado no dia e a lista de entradas com quantidade e horário. Atalhos de 200, 250 e 500 ml ajudam no celular, sem impor meta universal. Permitir vários horários diários de lembrete, sempre descritos como preferências salvas até existir serviço de notificação com consentimento por dispositivo. Nenhum horário salvo deve ser apresentado como aviso ativo.
+Mostrar o total de água registrado no dia e a lista de entradas com quantidade e horário. Atalhos de 200, 250 e 500 ml ajudam no celular, sem impor meta universal. No experimento de personalização, permitir editar os três volumes na própria página, com unidade explícita, validação por campo e restauração dos padrões. A edição dos atalhos nunca registra consumo. Permitir vários horários diários de lembrete, sempre descritos como preferências salvas até existir serviço de notificação com consentimento por dispositivo. Nenhum horário salvo deve ser apresentado como aviso ativo.
 
 ### 9.7 Seus dados, backup e sincronização
 

@@ -114,6 +114,9 @@ export function compareBackup(local: AppData, incoming: AppData) {
     ),
     changed: categories.reduce((sum, category) => sum + category.changed, 0),
     profileChanged: canonical(local.profile) !== canonical(incoming.profile),
+    hydrationQuickAmountsChanged:
+      canonical(local.hydrationQuickAmounts) !==
+      canonical(incoming.hydrationQuickAmounts),
     hydrationRemindersChanged:
       canonical(local.hydrationReminderTimes) !==
       canonical(incoming.hydrationReminderTimes),

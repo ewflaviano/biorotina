@@ -53,6 +53,7 @@ Revisão do fluxo no navegador em largura de celular, da navegação e das açõ
 ## 6. Hidratação
 
 1. Os atalhos de 200, 250 e 500 ml registram água em um toque; um campo permite qualquer volume válido.
+   No experimento `hydration-custom-shortcuts`, **Editar atalhos** permite escolher três volumes inteiros diferentes. Salvar ou restaurar os padrões não cria entradas nem altera registros anteriores. Cancelar retorna o foco ao acionador; falhas mantêm o rascunho e os volumes já salvos. A primeira conciliação com o Drive precisa terminar antes de salvar a preferência; offline continua disponível.
 2. O total de hoje e o histórico se atualizam imediatamente. No histórico, a pessoa pode escolher outro dia e ver o volume e a quantidade de registros desse dia; o destaque de hoje permanece identificado separadamente.
 3. **Repetir** registra o mesmo volume de uma entrada anterior com o horário atual. **Excluir** e **Desfazer** corrigem um toque acidental.
 4. A pessoa pode guardar vários horários de lembrete. O controle “Avisos neste dispositivo” explica quando os avisos estão ativos e permite enviar um teste, ativar ou desativar.

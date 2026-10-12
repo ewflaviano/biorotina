@@ -112,7 +112,10 @@ describe("comparação de backup", () => {
     const local = populatedData();
     const legacy = Object.fromEntries(
       Object.entries(local).filter(
-        ([key]) => key !== "habits" && key !== "habitLogs",
+        ([key]) =>
+          key !== "habits" &&
+          key !== "habitLogs" &&
+          key !== "hydrationQuickAmounts",
       ),
     );
     const incoming = parseBackup({
@@ -157,4 +160,19 @@ describe("comparação de backup", () => {
       changed: 0,
     });
   });
+});
+
+it("detecta apenas a diferença de atalhos mesmo sem registros", () => {
+  const local = emptyData();
+  const incoming = emptyData();
+  incoming.hydrationQuickAmounts = [350, 400, 600];
+  expect(compareBackup(local, incoming)).toMatchObject({
+    localTotal: 0,
+    incomingTotal: 0,
+    hydrationQuickAmountsChanged: true,
+  });
+  expect(
+    compareBackup(incoming, structuredClone(incoming))
+      .hydrationQuickAmountsChanged,
+  ).toBe(false);
 });

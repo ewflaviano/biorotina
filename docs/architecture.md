@@ -30,7 +30,7 @@ EventBridge Scheduler ── Lambda Rust de envio ── Web Push
 - Registros locais de peso, atividade, refeição, água, medicamento e uso de medicamento; perfil com nome opcional, altura para IMC e idade e parâmetro da fórmula opcionais para o balanço calórico experimental. Esses dois campos entram no backup JSON e na sincronização direta com o Drive, quando ativada. Hidratação e medicamentos permitem vários horários diários de lembrete.
 - Exclusão individual com opção de desfazer durante a sessão; exclusão de medicamento pede confirmação e remove também seus registros de uso, com restauração conjunta. Repetição de água usa o horário atual; Peso, Atividade e Refeição preenchem um novo formulário com os dados anteriores. Medicamento pode ser editado sem perder o histórico de uso.
 - Calorias de refeições são **valores informados ou revisados pela pessoa**. Uma foto opcional pode gerar uma lista de alimentos, porções e calorias estimadas com Gemini usando a chave da própria pessoa; nada é salvo até ela revisar e confirmar. A imagem é reduzida no navegador e não é persistida. Para atividades escolhidas no catálogo, a interface sugere calorias a partir de MET do [Compêndio de 2024](https://pacompendium.com/adult-compendium/), duração e peso, identificando o valor como estimativa e mantendo edição livre. Atividades digitadas livremente não recebem estimativa automática.
-- Backup JSON com `schemaVersion: 7`, validação e comparação local antes da confirmação para substituir dados deste navegador. Backups antigos são migrados para o modelo atual, inclusive o antigo horário único de medicação.
+- Backup JSON com `schemaVersion: 8`, validação e comparação local antes da confirmação para substituir dados deste navegador. Backups antigos são migrados para o modelo atual, inclusive o antigo horário único de medicação.
 - A interface funciona sem conta. O código do domínio (`src/domain`) fica separado da interface para facilitar uma futura adaptação a React Native. IndexedDB é específico do navegador e será substituído por outro adaptador de armazenamento no app nativo.
 
 ## Análise opcional por foto
@@ -86,3 +86,17 @@ Evitar ampliar o backend para dados pessoais só por antecipação. Os serviços
 - Manter `.env`, certificados e arquivos de credenciais fora do Git. Revisar **o histórico inteiro**, não apenas os arquivos atuais, antes de divulgar novas versões ou logs; o código e a documentação original usam a [licença MIT](../LICENSE).
 - Backup JSON é texto legível. Uma opção de criptografia de backup pode ser estudada antes de sincronizar dados sensíveis no Drive; não afirmar que os dados estão criptografados de ponta a ponta sem implementar e auditar isso.
 - O aplicativo em produção deve ter HTTPS, Content Security Policy e dependências revisadas. Evitar serviços de analytics ou fontes externas que recebam dados de navegação sem decisão explícita.
+
+## Atalhos de hidratação personalizáveis (experimento)
+
+`hydration-custom-shortcuts` permite editar três volumes inteiros distintos de
+1 a 10.000 ml. `hydrationQuickAmounts` acompanha AppData, o JSON e o Drive
+opcional. Backups v1–v7 migram para v8 com `null` (padrões 200/250/500 ml).
+Restaurar padrões grava a escolha explícita; na mesclagem, uma escolha explícita
+prevalece sobre `null`, e a versão preferida prevalece quando ambas diferem.
+A comparação de importação e os avisos de conflito identificam a diferença.
+Sem configuração do experimento ou com kill switch, a interface mantém os
+atalhos fixos e preserva a preferência armazenada.
+
+Antes de publicar, coordenar a atualização dos clientes: versões anteriores
+à v8 rejeitam snapshots v8. O schema novo não tem downgrade automático.

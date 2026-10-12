@@ -153,7 +153,7 @@ beforeEach(async () => {
       createdTime: new Date(Date.now() + snapshots.length).toISOString(),
     };
     snapshots.unshift(saved);
-    expect(data.schemaVersion).toBe(7);
+    expect(data.schemaVersion).toBe(8);
     return saved;
   });
   vi.mocked(downloadDriveSnapshot).mockReset();

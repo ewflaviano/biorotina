@@ -112,6 +112,7 @@ struct ClientError {
 enum Experiment {
     DemoHighlight,
     OnboardingInstallPrompt,
+    HydrationCustomShortcuts,
     HydrationQuickConfirmation,
     HydrationFormConfirmation,
     WeightFormConfirmation,
@@ -243,6 +244,7 @@ mod tests {
             "weight-history-next-day-shortcut",
             "hydration-history-last-day-shortcut",
             "hydration-history-next-day-shortcut",
+            "hydration-custom-shortcuts",
             "habit-history-clear-search",
             "medication-history-clear-search",
             "activity-history-clear-search",
@@ -379,6 +381,7 @@ mod tests {
             "weight-history-next-day-shortcut",
             "hydration-history-last-day-shortcut",
             "hydration-history-next-day-shortcut",
+            "hydration-custom-shortcuts",
             "habit-history-clear-search",
             "medication-history-clear-search",
             "activity-history-clear-search",

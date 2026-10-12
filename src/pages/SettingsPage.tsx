@@ -145,7 +145,8 @@ function SettingsPageContent() {
         data.profile.heightCm !== null ||
         data.profile.ageYears !== null ||
         data.profile.formulaParameter !== null ||
-        data.hydrationReminderTimes.length > 0;
+        data.hydrationReminderTimes.length > 0 ||
+        data.hydrationQuickAmounts !== null;
       if (hasLocalData) downloadJson(data, "-antes-da-importacao");
       await replaceIfRevision(
         activePreview.reviewedRevision,
@@ -310,7 +311,8 @@ function SettingsPageContent() {
                   comparison.onlyLocal === 0 &&
                   comparison.changed === 0 &&
                   !comparison.profileChanged &&
-                  !comparison.hydrationRemindersChanged
+                  !comparison.hydrationRemindersChanged &&
+                  !comparison.hydrationQuickAmountsChanged
                     ? " backup-comparison-note-safe"
                     : ""
                 }`}
@@ -321,6 +323,8 @@ function SettingsPageContent() {
                 Registros com o mesmo identificador e conteúdo diferente:{" "}
                 {comparison.changed}.
                 {comparison.profileChanged && " O perfil é diferente."}
+                {comparison.hydrationQuickAmountsChanged &&
+                  " Os atalhos de água são diferentes."}
                 {comparison.hydrationRemindersChanged &&
                   " Os horários de lembrete de água são diferentes."}
               </p>

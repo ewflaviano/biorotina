@@ -57,10 +57,19 @@ export function mergeAppData(preferred: AppData, incoming: AppData) {
     preferred.hydrationReminderTimes.length > 0
       ? preferred.hydrationReminderTimes
       : incoming.hydrationReminderTimes;
+  merged.hydrationQuickAmounts =
+    preferred.hydrationQuickAmounts ?? incoming.hydrationQuickAmounts;
   const changed =
     added > 0 ||
+    JSON.stringify(merged.hydrationQuickAmounts) !==
+      JSON.stringify(preferred.hydrationQuickAmounts) ||
     JSON.stringify(merged.profile) !== JSON.stringify(preferred.profile) ||
     JSON.stringify(merged.hydrationReminderTimes) !==
       JSON.stringify(preferred.hydrationReminderTimes);
-  return { data: merged, added, differing, changed };
+  return {
+    data: merged,
+    added,
+    differing,
+    changed,
+  };
 }

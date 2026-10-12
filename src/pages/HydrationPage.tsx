@@ -6,6 +6,8 @@ import {
   type FormEvent,
   type MouseEvent,
 } from "react";
+import { HydrationShortcutsEditor } from "../components/HydrationShortcutsEditor";
+import { DEFAULT_HYDRATION_QUICK_AMOUNTS } from "../domain/hydrationShortcuts";
 import { EmptyState, PageHeader } from "../components/Layout";
 import { formatCalendarDay } from "../domain/dailyRecords";
 import {
@@ -42,10 +44,15 @@ import type { HydrationEntry } from "../domain/data";
 import { useOptionalDriveSync } from "../sync/DriveSyncContext";
 
 export function HydrationPage() {
-  const { data, mutate, removeWithUndo } = useAppData();
+  const { data, scope, mutate, removeWithUndo } = useAppData();
   const [selectedDay, setSelectedDay] = useHistoryDay();
   const { enabled, recordUse, startAttempt } = useExperiment();
   const drive = useOptionalDriveSync();
+  useExperimentExposure("hydration-custom-shortcuts");
+  const customShortcuts = enabled("hydration-custom-shortcuts");
+  const quickAmounts = customShortcuts
+    ? (data.hydrationQuickAmounts ?? DEFAULT_HYDRATION_QUICK_AMOUNTS)
+    : DEFAULT_HYDRATION_QUICK_AMOUNTS;
   useExperimentExposure("initial-sync-before-entry");
   const waitingForInitialSync =
     enabled("initial-sync-before-entry") && drive?.initialSyncReady === false;
@@ -338,7 +345,7 @@ export function HydrationPage() {
               className="quick-actions"
               aria-label="Adicionar água rapidamente"
             >
-              {[200, 250, 500].map((value) => (
+              {quickAmounts.map((value) => (
                 <button
                   key={value}
                   className="button secondary compact"
@@ -350,6 +357,9 @@ export function HydrationPage() {
                 </button>
               ))}
             </div>
+            {customShortcuts && (
+              <HydrationShortcutsEditor key={scope ?? "guest"} />
+            )}
             {waitingForInitialSync && (
               <p role="status" className="small muted">
                 {drive?.status === "conflict"

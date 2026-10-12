@@ -48,7 +48,8 @@ function hasLocalContent(data: AppData): boolean {
       data.profile.ageYears ||
       data.profile.formulaParameter,
     ) ||
-    data.hydrationReminderTimes.length > 0
+    data.hydrationReminderTimes.length > 0 ||
+    data.hydrationQuickAmounts !== null
   );
 }
 
