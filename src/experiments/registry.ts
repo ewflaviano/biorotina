@@ -19,6 +19,7 @@ export const experimentRegistry = {
       "O convite de instalação tiver a sequência aprovada e não houver regressões no onboarding.",
   },
   "hydration-custom-shortcuts": {
+    issue: 134,
     assignment: "browser",
     description: "Permite escolher os três volumes dos atalhos de água.",
     owner: "Biorotina",

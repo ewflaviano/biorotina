@@ -357,13 +357,13 @@ se o bloqueio impedir cadastros legítimos.
 Após a implantação, habilitar a revisão 1 com `rolloutPercent: 0`. O Programa
 beta recebe o fluxo experimental; os demais navegadores permanecem no controle.
 
-## Atalhos de água personalizáveis
+## Atalhos de água personalizáveis — #134
 
 `hydration-custom-shortcuts`, revisão 1, responsável Biorotina, revisar até
 19/10/2026: testa três volumes escolhidos pela pessoa no lugar dos atalhos
 fixos. Sem configuração remota ou com kill switch mantém 200/250/500 ml;
-preferências já salvas permanecem no JSON/Drive. Iniciar em beta antes de
-ampliar. Revisar após sete dias de observação e promover ou remover; parar por
+preferências já salvas permanecem no JSON/Drive. Após deploy, habilitar com `rolloutPercent: 0` para iniciar no Programa beta
+antes de ampliar. Revisar após sete dias de observação e promover ou remover; parar por
 falha de migração, perda de preferência, registro incorreto ou acessibilidade.
 
 Medir exposição consentida nos dois braços, abertura da edição (`use`),
@@ -371,6 +371,6 @@ salvamento persistido (`success`) e falha (`error`), sem volumes, horários,
 identificadores de conta ou registros. Esses eventos não medem sozinhos
 redução de esforço: validar tarefa de registrar um copo de volume personalizado
 com pessoas e verificar leitura dos rótulos, foco e erros. Sem evidência
-suficiente, desligar. Cadastro de issue deve acompanhar a preparação do PR.
+suficiente, desligar. Acompanhar a decisão na [issue #134](https://github.com/ewflaviano/biorotina/issues/134).
 
 Teste local: `BIOROTINA_LOCAL_FORCE_EXPERIMENT=hydration-custom-shortcuts=enabled npm run local`.
