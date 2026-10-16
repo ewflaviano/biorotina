@@ -283,6 +283,21 @@ Promover ou remover após sete dias conforme uso e acessibilidade; sem dados
 suficientes, desligar. Interromper por navegação incorreta, foco inadequado ou
 vazamento de dados.
 
+## Atalho ao último dia com atividade no histórico vazio — #133
+
+`activity-history-last-day-shortcut`, revisão 1, responsável Biorotina,
+revisar até 23/10/2026: quando o dia escolhido está sem atividades, a busca
+está vazia e há atividade anterior, oferece o dia anterior mais recente com
+atividade. O controle mantém o seletor manual. Sem configuração remota,
+permanece desligado; adesão conectada pelo header e kill switch seguem as
+regras acima. Após deploy, iniciar em 5%.
+
+Medir exposição consentida nos dois braços somente no vazio elegível, `use`
+no clique, erros e rollback na mesma revisão. Não enviar datas, nomes,
+duração nem registros. Promover ou remover após sete dias conforme uso e
+acessibilidade; sem dados suficientes, manter ou desligar. Interromper por
+navegação incorreta, foco inadequado ou vazamento de dados.
+
 ## Limpeza da busca vazia em medicamentos — #109
 
 `medication-history-clear-search`, revisão 1, responsável Biorotina, revisar

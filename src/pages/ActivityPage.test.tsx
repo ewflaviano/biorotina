@@ -156,6 +156,52 @@ describe("confirmação experimental do formulário de atividades", () => {
 });
 
 describe("histórico de atividades por dia", () => {
+  it("mantém o seletor manual sem configuração do atalho", () => {
+    addActivity("2026-09-27", 7, "Caminhada", 30);
+    renderActivity("2026-09-29");
+    expect(
+      history().queryByRole("button", { name: /Ver atividades de/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Data do histórico de atividades"),
+    ).toBeInTheDocument();
+  });
+
+  it("abre o dia anterior mais recente e foca o seletor sem alterar registros", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    addActivity("2026-09-25", 7, "Bicicleta", 40);
+    addActivity("2026-09-27", 7, "Caminhada", 30);
+    renderActivity("2026-09-29");
+    await user.click(
+      history().getByRole("button", {
+        name: `Ver atividades de ${formatCalendarDay("2026-09-27")}`,
+      }),
+    );
+    expect(history().getByText("Caminhada")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Data do histórico de atividades"),
+    ).toHaveFocus();
+    expect(state.data?.activities).toHaveLength(2);
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "activity-history-last-day-shortcut",
+    );
+  });
+
+  it("não confunde dia vazio com busca sem resultados", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    addActivity("2026-09-27", 7, "Caminhada", 30);
+    renderActivity("2026-09-29");
+    await user.type(
+      screen.getByRole("searchbox", { name: "Buscar atividade neste dia" }),
+      "corrida",
+    );
+    expect(
+      history().queryByRole("button", { name: /Ver atividades de/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("mantém a limpeza atual no controle quando a busca não encontra atividade", async () => {
     const user = userEvent.setup();
     addActivity(todayIsoDate(), 7, "Caminhada", 30);
