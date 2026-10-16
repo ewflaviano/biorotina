@@ -89,6 +89,19 @@ export function ActivityPage() {
     searchTerm.length > 0 &&
     visibleActivities.length === 0;
   useExperimentExposure("activity-history-clear-search", emptySearch);
+  const lastActivityDay = data.activities.reduce<string | null>(
+    (last, item) => {
+      const day = toLocalDateTime(item.occurredAt).slice(0, 10);
+      return day < selectedDay && (last === null || day > last) ? day : last;
+    },
+    null,
+  );
+  useExperimentExposure(
+    "activity-history-last-day-shortcut",
+    activitiesForDay.length === 0 &&
+      searchTerm.length === 0 &&
+      lastActivityDay !== null,
+  );
   const clearFromEmpty =
     emptySearch && enabled("activity-history-clear-search");
   const visibleMinutes = visibleActivities.reduce(
@@ -496,6 +509,24 @@ export function ActivityPage() {
                     ? "Nenhuma atividade registrada neste dia. Escolha outra data para consultar o histórico."
                     : "Nenhuma atividade corresponde à busca neste dia. Limpe a busca para ver todos os registros."}
                 </p>
+                {activitiesForDay.length === 0 &&
+                  searchTerm.length === 0 &&
+                  lastActivityDay &&
+                  enabled("activity-history-last-day-shortcut") && (
+                    <button
+                      className="button secondary"
+                      type="button"
+                      onClick={() => {
+                        recordUse("activity-history-last-day-shortcut");
+                        setSelectedDay(lastActivityDay);
+                        document
+                          .getElementById("activity-history-date")
+                          ?.focus();
+                      }}
+                    >
+                      Ver atividades de {formatCalendarDay(lastActivityDay)}
+                    </button>
+                  )}
                 {clearFromEmpty && (
                   <button
                     className="button secondary"

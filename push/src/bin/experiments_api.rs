@@ -39,6 +39,7 @@ const FEATURES: &[&str] = &[
     "habit-history-clear-search",
     "medication-history-clear-search",
     "activity-history-clear-search",
+    "activity-history-last-day-shortcut",
     "food-history-clear-search",
     "food-daily-calories",
     "mobile-nav-meal-priority",
