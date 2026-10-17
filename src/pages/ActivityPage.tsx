@@ -96,11 +96,24 @@ export function ActivityPage() {
     },
     null,
   );
+  const nextActivityDay = data.activities.reduce<string | null>(
+    (next, item) => {
+      const day = toLocalDateTime(item.occurredAt).slice(0, 10);
+      return day > selectedDay && (next === null || day < next) ? day : next;
+    },
+    null,
+  );
   useExperimentExposure(
     "activity-history-last-day-shortcut",
     activitiesForDay.length === 0 &&
       searchTerm.length === 0 &&
       lastActivityDay !== null,
+  );
+  useExperimentExposure(
+    "activity-history-next-day-shortcut",
+    activitiesForDay.length === 0 &&
+      searchTerm.length === 0 &&
+      nextActivityDay !== null,
   );
   const clearFromEmpty =
     emptySearch && enabled("activity-history-clear-search");
@@ -525,6 +538,24 @@ export function ActivityPage() {
                       }}
                     >
                       Ver atividades de {formatCalendarDay(lastActivityDay)}
+                    </button>
+                  )}
+                {activitiesForDay.length === 0 &&
+                  searchTerm.length === 0 &&
+                  nextActivityDay &&
+                  enabled("activity-history-next-day-shortcut") && (
+                    <button
+                      className="button secondary activity-next-day-shortcut"
+                      type="button"
+                      onClick={() => {
+                        recordUse("activity-history-next-day-shortcut");
+                        setSelectedDay(nextActivityDay);
+                        document
+                          .getElementById("activity-history-date")
+                          ?.focus();
+                      }}
+                    >
+                      Ver atividades de {formatCalendarDay(nextActivityDay)}
                     </button>
                   )}
                 {clearFromEmpty && (

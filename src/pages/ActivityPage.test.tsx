@@ -188,6 +188,45 @@ describe("histórico de atividades por dia", () => {
     );
   });
 
+  it("abre o dia posterior mais próximo e foca o seletor sem alterar registros", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    addActivity("2026-09-25", 7, "Bicicleta", 40);
+    addActivity("2026-09-29", 7, "Caminhada", 30);
+    addActivity("2026-09-30", 7, "Corrida", 20);
+    renderActivity("2026-09-27");
+    await user.click(
+      history().getByRole("button", {
+        name: `Ver atividades de ${formatCalendarDay("2026-09-29")}`,
+      }),
+    );
+    expect(history().getByText("Caminhada")).toBeInTheDocument();
+    expect(history().queryByText("Corrida")).not.toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Data do histórico de atividades"),
+    ).toHaveFocus();
+    expect(state.data?.activities).toHaveLength(3);
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "activity-history-next-day-shortcut",
+    );
+  });
+
+  it("oculta o atalho posterior durante a busca", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    addActivity("2026-09-29", 7, "Caminhada", 30);
+    renderActivity("2026-09-27");
+    await user.type(
+      screen.getByRole("searchbox", { name: "Buscar atividade neste dia" }),
+      "corrida",
+    );
+    expect(
+      history().queryByRole("button", {
+        name: `Ver atividades de ${formatCalendarDay("2026-09-29")}`,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("não confunde dia vazio com busca sem resultados", async () => {
     experiment.enabled = true;
     const user = userEvent.setup();
