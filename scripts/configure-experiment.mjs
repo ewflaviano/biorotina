@@ -32,6 +32,7 @@ if (
     "medication-history-clear-search",
     "activity-history-clear-search",
     "activity-history-last-day-shortcut",
+    "activity-history-next-day-shortcut",
     "food-history-clear-search",
     "food-daily-calories",
     "mobile-nav-meal-priority",

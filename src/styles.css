@@ -2877,6 +2877,12 @@ button.habit-week-cell {
   color: var(--color-text-secondary);
   line-height: 1.5;
 }
+.activity-next-day-shortcut {
+  display: flex;
+  max-width: 100%;
+  margin-top: 8px;
+  white-space: normal;
+}
 @media (max-width: 600px) {
   .activity-history-heading .day-picker {
     width: 100%;
