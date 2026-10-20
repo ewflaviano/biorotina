@@ -210,3 +210,74 @@ describe("limpeza experimental da busca vazia de medicamentos", () => {
     );
   });
 });
+
+describe("atalho experimental no histórico vazio de medicamentos", () => {
+  function renderOnEmptyDay() {
+    const data = emptyData();
+    const medicationId = crypto.randomUUID();
+    data.medications.push({
+      id: medicationId,
+      name: "Exemplo",
+      dose: 1,
+      unit: "mg",
+      reminderTimes: [],
+      reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
+      createdAt: "2026-10-02T12:00:00Z",
+    });
+    data.medicationLogs.push({
+      id: crypto.randomUUID(),
+      medicationId,
+      takenAt: "2026-10-02T12:00:00Z",
+      createdAt: "2026-10-02T12:00:00Z",
+    });
+    storage.data = data;
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-10-03" } }]}
+      >
+        <MedicationPage />
+      </MemoryRouter>,
+    );
+  }
+
+  it("mantém o controle sem atalho", () => {
+    renderOnEmptyDay();
+    expect(
+      screen.queryByRole("button", { name: /Ver usos de/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("abre o último dia anterior com uso e foca a data", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    renderOnEmptyDay();
+    await user.click(screen.getByRole("button", { name: /Ver usos de/ }));
+    expect(
+      screen.getByLabelText("Data do histórico de usos de medicação"),
+    ).toHaveValue("2026-10-02");
+    expect(
+      screen.getByLabelText("Data do histórico de usos de medicação"),
+    ).toHaveFocus();
+    expect(
+      within(
+        screen.getByRole("region", { name: /Histórico de uso de/ }),
+      ).getByText("Exemplo"),
+    ).toBeInTheDocument();
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "medication-history-last-day-shortcut",
+    );
+  });
+
+  it("não oferece o atalho durante uma busca sem resultado", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    renderOnEmptyDay();
+    await user.type(
+      screen.getByLabelText("Buscar medicamento neste dia"),
+      "outro",
+    );
+    expect(
+      screen.queryByRole("button", { name: /Ver usos de/ }),
+    ).not.toBeInTheDocument();
+  });
+});
