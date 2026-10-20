@@ -19,6 +19,7 @@ import {
   useHistoryDay,
 } from "../components/HistoryDayControls";
 import { PushActivationPrompt } from "../components/PushActivationPrompt";
+import { formatCalendarDay } from "../domain/dailyRecords";
 import { EmptyState, Notice, PageHeader } from "../components/Layout";
 import { useAppData } from "../state/AppDataContext";
 import {
@@ -72,6 +73,10 @@ export function MedicationPage() {
   const logsForDay = logs.filter((log) =>
     isOnHistoryDay(log.takenAt, selectedDay),
   );
+  const lastLogDay = logs.reduce<string | null>((last, log) => {
+    const day = historyDayOf(log.takenAt);
+    return day < selectedDay && (last === null || day > last) ? day : last;
+  }, null);
   const searchTerm = normalizeHistoryName(historySearch.trim());
   const visibleLogs = logsForDay.filter((log) =>
     normalizeHistoryName(
@@ -82,6 +87,10 @@ export function MedicationPage() {
   const emptySearch =
     logsForDay.length > 0 && searchTerm.length > 0 && visibleLogs.length === 0;
   useExperimentExposure("medication-history-clear-search", emptySearch);
+  useExperimentExposure(
+    "medication-history-last-day-shortcut",
+    logsForDay.length === 0 && searchTerm.length === 0 && lastLogDay !== null,
+  );
   const clearFromEmpty =
     emptySearch && enabled("medication-history-clear-search");
 
@@ -701,6 +710,24 @@ export function MedicationPage() {
                     Limpar busca e ver registros
                   </button>
                 )}
+                {logsForDay.length === 0 &&
+                  searchTerm.length === 0 &&
+                  lastLogDay &&
+                  enabled("medication-history-last-day-shortcut") && (
+                    <button
+                      className="button secondary diary-more"
+                      type="button"
+                      onClick={() => {
+                        recordUse("medication-history-last-day-shortcut");
+                        setSelectedDay(lastLogDay);
+                        document
+                          .getElementById("medication-history-date")
+                          ?.focus();
+                      }}
+                    >
+                      Ver usos de {formatCalendarDay(lastLogDay)}
+                    </button>
+                  )}
               </>
             )}
           </section>

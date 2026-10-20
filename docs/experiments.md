@@ -326,6 +326,20 @@ ou registros. Promover ou remover após sete dias conforme uso e avaliação de
 acessibilidade; sem dados suficientes, desligar. Interromper por foco incorreto,
 perda de dados ou vazamento de busca.
 
+## Atalho ao último dia com uso de medicamento — #139
+
+`medication-history-last-day-shortcut`, revisão 1, responsável Biorotina,
+revisar até 27/10/2026: quando a data escolhida não tem usos registrados,
+a busca está vazia e existe um dia anterior com uso, oferece um botão para
+consultar o último dia elegível. O controle mantém a seleção manual de data.
+Sem configuração remota, permanece desligado; adesão conectada e kill switch
+seguem as regras acima. Após deploy, iniciar em 5%. Medir exposição consentida
+nos dois braços apenas nessa condição, `use` no clique, erros e rollback na
+mesma revisão. Não enviar datas, nomes, doses ou registros. Promover ou remover
+após sete dias conforme uso e acessibilidade; sem dados suficientes, manter a
+coorte sem promover. Interromper por navegação incorreta, foco inadequado ou
+vazamento de dados.
+
 ## Limpeza da busca vazia em atividades — #122
 
 `activity-history-clear-search`, revisão 1, responsável Biorotina, revisar
