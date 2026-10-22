@@ -31,6 +31,7 @@ if (
     "habit-history-clear-search",
     "medication-history-clear-search",
     "medication-history-last-day-shortcut",
+    "medication-history-next-day-shortcut",
     "activity-history-clear-search",
     "activity-history-last-day-shortcut",
     "activity-history-next-day-shortcut",
