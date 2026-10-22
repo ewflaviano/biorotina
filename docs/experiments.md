@@ -313,6 +313,19 @@ duração nem registros. Promover ou remover após sete dias conforme uso e
 acessibilidade; sem dados suficientes, manter ou desligar. Interromper por
 navegação incorreta, foco inadequado ou vazamento de dados.
 
+## Atalho ao próximo dia com uso de medicamento — #141
+
+`medication-history-next-day-shortcut`, revisão 1, responsável Biorotina,
+revisar até 28/10/2026: quando a data escolhida não tem usos, a busca está
+vazia e há um dia posterior registrado, oferece o primeiro dia posterior com
+uso. O controle mantém a seleção manual. Sem configuração remota, permanece
+desligado; adesão conectada pelo header e kill switch seguem as regras acima.
+Após deploy, iniciar em 5%. Medir exposição consentida dos dois braços somente
+no vazio elegível, `use` no clique, erros e rollback na mesma revisão. Não enviar
+datas, nomes, doses ou registros. Promover ou remover após sete dias conforme
+uso e acessibilidade; sem dados suficientes, manter sem ampliar. Interromper por
+navegação incorreta, foco inadequado ou vazamento de dados.
+
 ## Limpeza da busca vazia em medicamentos — #109
 
 `medication-history-clear-search`, revisão 1, responsável Biorotina, revisar

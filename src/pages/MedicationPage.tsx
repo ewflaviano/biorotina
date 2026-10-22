@@ -77,6 +77,10 @@ export function MedicationPage() {
     const day = historyDayOf(log.takenAt);
     return day < selectedDay && (last === null || day > last) ? day : last;
   }, null);
+  const nextLogDay = logs.reduce<string | null>((next, log) => {
+    const day = historyDayOf(log.takenAt);
+    return day > selectedDay && (next === null || day < next) ? day : next;
+  }, null);
   const searchTerm = normalizeHistoryName(historySearch.trim());
   const visibleLogs = logsForDay.filter((log) =>
     normalizeHistoryName(
@@ -90,6 +94,10 @@ export function MedicationPage() {
   useExperimentExposure(
     "medication-history-last-day-shortcut",
     logsForDay.length === 0 && searchTerm.length === 0 && lastLogDay !== null,
+  );
+  useExperimentExposure(
+    "medication-history-next-day-shortcut",
+    logsForDay.length === 0 && searchTerm.length === 0 && nextLogDay !== null,
   );
   const clearFromEmpty =
     emptySearch && enabled("medication-history-clear-search");
@@ -726,6 +734,24 @@ export function MedicationPage() {
                       }}
                     >
                       Ver usos de {formatCalendarDay(lastLogDay)}
+                    </button>
+                  )}
+                {logsForDay.length === 0 &&
+                  searchTerm.length === 0 &&
+                  nextLogDay &&
+                  enabled("medication-history-next-day-shortcut") && (
+                    <button
+                      className="button secondary diary-more"
+                      type="button"
+                      onClick={() => {
+                        recordUse("medication-history-next-day-shortcut");
+                        setSelectedDay(nextLogDay);
+                        document
+                          .getElementById("medication-history-date")
+                          ?.focus();
+                      }}
+                    >
+                      Ver usos de {formatCalendarDay(nextLogDay)}
                     </button>
                   )}
               </>

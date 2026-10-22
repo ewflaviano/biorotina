@@ -212,7 +212,7 @@ describe("limpeza experimental da busca vazia de medicamentos", () => {
 });
 
 describe("atalho experimental no histórico vazio de medicamentos", () => {
-  function renderOnEmptyDay() {
+  function renderOnEmptyDay(selectedDay = "2026-10-03") {
     const data = emptyData();
     const medicationId = crypto.randomUUID();
     data.medications.push({
@@ -233,7 +233,7 @@ describe("atalho experimental no histórico vazio de medicamentos", () => {
     storage.data = data;
     render(
       <MemoryRouter
-        initialEntries={[{ pathname: "/", state: { day: "2026-10-03" } }]}
+        initialEntries={[{ pathname: "/", state: { day: selectedDay } }]}
       >
         <MedicationPage />
       </MemoryRouter>,
@@ -272,6 +272,40 @@ describe("atalho experimental no histórico vazio de medicamentos", () => {
     experiment.enabled = true;
     const user = userEvent.setup();
     renderOnEmptyDay();
+    await user.type(
+      screen.getByLabelText("Buscar medicamento neste dia"),
+      "outro",
+    );
+    expect(
+      screen.queryByRole("button", { name: /Ver usos de/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("abre o primeiro dia posterior com uso e foca a data", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    renderOnEmptyDay("2026-10-01");
+    await user.click(screen.getByRole("button", { name: /Ver usos de/ }));
+    expect(
+      screen.getByLabelText("Data do histórico de usos de medicação"),
+    ).toHaveValue("2026-10-02");
+    expect(
+      screen.getByLabelText("Data do histórico de usos de medicação"),
+    ).toHaveFocus();
+    expect(
+      within(
+        screen.getByRole("region", { name: /Histórico de uso de/ }),
+      ).getByText("Exemplo"),
+    ).toBeInTheDocument();
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "medication-history-next-day-shortcut",
+    );
+  });
+
+  it("não oferece o atalho ao próximo dia durante uma busca", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    renderOnEmptyDay("2026-10-01");
     await user.type(
       screen.getByLabelText("Buscar medicamento neste dia"),
       "outro",
