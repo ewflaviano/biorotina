@@ -4,7 +4,7 @@ export const experimentRegistry = {
     description:
       "Preenche refeições com alimentos e calorias estimados pela descrição.",
     owner: "Biorotina",
-    revision: 1,
+    revision: 2,
     reviewBy: "2026-10-31",
     removeWhen:
       "Promover ou remover após avaliação; interromper por falhas de análise, privacidade ou persistência.",
