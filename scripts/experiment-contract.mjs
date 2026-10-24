@@ -23,6 +23,7 @@ export const experimentKeys = [
   "activity-history-last-day-shortcut",
   "activity-history-next-day-shortcut",
   "food-history-clear-search",
+  "food-history-last-day-shortcut",
   "food-daily-calories",
   "mobile-nav-meal-priority",
   "calorie-balance-daily",
