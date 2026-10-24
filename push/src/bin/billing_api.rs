@@ -38,7 +38,7 @@ fn analysis_failure_response(reason: AnalysisFailure) -> Response {
         ),
         AnalysisFailure::InvalidImage => error(
             StatusCode::BAD_REQUEST,
-            "Imagem inválida ou grande demais.",
+            "Informe uma imagem válida ou uma descrição de até 2000 caracteres.",
         ),
         AnalysisFailure::EmptyFoods => error(
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -219,7 +219,8 @@ async fn webhook(
 
 #[derive(Deserialize)]
 struct ImageRequest {
-    image: String,
+    image: Option<String>,
+    description: Option<String>,
 }
 async fn analyze(
     State(billing): State<Billing>,
@@ -230,7 +231,14 @@ async fn analyze(
         Ok(key) => key,
         Err(error) => return error,
     };
-    if !valid_jpeg_image(&body.image) {
+    let valid = match (&body.image, &body.description) {
+        (Some(image), None) => valid_jpeg_image(image),
+        (None, Some(description)) => {
+            !description.trim().is_empty() && description.chars().count() <= 2000
+        }
+        _ => false,
+    };
+    if !valid {
         return error(StatusCode::BAD_REQUEST, "Imagem inválida ou grande demais.");
     }
     let account = match billing.account(&key).await {
@@ -335,7 +343,10 @@ async fn analyze(
             );
         }
     }
-    match billing.analyze(&body.image, paid).await {
+    match billing
+        .analyze_input(body.image.as_deref(), body.description.as_deref(), paid)
+        .await
+    {
         Ok(analysis) => {
             billing.refund_reservation(&failure_slot).await;
             reply(StatusCode::OK, json!(analysis))

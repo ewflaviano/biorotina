@@ -165,3 +165,48 @@ describe("análise de refeição com Gemini", () => {
     vi.unstubAllGlobals();
   });
 });
+
+it("envia a descrição como texto sem conteúdo de imagem", async () => {
+  const fetcher = vi.fn(async (_url: string, options: RequestInit) => {
+    const body = JSON.parse(String(options.body));
+    expect(body.contents[0].parts[1]).toEqual({ text: "Arroz e feijão" });
+    expect(JSON.stringify(body)).not.toContain("inline_data");
+    return new Response(
+      JSON.stringify({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  text: JSON.stringify({
+                    description: "Prato",
+                    foods: [
+                      { name: "Arroz", amount: "1 porção", caloriesKcal: 200 },
+                    ],
+                  }),
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+  });
+  const result = await analyzeMealImage(
+    "chave",
+    " Arroz e feijão ",
+    fetcher as typeof fetch,
+  );
+  expect(result.foods[0].caloriesKcal).toBe(200);
+});
+
+it("recusa descrições vazias ou grandes antes de enviar", async () => {
+  const fetcher = vi.fn();
+  await expect(analyzeMealImage("chave", " ", fetcher)).rejects.toThrow(
+    "Descreva",
+  );
+  await expect(
+    analyzeMealImage("chave", "a".repeat(2001), fetcher),
+  ).rejects.toThrow("2000");
+  expect(fetcher).not.toHaveBeenCalled();
+});

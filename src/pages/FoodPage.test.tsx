@@ -349,3 +349,45 @@ describe("opções de foto para assinantes", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
+
+it("preenche pela descrição somente no experimento e permite revisar", async () => {
+  experimentState.enabled = true;
+  vi.mocked(analyzeWithPlan).mockResolvedValueOnce({
+    description: "Arroz e feijão",
+    foods: [{ name: "Arroz", amount: "3 colheres", caloriesKcal: 150 }],
+  });
+  render(
+    <MemoryRouter>
+      <FoodPage />
+    </MemoryRouter>,
+  );
+  await act(async () => {});
+  fireEvent.click(screen.getByRole("button", { name: "Descrever refeição" }));
+  expect(
+    screen.getByRole("button", { name: "Analisar descrição" }),
+  ).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Descrição do prato"), {
+    target: { value: "3 colheres de arroz e feijão" },
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Analisar descrição" }));
+  });
+  expect(analyzeWithPlan).toHaveBeenLastCalledWith(
+    "test-token",
+    "3 colheres de arroz e feijão",
+  );
+  expect(screen.getByDisplayValue("Arroz e feijão")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Salvar refeição" })).toBeEnabled();
+});
+
+it("mantém descrição oculta no controle", async () => {
+  render(
+    <MemoryRouter>
+      <FoodPage />
+    </MemoryRouter>,
+  );
+  await act(async () => {});
+  expect(
+    screen.queryByRole("button", { name: "Descrever refeição" }),
+  ).not.toBeInTheDocument();
+});

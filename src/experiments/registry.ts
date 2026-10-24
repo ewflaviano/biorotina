@@ -1,4 +1,14 @@
 export const experimentRegistry = {
+  "food-description-ai": {
+    assignment: "browser",
+    description:
+      "Preenche refeições com alimentos e calorias estimados pela descrição.",
+    owner: "Biorotina",
+    revision: 1,
+    reviewBy: "2026-10-31",
+    removeWhen:
+      "Promover ou remover após avaliação; interromper por falhas de análise, privacidade ou persistência.",
+  },
   "demo-highlight": {
     assignment: "account",
     description:

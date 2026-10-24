@@ -167,12 +167,16 @@ export async function createPlanCheckout(googleToken: string): Promise<string> {
 }
 export async function analyzeWithPlan(
   googleToken: string,
-  image: PreparedImage,
+  image: PreparedImage | string,
 ): Promise<MealAnalysis> {
   const parsed = analysisSchema.safeParse(
     await request("/api/ai/meal", googleToken, "photo_analyze", {
       method: "POST",
-      body: JSON.stringify({ image: image.base64 }),
+      body: JSON.stringify(
+        typeof image === "string"
+          ? { description: image.trim() }
+          : { image: image.base64 },
+      ),
     }),
   );
   if (!parsed.success) {

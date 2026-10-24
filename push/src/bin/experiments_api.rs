@@ -46,6 +46,7 @@ const FEATURES: &[&str] = &[
     "food-history-clear-search",
     "food-history-last-day-shortcut",
     "food-daily-calories",
+    "food-description-ai",
     "mobile-nav-meal-priority",
     "calorie-balance-daily",
     "initial-sync-before-entry",
