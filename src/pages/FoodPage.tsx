@@ -110,6 +110,10 @@ export function FoodPage() {
   const mealsForDay = meals.filter((item) =>
     isOnHistoryDay(item.eatenAt, selectedDay),
   );
+  const lastMealDay = meals.reduce<string | null>((last, item) => {
+    const day = historyDayOf(item.eatenAt);
+    return day < selectedDay && (last === null || day > last) ? day : last;
+  }, null);
   const searchTerm = normalizeHistoryName(historySearch.trim());
   const visibleMeals = mealsForDay.filter((item) =>
     normalizeHistoryName(item.name).includes(searchTerm),
@@ -119,6 +123,10 @@ export function FoodPage() {
     searchTerm.length > 0 &&
     visibleMeals.length === 0;
   useExperimentExposure("food-history-clear-search", emptySearch);
+  useExperimentExposure(
+    "food-history-last-day-shortcut",
+    mealsForDay.length === 0 && searchTerm.length === 0 && lastMealDay !== null,
+  );
   const clearFromEmpty =
     emptySearch && experiment.enabled("food-history-clear-search");
   const totalCalories = meals.reduce(
@@ -914,6 +922,22 @@ export function FoodPage() {
                     Limpar busca e ver registros
                   </button>
                 )}
+                {mealsForDay.length === 0 &&
+                  searchTerm.length === 0 &&
+                  lastMealDay &&
+                  experiment.enabled("food-history-last-day-shortcut") && (
+                    <button
+                      className="button secondary diary-more"
+                      type="button"
+                      onClick={() => {
+                        experiment.recordUse("food-history-last-day-shortcut");
+                        setSelectedDay(lastMealDay);
+                        document.getElementById("food-history-date")?.focus();
+                      }}
+                    >
+                      Ver refeições de {formatCalendarDay(lastMealDay)}
+                    </button>
+                  )}
               </>
             )}
           </section>

@@ -381,6 +381,19 @@ remover após sete dias conforme uso e avaliação de acessibilidade; sem dados
 suficientes, desligar. Interromper por foco incorreto, perda da lista ou
 vazamento da busca.
 
+## Atalho ao último dia com refeição no histórico vazio — #143
+
+`food-history-last-day-shortcut`, revisão 1, responsável Biorotina, revisar
+até 31/10/2026: quando o dia escolhido não tem refeições, há um dia anterior
+com refeição e a busca está vazia, a variante oferece esse último dia. O
+controle mantém a seleção manual. Sem configuração remota, permanece desligado;
+adesão conectada e kill switch seguem as regras acima. Após deploy, iniciar
+em 5%. Medir exposição consentida elegível nos dois braços, `use` no clique,
+erros e rollback na mesma revisão e janela. Não enviar datas, nomes, calorias
+ou registros. Promover ou remover após sete dias conforme uso e acessibilidade;
+sem dados suficientes, desligar. Interromper por navegação incorreta, foco
+inadequado ou vazamento de dados.
+
 ## Refeição na barra inferior móvel — #112
 
 `mobile-nav-meal-priority`, revisão 2, liberado a 100% em 07/10/2026,
