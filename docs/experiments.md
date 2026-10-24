@@ -444,3 +444,22 @@ com pessoas e verificar leitura dos rótulos, foco e erros. Sem evidência
 suficiente, desligar. Acompanhar a decisão na [issue #134](https://github.com/ewflaviano/biorotina/issues/134).
 
 Teste local: `BIOROTINA_LOCAL_FORCE_EXPERIMENT=hydration-custom-shortcuts=enabled npm run local`.
+
+## Refeição por descrição
+
+`food-description-ai`, revisão 1, permite descrever o prato junto às opções
+de foto. A IA sugere alimentos, porções e calorias para revisão antes de salvar.
+Reutiliza o endpoint, limites de teste grátis/assinatura e a chave própria da
+análise por imagem. A descrição (até 2000 caracteres) só é enviada ao solicitar
+a análise; não entra na telemetria. Medir exposição consentida nos dois braços.
+Responsável Biorotina, revisar até 31/10/2026; interromper por falha de análise,
+privacidade ou persistência. Sem configuração ou com kill switch fica desligado.
+
+Após publicar frontend e API, habilitar para 5% dos navegadores:
+
+```sh
+AWS_PROFILE=biorotina AWS_REGION=sa-east-1 npm run configure-experiment -- \
+  --key food-description-ai --enabled --rollout 5 --revision 1
+```
+
+O Programa beta permite testar fora do sorteio.

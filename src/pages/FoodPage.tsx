@@ -68,6 +68,10 @@ export function FoodPage() {
   const { data, mutate, removeWithUndo } = useAppData();
   const [selectedDay, setSelectedDay] = useHistoryDay();
   const experiment = useExperiment();
+  const descriptionEnabled = experiment.enabled("food-description-ai");
+  useExperimentExposure("food-description-ai");
+  const [descriptionMode, setDescriptionMode] = useState(false);
+  const [mealDescription, setMealDescription] = useState("");
   useExperimentExposure("initial-sync-before-entry");
   const showDailyCalories = experiment.enabled("food-daily-calories");
   useExperimentExposure("food-daily-calories");
@@ -316,6 +320,7 @@ export function FoodPage() {
       event.preventDefault();
       return;
     }
+    setDescriptionMode(false);
     const accountCanAnalyze = Boolean(
       drive.account?.token &&
       (!planStatus ||
@@ -338,7 +343,9 @@ export function FoodPage() {
   }
 
   async function analyzePhoto() {
-    if (!photo) return;
+    const input =
+      descriptionMode && descriptionEnabled ? mealDescription.trim() : photo;
+    if (!input || analyzing) return;
     setPhotoError("");
     setAnalyzing(true);
     try {
@@ -365,7 +372,7 @@ export function FoodPage() {
           throw new Error(
             "Seu plano ainda não está ativo. Confira a assinatura.",
           );
-        suggestion = await analyzeWithPlan(token, photo);
+        suggestion = await analyzeWithPlan(token, input);
         void getPlanStatus(token)
           .then((status) =>
             setAccountPlanStatus({
@@ -383,7 +390,7 @@ export function FoodPage() {
           throw new Error(
             "Adicione sua chave Gemini nas Configurações para analisar fotos.",
           );
-        suggestion = await analyzeMealImage(key, photo);
+        suggestion = await analyzeMealImage(key, input);
       }
       setName(suggestion.description);
       setFoods(
@@ -488,7 +495,11 @@ export function FoodPage() {
               >
                 <Sparkles size={21} aria-hidden="true" />
                 <span>
-                  <strong>Preencher com uma foto</strong>
+                  <strong>
+                    {descriptionEnabled
+                      ? "Preencher com IA"
+                      : "Preencher com uma foto"}
+                  </strong>
                   {photoExpanded && (
                     <p>
                       Receba uma sugestão de alimentos e calorias para revisar.
@@ -531,6 +542,36 @@ export function FoodPage() {
                       disabled={preparingPhoto || analyzing}
                     />
                   </div>
+                  {descriptionEnabled && (
+                    <div>
+                      <button
+                        type="button"
+                        className="button secondary"
+                        disabled={analyzing}
+                        aria-pressed={descriptionMode}
+                        onClick={() => {
+                          setDescriptionMode(!descriptionMode);
+                          setPhotoError("");
+                        }}
+                      >
+                        {descriptionMode ? "Usar foto" : "Descrever refeição"}
+                      </button>
+                      {descriptionMode && (
+                        <label>
+                          Descrição do prato
+                          <textarea
+                            value={mealDescription}
+                            onChange={(event) =>
+                              setMealDescription(event.target.value)
+                            }
+                            maxLength={2000}
+                            disabled={analyzing}
+                            placeholder="Ex.: 3 colheres de arroz, 1 concha de feijão e 1 filé de frango grelhado"
+                          />
+                        </label>
+                      )}
+                    </div>
+                  )}
                   {preparingPhoto && (
                     <p className="meal-photo-status" role="status">
                       <LoaderCircle
@@ -555,7 +596,7 @@ export function FoodPage() {
                     <div
                       className="meal-ai-modes"
                       role="group"
-                      aria-label="Como analisar a foto"
+                      aria-label="Como analisar a refeição"
                     >
                       {trialEnabled && drive.account && planStatus && (
                         <button
@@ -590,7 +631,7 @@ export function FoodPage() {
                     drive.account &&
                     selectedPhotoMode === "trial" ? (
                     <p className="muted small">
-                      {`Teste até 5 fotos grátis com sua conta Google${planStatus ? ` · ${Math.max(0, planStatus.trialLimit - planStatus.trialUsed)} restantes` : ""}.`}
+                      {`Teste até 5 análises grátis com sua conta Google${planStatus ? ` · ${Math.max(0, planStatus.trialLimit - planStatus.trialUsed)} restantes` : ""}.`}
                     </p>
                   ) : (
                     <p className="muted small">
@@ -600,20 +641,26 @@ export function FoodPage() {
                       · Até 10 análises por dia.
                     </p>
                   )}
-                  {photo && (
+                  {((descriptionMode && descriptionEnabled) || photo) && (
                     <div
                       className={`meal-photo-preview${analyzing ? " analyzing" : ""}`}
                       aria-busy={analyzing}
                     >
-                      <img
-                        src={photo.dataUrl}
-                        alt="Foto selecionada da refeição"
-                      />
+                      {!descriptionMode && photo && (
+                        <img
+                          src={photo.dataUrl}
+                          alt="Foto selecionada da refeição"
+                        />
+                      )}
                       <button
                         className="button primary"
                         type="button"
-                        disabled={analyzing || checkingPlan}
-                        onClick={analyzePhoto}
+                        disabled={
+                          analyzing ||
+                          checkingPlan ||
+                          (descriptionMode && !mealDescription.trim())
+                        }
+                        onClick={() => void analyzePhoto()}
                       >
                         {analyzing || checkingPlan ? (
                           <LoaderCircle
@@ -626,28 +673,33 @@ export function FoodPage() {
                         )}
                         <span>
                           {analyzing
-                            ? "Analisando foto…"
+                            ? descriptionMode
+                              ? "Analisando descrição…"
+                              : "Analisando foto…"
                             : checkingPlan
                               ? "Consultando plano…"
-                              : "Analisar foto"}
+                              : descriptionMode
+                                ? "Analisar descrição"
+                                : "Analisar foto"}
                         </span>
                       </button>
                       <button
                         className="entry-action"
                         type="button"
                         onClick={() => {
-                          setPhoto(null);
+                          if (descriptionMode) setMealDescription("");
+                          else setPhoto(null);
                           setPhotoError("");
                         }}
                       >
-                        Remover foto
+                        {descriptionMode ? "Limpar descrição" : "Remover foto"}
                       </button>
                     </div>
                   )}
                   {analyzing && (
                     <p className="meal-photo-status" role="status">
-                      Analisando a imagem. Você poderá revisar a sugestão antes
-                      de salvar.
+                      Analisando a refeição. Você poderá revisar a sugestão
+                      antes de salvar.
                     </p>
                   )}
                   {photoError && (
@@ -657,12 +709,14 @@ export function FoodPage() {
                   )}
                   {!checkingPlan && (
                     <p className="muted small">
-                      A foto é enviada{" "}
+                      {descriptionMode
+                        ? "A descrição é enviada"
+                        : "A foto é enviada"}{" "}
                       {selectedPhotoMode === "key"
                         ? "ao Google"
                         : "à Biorotina e ao Google"}{" "}
-                      somente quando você toca em “Analisar foto”. Ela não é
-                      guardada no servidor, no diário ou no backup.{" "}
+                      somente quando você solicita a análise. Ela não é guardada
+                      no servidor, no diário ou no backup.{" "}
                       {selectedPhotoMode === "trial" ? (
                         <span>
                           O teste grátis exige uma conta Google para contar as
@@ -797,7 +851,7 @@ export function FoodPage() {
                   }}
                 />
                 {foods.length > 0 && (
-                  <small>Total sugerido pela foto. Você pode ajustar.</small>
+                  <small>Total sugerido pela IA. Você pode ajustar.</small>
                 )}
               </div>
               <DateTimeField id="meal-date" value={when} onChange={setWhen} />
@@ -978,7 +1032,7 @@ export function FoodPage() {
             )}
           </div>
           <Notice>
-            As calorias sugeridas por foto são estimativas. Revise os alimentos,
+            As calorias sugeridas pela IA são estimativas. Revise os alimentos,
             as porções e o total antes de salvar.
           </Notice>
         </aside>

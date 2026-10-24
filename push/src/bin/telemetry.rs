@@ -136,6 +136,7 @@ enum Experiment {
     FoodHistoryClearSearch,
     FoodHistoryLastDayShortcut,
     FoodDailyCalories,
+    FoodDescriptionAi,
     MobileNavMealPriority,
     CalorieBalanceDaily,
     InitialSyncBeforeEntry,
@@ -260,6 +261,7 @@ mod tests {
             "food-history-clear-search",
             "food-history-last-day-shortcut",
             "food-daily-calories",
+            "food-description-ai",
             "calorie-balance-daily",
         ] {
             let mut metric = valid.clone();
@@ -402,6 +404,7 @@ mod tests {
             "food-history-clear-search",
             "food-history-last-day-shortcut",
             "food-daily-calories",
+            "food-description-ai",
             "calorie-balance-daily",
         ] {
             let mut value = base.clone();
