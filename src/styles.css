@@ -9,7 +9,8 @@ body {
 }
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 button {
@@ -1594,7 +1595,8 @@ button.habit-week-cell {
   background: var(--color-action-soft);
 }
 .field input,
-.field select {
+.field select,
+.field textarea {
   width: 100%;
   min-width: 0;
   height: 48px;
@@ -1606,13 +1608,48 @@ button.habit-week-cell {
   outline: none;
 }
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   border-color: var(--color-focus);
   box-shadow: 0 0 0 3px var(--blue-200);
 }
-.field input::placeholder {
+.field input::placeholder,
+.field textarea::placeholder {
   color: var(--color-text-secondary);
   opacity: 0.8;
+}
+.field textarea {
+  height: auto;
+  min-height: 120px;
+  padding: 12px 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.meal-ai-modes.meal-input-modes {
+  margin: 16px 0;
+}
+.meal-input-modes.meal-ai-modes button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 auto;
+}
+.meal-description-field {
+  margin: 16px 0;
+}
+@media (max-width: 650px) {
+  .meal-ai-modes.meal-input-modes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .meal-input-modes.meal-ai-modes button {
+    padding-inline: 8px;
+    white-space: normal;
+  }
+  .meal-description-actions .button.primary {
+    width: 100%;
+  }
 }
 .date-input {
   position: relative;

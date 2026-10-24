@@ -509,67 +509,93 @@ export function FoodPage() {
               </button>
               {photoExpanded && (
                 <div id="meal-photo-options">
-                  <div className="meal-photo-actions">
-                    <label
-                      className="button primary"
-                      htmlFor="meal-camera"
-                      onClick={guardPhotoPicker}
-                    >
-                      <Camera size={18} aria-hidden="true" /> Tirar foto
-                    </label>
-                    <input
-                      id="meal-camera"
-                      className="visually-hidden"
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={choosePhoto}
-                      disabled={preparingPhoto || analyzing}
-                    />
-                    <label
-                      className="button secondary"
-                      htmlFor="meal-gallery"
-                      onClick={guardPhotoPicker}
-                    >
-                      <ImagePlus size={18} aria-hidden="true" /> Escolher imagem
-                    </label>
-                    <input
-                      id="meal-gallery"
-                      className="visually-hidden"
-                      type="file"
-                      accept="image/*"
-                      onChange={choosePhoto}
-                      disabled={preparingPhoto || analyzing}
-                    />
-                  </div>
                   {descriptionEnabled && (
-                    <div>
+                    <div
+                      className="meal-ai-modes meal-input-modes"
+                      role="group"
+                      aria-label="Como preencher a refeição"
+                    >
                       <button
                         type="button"
-                        className="button secondary"
-                        disabled={analyzing}
-                        aria-pressed={descriptionMode}
+                        disabled={analyzing || preparingPhoto}
+                        aria-pressed={!descriptionMode}
                         onClick={() => {
-                          setDescriptionMode(!descriptionMode);
+                          setDescriptionMode(false);
                           setPhotoError("");
                         }}
                       >
-                        {descriptionMode ? "Usar foto" : "Descrever refeição"}
+                        <Camera size={18} aria-hidden="true" /> Usar foto
                       </button>
-                      {descriptionMode && (
-                        <label>
-                          Descrição do prato
-                          <textarea
-                            value={mealDescription}
-                            onChange={(event) =>
-                              setMealDescription(event.target.value)
-                            }
-                            maxLength={2000}
-                            disabled={analyzing}
-                            placeholder="Ex.: 3 colheres de arroz, 1 concha de feijão e 1 filé de frango grelhado"
-                          />
-                        </label>
-                      )}
+                      <button
+                        type="button"
+                        disabled={analyzing || preparingPhoto}
+                        aria-pressed={descriptionMode}
+                        onClick={() => {
+                          setDescriptionMode(true);
+                          setPhotoError("");
+                        }}
+                      >
+                        <Apple size={18} aria-hidden="true" /> Descrever
+                        refeição
+                      </button>
+                    </div>
+                  )}
+                  {descriptionEnabled && descriptionMode ? (
+                    <div className="field meal-description-field">
+                      <label htmlFor="meal-description">
+                        Descrição do prato
+                      </label>
+                      <textarea
+                        id="meal-description"
+                        value={mealDescription}
+                        onChange={(event) =>
+                          setMealDescription(event.target.value)
+                        }
+                        maxLength={2000}
+                        rows={4}
+                        disabled={analyzing}
+                        aria-describedby="meal-description-help"
+                        placeholder="Ex.: 3 colheres de arroz, 1 concha de feijão e 1 filé de frango grelhado"
+                      />
+                      <small id="meal-description-help">
+                        Inclua as quantidades, se souber. Você poderá revisar a
+                        sugestão antes de salvar.
+                      </small>
+                    </div>
+                  ) : (
+                    <div className="meal-photo-actions">
+                      <label
+                        className="button primary"
+                        htmlFor="meal-camera"
+                        onClick={guardPhotoPicker}
+                      >
+                        <Camera size={18} aria-hidden="true" /> Tirar foto
+                      </label>
+                      <input
+                        id="meal-camera"
+                        className="visually-hidden"
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={choosePhoto}
+                        disabled={preparingPhoto || analyzing}
+                      />
+                      <label
+                        className="button secondary"
+                        htmlFor="meal-gallery"
+                        onClick={guardPhotoPicker}
+                      >
+                        <ImagePlus size={18} aria-hidden="true" /> Escolher
+                        imagem
+                      </label>
+                      <input
+                        id="meal-gallery"
+                        className="visually-hidden"
+                        type="file"
+                        accept="image/*"
+                        onChange={choosePhoto}
+                        disabled={preparingPhoto || analyzing}
+                      />
                     </div>
                   )}
                   {preparingPhoto && (
@@ -643,7 +669,7 @@ export function FoodPage() {
                   )}
                   {((descriptionMode && descriptionEnabled) || photo) && (
                     <div
-                      className={`meal-photo-preview${analyzing ? " analyzing" : ""}`}
+                      className={`meal-photo-preview${descriptionMode ? " meal-description-actions" : ""}${analyzing ? " analyzing" : ""}`}
                       aria-busy={analyzing}
                     >
                       {!descriptionMode && photo && (

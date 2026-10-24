@@ -447,7 +447,7 @@ Teste local: `BIOROTINA_LOCAL_FORCE_EXPERIMENT=hydration-custom-shortcuts=enable
 
 ## Refeição por descrição
 
-`food-description-ai`, revisão 1, permite descrever o prato junto às opções
+`food-description-ai`, revisão 2, permite descrever o prato junto às opções
 de foto. A IA sugere alimentos, porções e calorias para revisão antes de salvar.
 Reutiliza o endpoint, limites de teste grátis/assinatura e a chave própria da
 análise por imagem. A descrição (até 2000 caracteres) só é enviada ao solicitar
@@ -459,7 +459,7 @@ Após publicar frontend e API, habilitar para 5% dos navegadores:
 
 ```sh
 AWS_PROFILE=biorotina AWS_REGION=sa-east-1 npm run configure-experiment -- \
-  --key food-description-ai --enabled --rollout 5 --revision 1
+  --key food-description-ai --enabled --rollout 5 --revision 2
 ```
 
 O Programa beta permite testar fora do sorteio.
