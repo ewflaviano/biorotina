@@ -280,6 +280,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por navegação incorreta, foco inadequado ou envio de dados sensíveis.",
   },
+  "food-history-next-day-shortcut": {
+    assignment: "browser",
+    description:
+      "Oferece o primeiro dia posterior com refeição quando o histórico selecionado está vazio.",
+    owner: "Biorotina",
+    issue: 147,
+    revision: 1,
+    reviewBy: "2026-11-01",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por navegação incorreta, foco inadequado ou envio de dados sensíveis.",
+  },
   "food-daily-calories": {
     assignment: "browser",
     description:

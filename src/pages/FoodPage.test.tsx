@@ -193,6 +193,66 @@ describe("atalho experimental no histórico vazio de refeições", () => {
   });
 });
 
+describe("atalho experimental ao próximo dia com refeição", () => {
+  function renderOnEmptyDay() {
+    historyState.meals = [
+      {
+        id: "meal-next-test",
+        name: "Refeição posterior sintética",
+        eatenAt: "2026-10-04T12:00:00Z",
+        createdAt: "2026-10-04T12:00:00Z",
+        caloriesKcal: null,
+        foods: [],
+        photoAssisted: false,
+      },
+    ];
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-10-03" } }]}
+      >
+        <FoodPage />
+      </MemoryRouter>,
+    );
+  }
+
+  it("mantém o controle sem atalho", () => {
+    renderOnEmptyDay();
+    expect(
+      screen.queryByRole("button", { name: /Ver refeições de/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("abre o primeiro dia posterior com refeição e foca a data", () => {
+    experimentState.enabled = true;
+    renderOnEmptyDay();
+    fireEvent.click(screen.getByRole("button", { name: /Ver refeições de/ }));
+    expect(screen.getByLabelText("Data do histórico de refeições")).toHaveValue(
+      "2026-10-04",
+    );
+    expect(
+      screen.getByLabelText("Data do histórico de refeições"),
+    ).toHaveFocus();
+    expect(
+      screen.getByText("Refeição posterior sintética"),
+    ).toBeInTheDocument();
+    expect(experimentState.recordUse).toHaveBeenCalledWith(
+      "food-history-next-day-shortcut",
+    );
+  });
+
+  it("não oferece o atalho enquanto há busca ativa", () => {
+    experimentState.enabled = true;
+    renderOnEmptyDay();
+    fireEvent.change(
+      screen.getByRole("searchbox", { name: "Buscar refeição neste dia" }),
+      { target: { value: "outra" } },
+    );
+    expect(
+      screen.queryByRole("button", { name: /Ver refeições de/ }),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("opções de foto para assinantes", () => {
   it("não oferece chave enquanto ainda consulta a assinatura", async () => {
     let finishPlanCheck!: (value: PlanStatus) => void;
