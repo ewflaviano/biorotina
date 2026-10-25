@@ -37,6 +37,7 @@ if (
     "activity-history-next-day-shortcut",
     "food-history-clear-search",
     "food-history-last-day-shortcut",
+    "food-history-next-day-shortcut",
     "food-daily-calories",
     "food-description-ai",
     "mobile-nav-meal-priority",

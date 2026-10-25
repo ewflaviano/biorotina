@@ -118,6 +118,10 @@ export function FoodPage() {
     const day = historyDayOf(item.eatenAt);
     return day < selectedDay && (last === null || day > last) ? day : last;
   }, null);
+  const nextMealDay = meals.reduce<string | null>((next, item) => {
+    const day = historyDayOf(item.eatenAt);
+    return day > selectedDay && (next === null || day < next) ? day : next;
+  }, null);
   const searchTerm = normalizeHistoryName(historySearch.trim());
   const visibleMeals = mealsForDay.filter((item) =>
     normalizeHistoryName(item.name).includes(searchTerm),
@@ -130,6 +134,10 @@ export function FoodPage() {
   useExperimentExposure(
     "food-history-last-day-shortcut",
     mealsForDay.length === 0 && searchTerm.length === 0 && lastMealDay !== null,
+  );
+  useExperimentExposure(
+    "food-history-next-day-shortcut",
+    mealsForDay.length === 0 && searchTerm.length === 0 && nextMealDay !== null,
   );
   const clearFromEmpty =
     emptySearch && experiment.enabled("food-history-clear-search");
@@ -1016,6 +1024,22 @@ export function FoodPage() {
                       }}
                     >
                       Ver refeições de {formatCalendarDay(lastMealDay)}
+                    </button>
+                  )}
+                {mealsForDay.length === 0 &&
+                  searchTerm.length === 0 &&
+                  nextMealDay &&
+                  experiment.enabled("food-history-next-day-shortcut") && (
+                    <button
+                      className="button secondary diary-more"
+                      type="button"
+                      onClick={() => {
+                        experiment.recordUse("food-history-next-day-shortcut");
+                        setSelectedDay(nextMealDay);
+                        document.getElementById("food-history-date")?.focus();
+                      }}
+                    >
+                      Ver refeições de {formatCalendarDay(nextMealDay)}
                     </button>
                   )}
               </>
