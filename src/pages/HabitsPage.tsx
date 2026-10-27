@@ -24,6 +24,7 @@ import {
   useHistoryDay,
 } from "../components/HistoryDayControls";
 import { EmptyState, PageHeader } from "../components/Layout";
+import { formatCalendarDay } from "../domain/dailyRecords";
 import { useAppData } from "../state/AppDataContext";
 import {
   useExperiment,
@@ -72,6 +73,10 @@ export function HabitsPage() {
   const logsForDay = logs.filter((log) =>
     isOnHistoryDay(log.completedAt, selectedDay),
   );
+  const lastLogDay = logs.reduce<string | null>((last, log) => {
+    const day = historyDayOf(log.completedAt);
+    return day < selectedDay && (last === null || day > last) ? day : last;
+  }, null);
   const searchTerm = normalizeHistoryName(historySearch.trim());
   const visibleLogs = logsForDay.filter((log) =>
     normalizeHistoryName(
@@ -81,6 +86,10 @@ export function HabitsPage() {
   const emptySearch =
     logsForDay.length > 0 && searchTerm.length > 0 && visibleLogs.length === 0;
   useExperimentExposure("habit-history-clear-search", emptySearch);
+  useExperimentExposure(
+    "habit-history-last-day-shortcut",
+    logsForDay.length === 0 && searchTerm.length === 0 && lastLogDay !== null,
+  );
 
   function showHistoryDay(day: string) {
     setSelectedDay(day);
@@ -548,6 +557,22 @@ export function HabitsPage() {
                     Limpar busca e ver registros
                   </button>
                 )}
+                {logsForDay.length === 0 &&
+                  searchTerm.length === 0 &&
+                  lastLogDay &&
+                  enabled("habit-history-last-day-shortcut") && (
+                    <button
+                      className="button secondary diary-more"
+                      type="button"
+                      onClick={() => {
+                        recordUse("habit-history-last-day-shortcut");
+                        setSelectedDay(lastLogDay);
+                        document.getElementById("habit-history-date")?.focus();
+                      }}
+                    >
+                      Ver hábitos de {formatCalendarDay(lastLogDay)}
+                    </button>
+                  )}
               </>
             )}
           </section>

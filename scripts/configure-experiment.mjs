@@ -29,6 +29,7 @@ if (
     "hydration-history-next-day-shortcut",
     "hydration-custom-shortcuts",
     "habit-history-clear-search",
+    "habit-history-last-day-shortcut",
     "medication-history-clear-search",
     "medication-history-last-day-shortcut",
     "medication-history-next-day-shortcut",

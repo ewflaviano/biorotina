@@ -394,6 +394,20 @@ ou registros. Promover ou remover após sete dias conforme uso e acessibilidade;
 sem dados suficientes, desligar. Interromper por navegação incorreta, foco
 inadequado ou vazamento de dados.
 
+## Atalho ao último dia com hábito no histórico vazio — #149
+
+`habit-history-last-day-shortcut`, revisão 1, responsável Biorotina, revisar
+até 02/11/2026: quando o dia escolhido não tem usos de hábitos, há um dia
+anterior registrado e a busca está vazia, a variante oferece o último dia
+elegível. O controle mantém a seleção manual. Sem configuração remota,
+permanece desligado; adesão conectada pelo header e kill switch seguem as
+regras acima. Após deploy, iniciar em 5%. Medir exposição consentida nos dois
+braços somente no vazio elegível, `use` no clique, erros e rollback na mesma
+revisão e janela. Não enviar datas, nomes nem registros. Promover ou remover
+após sete dias conforme uso e acessibilidade; sem dados suficientes, não
+inferir benefício. Interromper por navegação incorreta, foco inadequado ou
+vazamento de dados.
+
 ## Atalho ao próximo dia com refeição no histórico vazio — #147
 
 `food-history-next-day-shortcut`, revisão 1, responsável Biorotina, revisar
