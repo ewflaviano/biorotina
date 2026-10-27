@@ -192,6 +192,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por foco incorreto, perda de dados ou envio do texto buscado à telemetria.",
   },
+  "habit-history-last-day-shortcut": {
+    assignment: "browser",
+    description:
+      "Oferece o último dia anterior com hábito quando o histórico selecionado está vazio.",
+    owner: "Biorotina",
+    issue: 149,
+    revision: 1,
+    reviewBy: "2026-11-02",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por navegação incorreta, foco inadequado ou envio de dados sensíveis.",
+  },
   "medication-history-clear-search": {
     assignment: "browser",
     description:
