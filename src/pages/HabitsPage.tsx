@@ -77,6 +77,10 @@ export function HabitsPage() {
     const day = historyDayOf(log.completedAt);
     return day < selectedDay && (last === null || day > last) ? day : last;
   }, null);
+  const nextLogDay = logs.reduce<string | null>((next, log) => {
+    const day = historyDayOf(log.completedAt);
+    return day > selectedDay && (next === null || day < next) ? day : next;
+  }, null);
   const searchTerm = normalizeHistoryName(historySearch.trim());
   const visibleLogs = logsForDay.filter((log) =>
     normalizeHistoryName(
@@ -89,6 +93,10 @@ export function HabitsPage() {
   useExperimentExposure(
     "habit-history-last-day-shortcut",
     logsForDay.length === 0 && searchTerm.length === 0 && lastLogDay !== null,
+  );
+  useExperimentExposure(
+    "habit-history-next-day-shortcut",
+    logsForDay.length === 0 && searchTerm.length === 0 && nextLogDay !== null,
   );
 
   function showHistoryDay(day: string) {
@@ -571,6 +579,22 @@ export function HabitsPage() {
                       }}
                     >
                       Ver hábitos de {formatCalendarDay(lastLogDay)}
+                    </button>
+                  )}
+                {logsForDay.length === 0 &&
+                  searchTerm.length === 0 &&
+                  nextLogDay &&
+                  enabled("habit-history-next-day-shortcut") && (
+                    <button
+                      className="button secondary diary-more"
+                      type="button"
+                      onClick={() => {
+                        recordUse("habit-history-next-day-shortcut");
+                        setSelectedDay(nextLogDay);
+                        document.getElementById("habit-history-date")?.focus();
+                      }}
+                    >
+                      Ver hábitos de {formatCalendarDay(nextLogDay)}
                     </button>
                   )}
               </>
