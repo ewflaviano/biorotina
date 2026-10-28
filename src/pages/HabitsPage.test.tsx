@@ -302,3 +302,69 @@ describe("atalho experimental ao último dia com hábito", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("atalho experimental ao próximo dia com hábito", () => {
+  function renderOnEmptyDay() {
+    const data = emptyData();
+    const habitId = crypto.randomUUID();
+    data.habits.push({
+      id: habitId,
+      name: "Leitura sintética",
+      createdAt: "2026-10-03T12:00:00Z",
+      reminderTimes: [],
+      reminderWeekdays: [0, 1, 2, 3, 4, 5, 6],
+    });
+    for (const day of ["2026-10-06", "2026-10-04"]) {
+      data.habitLogs.push({
+        id: crypto.randomUUID(),
+        habitId,
+        completedAt: `${day}T12:00:00Z`,
+        createdAt: `${day}T12:00:00Z`,
+      });
+    }
+    storage.data = data;
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-10-03" } }]}
+      >
+        <HabitsPage />
+      </MemoryRouter>,
+    );
+  }
+
+  it("mantém o controle sem atalho", () => {
+    renderOnEmptyDay();
+    expect(
+      screen.queryByRole("button", { name: /Ver hábitos de/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("abre o primeiro dia posterior com hábito e foca a data", () => {
+    experiment.enabled = true;
+    renderOnEmptyDay();
+    fireEvent.click(screen.getByRole("button", { name: /Ver hábitos de/ }));
+    expect(screen.getByLabelText("Data do histórico de hábitos")).toHaveValue(
+      "2026-10-04",
+    );
+    expect(screen.getByLabelText("Data do histórico de hábitos")).toHaveFocus();
+    expect(
+      within(document.getElementById("habit-history-section")!).getByText(
+        "Leitura sintética",
+      ),
+    ).toBeInTheDocument();
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "habit-history-next-day-shortcut",
+    );
+  });
+
+  it("não oferece o atalho durante uma busca", () => {
+    experiment.enabled = true;
+    renderOnEmptyDay();
+    fireEvent.change(screen.getByLabelText("Buscar hábito neste dia"), {
+      target: { value: "outra" },
+    });
+    expect(
+      screen.queryByRole("button", { name: /Ver hábitos de/ }),
+    ).not.toBeInTheDocument();
+  });
+});
