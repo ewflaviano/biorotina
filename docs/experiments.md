@@ -34,6 +34,15 @@ entregue em #73; o painel de operação continua em #64.
 
 ## Distribuição por navegador
 
+`weight-history-latest-day-shortcut`, revisão 1, responsável Biorotina,
+issue #154, revisar até 05/11/2026: em dia com medidas que não seja o da medida
+mais recente, oferece um botão para abrir esse último dia e focar o seletor.
+O controle mantém a seleção manual. Sem configuração remota fica desligado;
+adesão conectada e kill switch seguem as regras abaixo. Medir exposição
+consentida nos dois braços apenas no estado elegível e `use` no clique, sem
+datas ou medidas. Promover ou remover após sete dias e avaliação de
+acessibilidade; interromper por navegação incorreta ou foco inadequado.
+
 Experimentos de interface usam `assignment: browser`. O navegador sorteia um
 número uniforme no intervalo [0, 100), uma vez por chave, e o guarda no banco
 IndexedDB separado `biorotina-experiment-buckets-v1`. Transações serializam

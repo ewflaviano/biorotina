@@ -132,6 +132,12 @@ export function WeightPage() {
     historyWeights.length === 0 && nextWeightDay !== null,
   );
   const latest = weights[0];
+  const latestWeightDay = latest ? historyDayOf(latest.measuredAt) : null;
+  const canJumpToLatest =
+    historyWeights.length > 0 &&
+    latestWeightDay !== null &&
+    selectedDay !== latestWeightDay;
+  useExperimentExposure("weight-history-latest-day-shortcut", canJumpToLatest);
   const previous = weights[1];
   const currentBmi = latest
     ? bmi(latest.weightKg, data.profile.heightCm)
@@ -553,6 +559,24 @@ export function WeightPage() {
                   : undefined
               }
             />
+            {canJumpToLatest &&
+              enabled("weight-history-latest-day-shortcut") && (
+                <button
+                  className="button secondary diary-more"
+                  type="button"
+                  onClick={() => {
+                    recordUse("weight-history-latest-day-shortcut");
+                    setSelectedDay(latestWeightDay);
+                    setEditingEntry(null);
+                    setEditConfirmed(false);
+                    returnFocusAfterEdit.current = false;
+                    focusDayAfterEdit.current = false;
+                    document.getElementById("weight-history-date")?.focus();
+                  }}
+                >
+                  Ver medida mais recente
+                </button>
+              )}
             {canEditHistory && (
               <p role="status" aria-atomic="true" className="small muted">
                 {editConfirmed ? "Medida atualizada no histórico." : ""}
