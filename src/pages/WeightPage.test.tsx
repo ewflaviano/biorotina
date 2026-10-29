@@ -20,6 +20,7 @@ const experiment = vi.hoisted(() => ({
 const storage = vi.hoisted(() => ({
   mutate: vi.fn(),
   removeWithUndo: vi.fn(),
+  extraWeight: false,
 }));
 vi.mock("../experiments/ExperimentContext", () => ({
   useExperimentExposure: vi.fn(),
@@ -34,6 +35,17 @@ vi.mock("../state/AppDataContext", () => ({
     data: {
       ...emptyData(),
       weights: [
+        ...(storage.extraWeight
+          ? [
+              {
+                id: "00000000-0000-4000-8000-000000000003",
+                weightKg: 71,
+                measuredAt: "2026-09-29T12:00:00Z",
+                createdAt: "2026-09-29T12:00:00Z",
+                note: "",
+              },
+            ]
+          : []),
         {
           id: "00000000-0000-4000-8000-000000000002",
           weightKg: 70,
@@ -49,10 +61,55 @@ vi.mock("../state/AppDataContext", () => ({
 
 beforeEach(() => {
   experiment.enabled = false;
+  storage.extraWeight = false;
   experiment.startAttempt.mockImplementation(() => experiment.finish);
   experiment.recordUse.mockReset();
   storage.mutate.mockReset().mockResolvedValue(undefined);
   storage.removeWithUndo.mockReset().mockResolvedValue(undefined);
+});
+
+describe("atalho experimental para a medida mais recente", () => {
+  it("mantém o seletor manual no controle", () => {
+    storage.extraWeight = true;
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Ver medida mais recente" }),
+    ).toBeNull();
+  });
+
+  it("vai ao dia mais recente, foca o seletor e registra o uso", async () => {
+    storage.extraWeight = true;
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <WeightPage />
+      </MemoryRouter>,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Ver medida mais recente" }),
+    );
+    expect(screen.getByText("71 kg")).toBeInTheDocument();
+    expect(screen.getByLabelText("Data do histórico de medidas")).toHaveValue(
+      "2026-09-29",
+    );
+    expect(screen.getByLabelText("Data do histórico de medidas")).toHaveFocus();
+    expect(
+      screen.queryByRole("button", { name: "Ver medida mais recente" }),
+    ).toBeNull();
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "weight-history-latest-day-shortcut",
+    );
+    expect(storage.mutate).not.toHaveBeenCalled();
+  });
 });
 
 describe("dados do balanço em Medidas", () => {

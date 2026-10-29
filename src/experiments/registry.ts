@@ -159,6 +159,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por navegação incorreta, foco inadequado ou envio de dados à telemetria.",
   },
+  "weight-history-latest-day-shortcut": {
+    assignment: "browser",
+    description:
+      "Oferece a data da medida mais recente ao consultar outro dia com medidas.",
+    owner: "Biorotina",
+    issue: 154,
+    revision: 1,
+    reviewBy: "2026-11-05",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por navegação incorreta, foco inadequado ou regressão de acessibilidade.",
+  },
   "hydration-history-last-day-shortcut": {
     assignment: "browser",
     description:

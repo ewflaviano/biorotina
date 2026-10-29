@@ -33,6 +33,7 @@ const FEATURES: &[&str] = &[
     "weight-history-edit",
     "weight-history-last-day-shortcut",
     "weight-history-next-day-shortcut",
+    "weight-history-latest-day-shortcut",
     "hydration-history-last-day-shortcut",
     "hydration-history-next-day-shortcut",
     "hydration-custom-shortcuts",
