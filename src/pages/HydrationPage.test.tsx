@@ -12,7 +12,15 @@ const experiment = vi.hoisted(() => ({
   finish: vi.fn(),
   recordUse: vi.fn(),
 }));
-const storage = vi.hoisted(() => ({ mutate: vi.fn() }));
+const storage = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  entries: [] as Array<{
+    id: string;
+    amountMl: number;
+    drankAt: string;
+    createdAt: string;
+  }>,
+}));
 const sync = vi.hoisted(() => ({ ready: true }));
 vi.mock("../sync/DriveSyncContext", () => ({
   useOptionalDriveSync: () => ({ initialSyncReady: sync.ready }),
@@ -32,14 +40,7 @@ vi.mock("../state/AppDataContext", () => ({
   useAppData: () => ({
     data: {
       ...emptyData(),
-      hydrationEntries: [
-        {
-          id: "00000000-0000-4000-8000-000000000001",
-          amountMl: 200,
-          drankAt: "2026-09-25T12:00:00Z",
-          createdAt: "2026-09-25T12:00:00Z",
-        },
-      ],
+      hydrationEntries: storage.entries,
     },
     mutate: storage.mutate,
   }),
@@ -49,12 +50,81 @@ vi.mock("../components/PushActivationPrompt", () => ({
 }));
 
 beforeEach(() => {
+  storage.entries = [
+    {
+      id: "00000000-0000-4000-8000-000000000001",
+      amountMl: 200,
+      drankAt: "2026-09-25T12:00:00Z",
+      createdAt: "2026-09-25T12:00:00Z",
+    },
+  ];
   sync.ready = true;
   experiment.enabled = false;
   experiment.formEnabled = false;
   experiment.startAttempt.mockImplementation(() => experiment.finish);
   experiment.recordUse.mockReset();
   storage.mutate.mockReset().mockResolvedValue(undefined);
+});
+
+describe("atalho experimental ao registro de água mais recente", () => {
+  beforeEach(() => {
+    storage.entries.push({
+      id: "00000000-0000-4000-8000-000000000002",
+      amountMl: 300,
+      drankAt: "2026-09-27T12:00:00Z",
+      createdAt: "2026-09-27T12:00:00Z",
+    });
+  });
+
+  it("permanece oculto sem variante e no próprio dia mais recente", () => {
+    const { unmount } = render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Ver água mais recente" }),
+    ).toBeNull();
+    unmount();
+    experiment.enabled = true;
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-27" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Ver água mais recente" }),
+    ).toBeNull();
+  });
+
+  it("abre o dia mais recente com água e foca o seletor", async () => {
+    experiment.enabled = true;
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[{ pathname: "/", state: { day: "2026-09-25" } }]}
+      >
+        <HydrationPage />
+      </MemoryRouter>,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Ver água mais recente" }),
+    );
+    expect(
+      within(screen.getByRole("region", { name: /Histórico de/ })).getByText(
+        "300 ml",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Data do histórico de água")).toHaveFocus();
+    expect(experiment.recordUse).toHaveBeenCalledWith(
+      "hydration-history-latest-day-shortcut",
+    );
+    expect(storage.mutate).not.toHaveBeenCalled();
+  });
 });
 
 it("segura novos registros de água enquanto a primeira sincronização está pendente", async () => {

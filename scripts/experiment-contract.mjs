@@ -15,6 +15,7 @@ export const experimentKeys = [
   "weight-history-latest-day-shortcut",
   "hydration-history-last-day-shortcut",
   "hydration-history-next-day-shortcut",
+  "hydration-history-latest-day-shortcut",
   "hydration-custom-shortcuts",
   "habit-history-clear-search",
   "habit-history-last-day-shortcut",

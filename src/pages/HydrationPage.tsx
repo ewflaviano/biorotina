@@ -129,6 +129,17 @@ export function HydrationPage() {
     "hydration-history-next-day-shortcut",
     historyEntries.length === 0 && nextHydrationDay !== null,
   );
+  const latestHydrationDay = entries[0]
+    ? historyDayOf(entries[0].drankAt)
+    : null;
+  const canJumpToLatest =
+    historyEntries.length > 0 &&
+    latestHydrationDay !== null &&
+    selectedDay !== latestHydrationDay;
+  useExperimentExposure(
+    "hydration-history-latest-day-shortcut",
+    canJumpToLatest,
+  );
   const historyTotalMl = historyEntries.reduce(
     (sum, entry) => sum + entry.amountMl,
     0,
@@ -443,6 +454,24 @@ export function HydrationPage() {
                   : undefined
               }
             />
+            {canJumpToLatest &&
+              enabled("hydration-history-latest-day-shortcut") && (
+                <button
+                  className="button secondary diary-more"
+                  type="button"
+                  onClick={() => {
+                    recordUse("hydration-history-latest-day-shortcut");
+                    focusDayAfterShortcut.current = true;
+                    setSelectedDay(latestHydrationDay);
+                    setEditingEntry(null);
+                    setEditConfirmed(false);
+                    returnFocusAfterEdit.current = false;
+                    focusDayAfterEdit.current = false;
+                  }}
+                >
+                  Ver água mais recente
+                </button>
+              )}
             {editConfirmed && (
               <p role="status" className="small muted">
                 Registro de água atualizado.
