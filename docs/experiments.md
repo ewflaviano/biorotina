@@ -43,6 +43,15 @@ consentida nos dois braços apenas no estado elegível e `use` no clique, sem
 datas ou medidas. Promover ou remover após sete dias e avaliação de
 acessibilidade; interromper por navegação incorreta ou foco inadequado.
 
+`hydration-history-latest-day-shortcut`, revisão 1, responsável Biorotina,
+issue #156, revisar até 06/11/2026: em dia com água que não seja o do registro
+mais recente, oferece um botão para abrir esse dia e focar o seletor. O controle
+mantém a seleção manual. Sem configuração remota fica desligado; adesão
+conectada e kill switch seguem as regras abaixo. Medir exposição consentida nos
+dois braços apenas no estado elegível e `use` no clique, sem datas ou volumes.
+Promover ou remover após sete dias; interromper por navegação incorreta, foco
+inadequado ou regressão de acessibilidade.
+
 Experimentos de interface usam `assignment: browser`. O navegador sorteia um
 número uniforme no intervalo [0, 100), uma vez por chave, e o guarda no banco
 IndexedDB separado `biorotina-experiment-buckets-v1`. Transações serializam

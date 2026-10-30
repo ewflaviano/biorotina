@@ -192,6 +192,17 @@ export const experimentRegistry = {
     removeWhen:
       "Promover ou remover após sete dias; interromper por navegação incorreta, foco inadequado ou envio de dados à telemetria.",
   },
+  "hydration-history-latest-day-shortcut": {
+    assignment: "browser",
+    description:
+      "Oferece a data do registro de água mais recente ao consultar outro dia com água.",
+    owner: "Biorotina",
+    issue: 156,
+    revision: 1,
+    reviewBy: "2026-11-06",
+    removeWhen:
+      "Promover ou remover após sete dias; interromper por navegação incorreta, foco inadequado ou regressão de acessibilidade.",
+  },
   "habit-history-clear-search": {
     assignment: "browser",
     description:
