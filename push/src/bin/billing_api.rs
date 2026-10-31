@@ -75,8 +75,8 @@ async fn preflight() -> StatusCode {
 }
 
 async fn trial_config(State(billing): State<Billing>) -> Response {
-    match billing.trial_enabled().await {
-        Ok(enabled) => reply(StatusCode::OK, json!({"trialEnabled":enabled})),
+    match billing.public_trial_offer().await {
+        Ok(offer) => reply(StatusCode::OK, offer),
         Err(_) => failure(
             "trial_config",
             "database_failed",

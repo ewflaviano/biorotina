@@ -89,6 +89,17 @@ describe("plano vinculado ao Google", () => {
     );
     expect(await getTrialConfig()).toBe(false);
   });
+  it("informa a oferta pública sem exigir login", async () => {
+    const offer = { trialEnabled: true, trialPeriodDays: 14, trialLimit: 5 };
+    const onOffer = vi.fn();
+    const fetcher = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(Response.json(offer));
+    expect(await getTrialConfig(onOffer)).toBe(true);
+    expect(onOffer).toHaveBeenCalledWith(offer);
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher.mock.calls[0][1]?.body).toBeUndefined();
+  });
   it("traduz serviço ainda não publicado sem sugerir assinatura ativa", async () => {
     mockAuthenticatedApi({ message: "Not Found" }, 404);
     await expect(getPlanStatus("google-token")).rejects.toThrow(

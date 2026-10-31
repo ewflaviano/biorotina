@@ -98,11 +98,13 @@ export function GuestLoginPrompt() {
         <p id="guest-login-description">
           Seu registro foi salvo neste navegador. Entre com Google para
           sincronizar seus dados entre dispositivos e acessar as opções de
-          análise de refeições por foto.
+          análise de refeições com IA.
         </p>
         <p className="muted small">
           Depois de entrar, você pode juntar estes registros aos da sua conta em
-          Configurações. O app continua funcionando sem login.
+          Configurações. O diário manual continua gratuito, sem login ou
+          assinatura. O teste de IA não exige cartão e não vira assinatura
+          automaticamente.
         </p>
         <div className="guest-login-actions">
           <button className="button primary" type="button" onClick={connect}>

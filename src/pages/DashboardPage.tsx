@@ -98,6 +98,19 @@ export function DashboardPage() {
         }
         description="Escolha uma área para registrar e acompanhar sua rotina. Seus dados ficam neste navegador."
       />
+      {totalRecords(data) === 0 && (
+        <section className="panel" aria-labelledby="free-diary-title">
+          <h2 id="free-diary-title">Seu diário é gratuito</h2>
+          <p>
+            Registre sua rotina manualmente, sem assinatura. A análise de
+            refeições com IA é opcional e tem um teste grátis com sua conta
+            Google.
+          </p>
+          <Link className="button secondary" to="/alimentacao">
+            Conhecer o teste de IA
+          </Link>
+        </section>
+      )}
       {demoEnabled && (
         <section
           className="panel experiment-demo"

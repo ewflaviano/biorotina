@@ -122,11 +122,140 @@ function PlanContents({ drive }: { drive: ReturnType<typeof useDriveSync> }) {
   return (
     <>
       <PageHeader
-        eyebrow="Fotos com IA"
+        eyebrow="IA opcional"
         title="Plano Biorotina IA"
-        description="Analise refeições por foto e acompanhe seu uso diário."
+        description="Seu diário manual continua gratuito. Use o teste de IA ou escolha uma assinatura para analisar mais refeições."
       />
       <div className="plan-layout">
+        <section className="panel plan-access">
+          <h2>Seu acesso à IA</h2>
+          {!drive.account ? (
+            <>
+              <p>
+                Seu diário manual é gratuito e não exige assinatura. Entre com
+                Google para conferir o teste de IA disponível para sua conta.
+              </p>
+              <p>
+                O teste não exige cartão e não vira assinatura automaticamente.
+              </p>
+              <Link className="button secondary" to="/alimentacao">
+                Conhecer o teste grátis
+              </Link>
+            </>
+          ) : (
+            <>
+              {!status && !error ? (
+                <p className="muted" role="status">
+                  Consultando assinatura…
+                </p>
+              ) : status?.active ? (
+                <Notice kind="success">
+                  {status.cancelled
+                    ? "Renovação cancelada. Seu acesso continua até o fim do período pago."
+                    : "Plano ativo. Você pode analisar fotos de refeições."}
+                </Notice>
+              ) : status ? (
+                <>
+                  <Notice kind="info">
+                    {status.renewalActive
+                      ? "Aguardando confirmação de pagamento."
+                      : status.trialEnabled
+                        ? status.trialExpired ||
+                          (!status.trialPeriodDays &&
+                            status.trialUsed >= status.trialLimit)
+                          ? "Seu teste grátis terminou. Seu diário manual continua gratuito."
+                          : status.trialPeriodDays &&
+                              status.trialUsed >= status.trialLimit
+                            ? "Você usou as análises grátis de hoje. Elas renovam à meia-noite de Brasília."
+                            : "Você tem um teste grátis de IA disponível nesta conta."
+                        : "Nenhum plano ativo nesta conta."}
+                  </Notice>
+                  {status.trialEnabled &&
+                  !status.trialExpired &&
+                  (status.trialPeriodDays ||
+                    status.trialUsed < status.trialLimit) ? (
+                    <>
+                      <p>
+                        {status.trialPeriodDays
+                          ? `${status.trialPeriodDays} dias de teste, com até ${status.trialLimit} análises por dia · ${Math.max(0, status.trialLimit - status.trialUsed)} disponíveis hoje.`
+                          : `${Math.max(0, status.trialLimit - status.trialUsed)} análises grátis disponíveis, de ${status.trialLimit} no total.`}
+                      </p>
+                      {status.trialPeriodDays && (
+                        <p>
+                          {status.trialEndsAt
+                            ? `Seu teste termina em ${new Date(status.trialEndsAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} (horário de Brasília).`
+                            : "O prazo começa na sua primeira análise, não ao entrar com Google."}
+                        </p>
+                      )}
+                      <p>
+                        Sem cartão e sem cobrança automática. Ao terminar, você
+                        escolhe se quer assinar. O diário manual continua
+                        gratuito.
+                      </p>
+                      <Link className="button primary" to="/alimentacao">
+                        {status.trialUsed >= status.trialLimit
+                          ? "Continuar registrando grátis"
+                          : "Usar meu teste grátis"}
+                      </Link>
+                    </>
+                  ) : (
+                    <Link className="text-link" to="/alimentacao">
+                      Continuar com meu diário gratuito
+                    </Link>
+                  )}
+                </>
+              ) : null}
+              {status &&
+                (status.paidThrough ||
+                  status.renewalActive ||
+                  status.checkoutUrl) && (
+                  <dl className="plan-facts">
+                    <div>
+                      <dt>Disponível até</dt>
+                      <dd>{datePt(status?.paidThrough || null)}</dd>
+                    </div>
+                    <div>
+                      <dt>Próxima cobrança prevista</dt>
+                      <dd>
+                        {status?.cancelled
+                          ? "Sem nova cobrança"
+                          : datePt(status?.nextCharge || null)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Análises hoje</dt>
+                      <dd>
+                        {status
+                          ? `${status.usedToday} de ${status.dailyLimit}`
+                          : "—"}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+              <button
+                className="button secondary"
+                onClick={() => void refresh()}
+              >
+                <RotateCw size={17} aria-hidden="true" /> Atualizar situação
+              </button>
+              {status?.renewalActive && !status.cancelled && (
+                <button
+                  className="entry-action danger"
+                  onClick={() => void cancel()}
+                  disabled={busy}
+                >
+                  Cancelar renovação
+                </button>
+              )}
+              {message && (
+                <p role="status" className="muted small">
+                  {message}
+                </p>
+              )}
+            </>
+          )}
+          {error && <Notice kind="info">{error}</Notice>}
+        </section>
         <section className="panel plan-offer">
           <span className="support-heart">
             <Sparkles size={23} aria-hidden="true" />
@@ -210,89 +339,16 @@ function PlanContents({ drive }: { drive: ReturnType<typeof useDriveSync> }) {
             </>
           )}
         </section>
-        <section className="panel">
-          <h2>Minha assinatura</h2>
-          {!drive.account ? (
-            <p className="muted">Entre com Google para consultar o plano.</p>
-          ) : (
-            <>
-              {!status && !error ? (
-                <p className="muted" role="status">
-                  Consultando assinatura…
-                </p>
-              ) : status?.active ? (
-                <Notice kind="success">
-                  {status.cancelled
-                    ? "Renovação cancelada. Seu acesso continua até o fim do período pago."
-                    : "Plano ativo. Você pode analisar fotos de refeições."}
-                </Notice>
-              ) : status ? (
-                <Notice kind="info">
-                  {status?.renewalActive
-                    ? "Aguardando confirmação de pagamento."
-                    : "Nenhum plano ativo nesta conta."}
-                </Notice>
-              ) : null}
-              {status &&
-                (status.paidThrough ||
-                  status.renewalActive ||
-                  status.checkoutUrl) && (
-                  <dl className="plan-facts">
-                    <div>
-                      <dt>Disponível até</dt>
-                      <dd>{datePt(status?.paidThrough || null)}</dd>
-                    </div>
-                    <div>
-                      <dt>Próxima cobrança prevista</dt>
-                      <dd>
-                        {status?.cancelled
-                          ? "Sem nova cobrança"
-                          : datePt(status?.nextCharge || null)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Análises hoje</dt>
-                      <dd>
-                        {status
-                          ? `${status.usedToday} de ${status.dailyLimit}`
-                          : "—"}
-                      </dd>
-                    </div>
-                  </dl>
-                )}
-              <button
-                className="button secondary"
-                onClick={() => void refresh()}
-              >
-                <RotateCw size={17} aria-hidden="true" /> Atualizar situação
-              </button>
-              {status?.renewalActive && !status.cancelled && (
-                <button
-                  className="entry-action danger"
-                  onClick={() => void cancel()}
-                  disabled={busy}
-                >
-                  Cancelar renovação
-                </button>
-              )}
-              {message && (
-                <p role="status" className="muted small">
-                  {message}
-                </p>
-              )}
-            </>
-          )}
-          {error && <Notice kind="info">{error}</Notice>}
-        </section>
         {(!drive.account || (status && !status.active)) && (
-          <section className="panel plan-alternative">
+          <details className="panel plan-alternative">
+            <summary>Opções avançadas</summary>
             <ShieldCheck size={20} aria-hidden="true" />
             <h2>Prefere usar sua própria chave?</h2>
             <p>Essa opção continua gratuita e não usa a cota do plano.</p>
             <Link className="text-link" to="/configuracoes">
               Configurar chave Gemini
             </Link>
-          </section>
+          </details>
         )}
       </div>
     </>

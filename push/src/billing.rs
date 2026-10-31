@@ -918,6 +918,18 @@ impl Billing {
         }
     }
 
+    pub async fn public_trial_offer(&self) -> Result<Value, String> {
+        let enabled = self.trial_enabled().await?;
+        let campaign = if enabled {
+            self.campaign().await?.filter(|c| c.open(Utc::now()))
+        } else {
+            None
+        };
+        Ok(json!({"trialEnabled":enabled,
+            "trialPeriodDays":campaign.as_ref().map(|c|c.days),
+            "trialLimit":campaign.as_ref().map_or(TRIAL_LIMIT,|c|c.daily_limit)}))
+    }
+
     pub async fn trial_used(&self, account_key: &str) -> Result<u32, String> {
         let key = format!("TRIAL#{account_key}");
         let result = self

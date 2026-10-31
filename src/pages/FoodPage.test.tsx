@@ -316,6 +316,7 @@ describe("opções de foto para assinantes", () => {
         <FoodPage />
       </MemoryRouter>,
     );
+    fireEvent.click(await screen.findByText("Opções avançadas"));
     expect(
       await screen.findByRole("button", { name: "Minha chave Gemini" }),
     ).toBeInTheDocument();

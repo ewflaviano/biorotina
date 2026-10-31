@@ -124,6 +124,10 @@ async fn campaign_is_read_only_until_first_request_and_limits_concurrent_calls()
         .lock()
         .await
         .insert("TRIAL#test-account".into(), json!({"used":{"N":"5"}}));
+    assert_eq!(
+        billing.public_trial_offer().await.unwrap()["trialPeriodDays"],
+        14
+    );
     let status = billing.trial_status("test-account").await.unwrap();
     assert_eq!(status["trialUsed"], 0);
     assert!(status["trialEndsAt"].is_null());
@@ -253,5 +257,9 @@ async fn campaign_configuration_fails_closed_and_disabling_enrollment_keeps_exis
         json!({"data":{"S":"{\"enabled\":false}"}}),
     );
     assert!(!billing.trial_enabled().await.unwrap());
+    assert_eq!(
+        billing.public_trial_offer().await.unwrap()["trialEnabled"],
+        false
+    );
     server.abort();
 }
