@@ -56,7 +56,7 @@ describe("navegação", () => {
       within(mobileNav)
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Hoje", "Medidas", "Atividade", "Água", "Mais"]);
+    ).toEqual(["Hoje", "Atividade", "Refeição", "Água", "Mais"]);
     expect(within(mobileNav).getByRole("link", { name: "Hoje" })).toHaveClass(
       "active",
     );
