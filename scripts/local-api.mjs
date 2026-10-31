@@ -115,7 +115,11 @@ function accountForCode(code) {
   return TEST_ACCOUNTS[suffix || "1"];
 }
 
-export async function createLocalApi({ dataDir, port = 0 } = {}) {
+export async function createLocalApi({
+  dataDir,
+  port = 0,
+  now = () => new Date(),
+} = {}) {
   const directory = resolve(dataDir ?? ".local/biorotina");
   const statePath = resolve(directory, "state.json");
   const telemetryPath = resolve(directory, "telemetry.jsonl");
@@ -170,7 +174,29 @@ export async function createLocalApi({ dataDir, port = 0 } = {}) {
       trialLimit: 5,
       checkoutUrl: null,
     };
-  const billingStatus = (accountId) => planFor(accountId);
+  const campaignOpen = () =>
+    now() >= new Date("2026-11-01T03:00:00Z") &&
+    now() < new Date("2026-12-01T03:00:00Z");
+  const trialDay = () =>
+    now().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const billingStatus = (accountId) => {
+    const plan = planFor(accountId);
+    const enrollment = plan.novemberTrial;
+    if (!enrollment && !campaignOpen()) return plan;
+    const expired = Boolean(enrollment && now() >= new Date(enrollment.endsAt));
+    return {
+      ...plan,
+      trialPeriodDays: 14,
+      trialEndsAt: enrollment?.endsAt ?? null,
+      trialExpired: expired,
+      trialUsed: expired
+        ? 5
+        : enrollment?.day === trialDay()
+          ? enrollment.used
+          : 0,
+      trialLimit: 5,
+    };
+  };
   const experimentConfig = {
     enabled: false,
     killSwitch: false,
@@ -357,11 +383,33 @@ export async function createLocalApi({ dataDir, port = 0 } = {}) {
         const session = requireApiToken(request, response);
         if (!session) return;
         await readJson(request);
-        const plan = planFor(session.account.id);
-        state.plans[session.account.id] = {
-          ...plan,
-          trialUsed: plan.trialUsed + 1,
-        };
+        const accountId = session.account.id;
+        const plan = planFor(accountId);
+        const status = billingStatus(accountId);
+        if (
+          !plan.active &&
+          (status.trialExpired || status.trialUsed >= status.trialLimit)
+        )
+          return json(response, 402, {
+            error: "Seu teste terminou ou a cota disponível acabou.",
+          });
+        if (!plan.active && status.trialPeriodDays) {
+          state.plans[accountId] = {
+            ...plan,
+            novemberTrial: {
+              endsAt:
+                plan.novemberTrial?.endsAt ??
+                new Date(now().getTime() + 14 * 86400_000).toISOString(),
+              day: trialDay(),
+              used: status.trialUsed + 1,
+            },
+          };
+        } else {
+          state.plans[accountId] = {
+            ...plan,
+            trialUsed: plan.trialUsed + (plan.active ? 0 : 1),
+          };
+        }
         await persist();
         return json(response, 200, {
           description: "Refeição simulada para testes locais",

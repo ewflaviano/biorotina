@@ -8,8 +8,7 @@ use axum::{
     Json, Router,
 };
 use biorotina_push::billing::{
-    valid_jpeg_image, Account, AnalysisFailure, Billing, DAILY_ATTEMPT_LIMIT,
-    FAILED_ANALYSIS_LIMIT, TRIAL_LIMIT,
+    valid_jpeg_image, Account, AnalysisFailure, Billing, DAILY_ATTEMPT_LIMIT, FAILED_ANALYSIS_LIMIT,
 };
 use biorotina_push::observability;
 use serde::Deserialize;
@@ -153,7 +152,7 @@ async fn status(State(billing): State<Billing>, headers: HeaderMap) -> Response 
     };
     let (trial_enabled, trial_used, plan) = tokio::join!(
         billing.trial_enabled(),
-        billing.trial_used(&key),
+        billing.trial_status(&key),
         async {
             match account.as_ref() {
                 Some(account) => billing.status(account).await,
@@ -164,10 +163,12 @@ async fn status(State(billing): State<Billing>, headers: HeaderMap) -> Response 
         },
     );
     match (trial_enabled, trial_used, plan) {
-        (Ok(enabled), Ok(used), Ok(mut value)) => {
+        (Ok(enabled), Ok(trial), Ok(mut value)) => {
             value["trialEnabled"] = json!(enabled);
-            value["trialUsed"] = json!(used);
-            value["trialLimit"] = json!(TRIAL_LIMIT);
+            value
+                .as_object_mut()
+                .expect("plan object")
+                .extend(trial.as_object().expect("trial object").clone());
             reply(StatusCode::OK, value)
         }
         _ => failure(
@@ -299,17 +300,23 @@ async fn analyze(
         Ok(Some(key)) => key,
         Ok(None) => {
             billing.refund_reservation(&failure_slot).await;
+            if paid {
+                return error(
+                    StatusCode::TOO_MANY_REQUESTS,
+                    "Você já usou as 10 análises de hoje. Amanhã sua cota renova.",
+                );
+            }
+            if let Ok(trial) = billing.trial_status(&key).await {
+                if trial["trialPeriodDays"].is_number() && trial["trialExpired"] == false {
+                    return error(StatusCode::TOO_MANY_REQUESTS, "Você usou as análises grátis de hoje. A cota renova à meia-noite de Brasília enquanto seu teste estiver ativo.");
+                }
+                if trial["trialExpired"] == true {
+                    return error(StatusCode::PAYMENT_REQUIRED, "Seu teste grátis de 14 dias terminou. Escolha o plano ou use sua chave Gemini.");
+                }
+            }
             return error(
-                if paid {
-                    StatusCode::TOO_MANY_REQUESTS
-                } else {
-                    StatusCode::PAYMENT_REQUIRED
-                },
-                if paid {
-                    "Você já usou as 10 análises de hoje. Amanhã sua cota renova."
-                } else {
-                    "Você já usou as 5 análises grátis. Escolha o plano ou use sua chave Gemini."
-                },
+                StatusCode::PAYMENT_REQUIRED,
+                "Sua cota de análises grátis acabou. Escolha o plano ou use sua chave Gemini.",
             );
         }
         Err(_) => {
@@ -344,7 +351,12 @@ async fn analyze(
         }
     }
     match billing
-        .analyze_input(body.image.as_deref(), body.description.as_deref(), paid)
+        .analyze_input(
+            &key,
+            body.image.as_deref(),
+            body.description.as_deref(),
+            paid,
+        )
         .await
     {
         Ok(analysis) => {

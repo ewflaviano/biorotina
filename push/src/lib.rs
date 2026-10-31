@@ -32,3 +32,7 @@ impl App {
 }
 
 pub mod billing;
+
+pub mod trial;
+
+pub mod ai_cost;

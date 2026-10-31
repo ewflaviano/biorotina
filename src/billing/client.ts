@@ -38,6 +38,9 @@ export const planStatusSchema = z.object({
   trialEnabled: z.boolean().default(false),
   trialUsed: z.number().int().min(0).default(0),
   trialLimit: z.number().int().positive().default(5),
+  trialPeriodDays: z.number().int().positive().nullable().optional(),
+  trialEndsAt: z.string().datetime().nullable().optional(),
+  trialExpired: z.boolean().optional(),
 });
 export type PlanStatus = z.infer<typeof planStatusSchema>;
 async function request(

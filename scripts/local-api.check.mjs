@@ -265,3 +265,44 @@ test("configuração pública, adesão autenticada e métricas fechadas dos dois
   assert.equal(recorded[2].kind, "experiment_metric_manual");
   assert.equal("manual" in recorded[2], false);
 });
+
+test("trial de novembro dura 14 dias, renova a cota em Brasília e inclui contas antigas", async (context) => {
+  const dataDir = await mkdtemp(join(tmpdir(), "biorotina-trial-"));
+  let instant = new Date("2026-10-31T15:00:00Z");
+  const api = await createLocalApi({ dataDir, now: () => instant });
+  context.after(async () => {
+    await api.close();
+    await rm(dataDir, { recursive: true, force: true });
+  });
+  const { cookie } = await login(api);
+  const token = await (
+    await fetch(api.url + "/api/auth/access-token", { headers: { cookie } })
+  ).json();
+  const headers = {
+    cookie,
+    authorization: `Bearer ${token.accessToken}`,
+    "content-type": "application/json",
+  };
+  const analyze = () =>
+    fetch(api.url + "/api/ai/meal", { method: "POST", headers, body: "{}" });
+  const status = async () =>
+    (await fetch(api.url + "/api/billing/status", { headers })).json();
+  for (let n = 0; n < 5; n++) assert.equal((await analyze()).status, 200);
+  assert.equal((await analyze()).status, 402);
+  instant = new Date("2026-11-01T15:00:00Z");
+  assert.equal((await status()).trialUsed, 0);
+  assert.equal((await status()).trialEndsAt, null);
+  for (let n = 0; n < 5; n++) assert.equal((await analyze()).status, 200);
+  assert.equal((await analyze()).status, 402);
+  const deadline = (await status()).trialEndsAt;
+  assert.equal(deadline, "2026-11-15T15:00:00.000Z");
+  instant = new Date("2026-11-02T02:59:59Z");
+  assert.equal((await analyze()).status, 402);
+  instant = new Date("2026-11-02T03:00:00Z");
+  assert.equal((await status()).trialUsed, 0);
+  assert.equal((await analyze()).status, 200);
+  assert.equal((await status()).trialEndsAt, deadline);
+  instant = new Date(deadline);
+  assert.equal((await status()).trialExpired, true);
+  assert.equal((await analyze()).status, 402);
+});

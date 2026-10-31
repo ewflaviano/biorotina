@@ -333,7 +333,9 @@ export function FoodPage() {
       drive.account?.token &&
       (!planStatus ||
         planStatus.active ||
-        (trialEnabled && planStatus.trialUsed < planStatus.trialLimit)),
+        (trialEnabled &&
+          !planStatus.trialExpired &&
+          planStatus.trialUsed < planStatus.trialLimit)),
     );
     if (!accountCanAnalyze && !hasGeminiKey) {
       event.preventDefault();
@@ -341,7 +343,8 @@ export function FoodPage() {
         drive.account &&
           trialEnabled &&
           planStatus &&
-          planStatus.trialUsed >= planStatus.trialLimit
+          (planStatus.trialExpired ||
+            planStatus.trialUsed >= planStatus.trialLimit)
           ? "exhausted"
           : "access",
       );
@@ -371,7 +374,7 @@ export function FoodPage() {
             setTrialEnabled(false);
             throw new Error("O teste grátis não está disponível agora.");
           }
-          if (plan.trialUsed >= plan.trialLimit) {
+          if (plan.trialExpired || plan.trialUsed >= plan.trialLimit) {
             setPhotoOffer("exhausted");
             return;
           }
@@ -665,7 +668,19 @@ export function FoodPage() {
                     drive.account &&
                     selectedPhotoMode === "trial" ? (
                     <p className="muted small">
-                      {`Teste até 5 análises grátis com sua conta Google${planStatus ? ` · ${Math.max(0, planStatus.trialLimit - planStatus.trialUsed)} restantes` : ""}.`}
+                      {planStatus?.trialPeriodDays
+                        ? planStatus.trialExpired
+                          ? "Seu teste grátis terminou."
+                          : `Teste grátis por ${planStatus.trialPeriodDays} dias, com até ${planStatus.trialLimit} análises por dia · ${Math.max(0, planStatus.trialLimit - planStatus.trialUsed)} restantes hoje.`
+                        : `Teste até ${planStatus?.trialLimit ?? 5} análises grátis com sua conta Google${planStatus ? ` · ${Math.max(0, planStatus.trialLimit - planStatus.trialUsed)} restantes` : ""}.`}
+                      {planStatus?.trialPeriodDays &&
+                        !planStatus.trialExpired && (
+                          <span>
+                            {planStatus.trialEndsAt
+                              ? ` Disponível até ${new Date(planStatus.trialEndsAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} (horário de Brasília).`
+                              : " Os dias começam na primeira análise. A cota diária renova à meia-noite de Brasília."}
+                          </span>
+                        )}
                     </p>
                   ) : (
                     <p className="muted small">
@@ -753,8 +768,8 @@ export function FoodPage() {
                       no servidor, no diário ou no backup.{" "}
                       {selectedPhotoMode === "trial" ? (
                         <span>
-                          O teste grátis exige uma conta Google para contar as
-                          cinco análises.
+                          O teste grátis exige uma conta Google para acompanhar
+                          seu período e sua cota de análises.
                         </span>
                       ) : selectedPhotoMode === "plan" ? (
                         !planStatus?.active && (
@@ -1106,12 +1121,16 @@ export function FoodPage() {
             <Sparkles size={28} className="reminder-icon" aria-hidden="true" />
             <h2 id="trial-offer-title">
               {photoOffer === "exhausted"
-                ? "Suas fotos grátis acabaram"
+                ? planStatus?.trialPeriodDays && !planStatus.trialExpired
+                  ? "Sua cota de hoje acabou"
+                  : "Suas fotos grátis acabaram"
                 : "Análise de fotos"}
             </h2>
             <p>
               {photoOffer === "exhausted"
-                ? "As cinco análises grátis acabaram. Você ainda pode registrar refeições sem foto. Para analisar mais fotos, escolha o plano ou use sua chave Gemini."
+                ? planStatus?.trialPeriodDays && !planStatus.trialExpired
+                  ? "Você atingiu o limite diário do teste grátis. A cota renova à meia-noite de Brasília, enquanto seu teste estiver ativo. Você pode continuar registrando manualmente."
+                  : "Seu teste grátis terminou ou a cota acabou. Você ainda pode registrar refeições manualmente. Para analisar mais refeições, escolha o plano ou use sua chave Gemini."
                 : "A foto é opcional: você pode registrar sua refeição sem ela. Para receber sugestões pela foto, escolha o plano ou use sua chave Gemini."}
             </p>
             <div className="push-actions photo-offer-actions">
