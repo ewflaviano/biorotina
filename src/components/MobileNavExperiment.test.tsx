@@ -9,22 +9,19 @@ import { AppDataProvider } from "../state/AppDataContext";
 import { DriveSyncProvider } from "../sync/DriveSyncContext";
 import { Layout } from "./Layout";
 
-const experimentState = vi.hoisted(() => ({ enabled: false, balance: false }));
+const experimentState = vi.hoisted(() => ({ balance: false }));
 const recordUse = vi.hoisted(() => vi.fn());
 
 vi.mock("../experiments/ExperimentContext", () => ({
   useExperiment: () => ({
     enabled: (key: string) =>
-      key === "mobile-nav-meal-priority"
-        ? experimentState.enabled
-        : key === "calorie-balance-daily" && experimentState.balance,
+      key === "calorie-balance-daily" && experimentState.balance,
     recordUse,
   }),
   useExperimentExposure: vi.fn(),
 }));
 
 beforeEach(async () => {
-  experimentState.enabled = false;
   experimentState.balance = false;
   recordUse.mockClear();
   vi.mocked(useExperimentExposure).mockClear();
@@ -60,7 +57,7 @@ function renderNavigation() {
   );
 }
 
-describe("experimento da barra móvel", () => {
+describe("barra móvel", () => {
   it("oferece acesso ao balanço na barra lateral do desktop para participantes", async () => {
     const view = renderNavigation();
     await screen.findByRole("heading", { name: "Mais áreas" });
@@ -92,32 +89,7 @@ describe("experimento da barra móvel", () => {
       within(side).getByRole("link", { name: "Balanço calórico" }),
     ).toBeInTheDocument();
   });
-  it("mantém Medidas na barra e Alimentação em Mais no controle", async () => {
-    const user = userEvent.setup();
-    renderNavigation();
-    await screen.findByRole("heading", { name: "Mais áreas" });
-    const nav = screen.getByRole("navigation", {
-      name: "Navegação principal no celular",
-    });
-    expect(
-      within(nav)
-        .getAllByRole("link")
-        .map((link) => link.textContent),
-    ).toEqual(["Hoje", "Medidas", "Atividade", "Água", "Mais"]);
-    expect(
-      within(
-        screen.getByRole("navigation", { name: "Outras áreas" }),
-      ).getByRole("link", { name: /^Alimentação/ }),
-    ).toBeInTheDocument();
-    await user.click(within(nav).getByRole("link", { name: "Medidas" }));
-    expect(await screen.findByText("Página de medidas")).toBeInTheDocument();
-    expect(within(nav).getByRole("link", { name: "Medidas" })).toHaveClass(
-      "active",
-    );
-  });
-
-  it("mostra Refeição na barra e Medidas em Mais na variante", async () => {
-    experimentState.enabled = true;
+  it("mostra Refeição no centro desde a abertura, com experimentos desligados", async () => {
     const user = userEvent.setup();
     renderNavigation();
     await screen.findByRole("heading", { name: "Mais áreas" });
@@ -143,9 +115,9 @@ describe("experimento da barra móvel", () => {
     expect(within(nav).getByRole("link", { name: "Refeição" })).toHaveClass(
       "active",
     );
-    expect(vi.mocked(useExperimentExposure)).toHaveBeenCalledWith(
+    expect(vi.mocked(useExperimentExposure)).not.toHaveBeenCalledWith(
       "mobile-nav-meal-priority",
-      true,
+      expect.anything(),
     );
   });
 });

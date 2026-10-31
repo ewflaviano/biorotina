@@ -455,19 +455,11 @@ navegação incorreta, foco inadequado ou vazamento de dados.
 
 ## Refeição na barra inferior móvel — #112
 
-`mobile-nav-meal-priority`, revisão 2, liberado a 100% em 07/10/2026,
-responsável Biorotina, revisar até
-14/10/2026: testa Hoje, Atividade, Refeição, Água e Mais na barra inferior do
-celular, com Medidas em Mais. O controle mantém Hoje, Medidas, Atividade, Água e
-Mais, com Alimentação em Mais. A barra lateral do desktop e as rotas não mudam.
-Sem configuração remota, fica no controle; iniciar em 50% após o deploy do
-frontend e da API, com kill switch disponível. Medir exposição consentida dos
-dois braços somente quando a barra móvel está visível e `use` no toque em Mais,
-sem enviar rota, registro ou dado de saúde. O uso de Mais isoladamente não mede
-a facilidade de navegação; validar com pessoas e leitor de tela antes de
-promover. Promover ou remover após sete dias; sem evidência suficiente,
-desligar. Interromper por navegação incorreta, perda de acesso a Medidas ou
-regressão de acessibilidade.
+Promovido em 31/10/2026: a barra móvel abre diretamente com Hoje, Atividade,
+Refeição, Água e Mais; Medidas fica em Mais. O frontend não consulta o gate
+`mobile-nav-meal-priority` nem envia seus eventos experimentais. A configuração
+e o contrato da API são mantidos temporariamente para versões anteriores do app.
+A barra lateral do desktop e as rotas permanecem iguais.
 
 ## Cadastro após a primeira sincronização
 

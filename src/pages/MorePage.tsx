@@ -1,5 +1,4 @@
 import {
-  Apple,
   ChartNoAxesCombined,
   ArrowRight,
   HeartHandshake,
@@ -15,13 +14,6 @@ import {
   useExperiment,
   useExperimentExposure,
 } from "../experiments/ExperimentContext";
-
-const mealLink = {
-  to: "/alimentacao",
-  label: "Alimentação",
-  detail: "Refeições e histórico",
-  icon: Apple,
-};
 
 const weightLink = {
   to: "/peso",
@@ -66,9 +58,8 @@ const otherLinks = [
 export function MorePage() {
   const experiment = useExperiment();
   useExperimentExposure("calorie-balance-daily");
-  const mealInMobileNav = experiment.enabled("mobile-nav-meal-priority");
   const links = [
-    mealInMobileNav ? weightLink : mealLink,
+    weightLink,
     ...(experiment.enabled("calorie-balance-daily")
       ? [
           {
