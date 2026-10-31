@@ -1,4 +1,6 @@
+use crate::ai_cost::AiCall;
 use crate::observability;
+use crate::trial::{Campaign, Enrollment, CAMPAIGN_ID};
 use aws_config::BehaviorVersion;
 use aws_sdk_dynamodb::{
     types::{AttributeValue as A, Put, TransactWriteItem},
@@ -17,7 +19,8 @@ use subtle::ConstantTimeEq;
 
 const GEMINI_MODEL: &str = "gemini-3.8-flash";
 const GEMINI_FALLBACK_MODEL: &str = "gemini-3.1-pro-preview";
-const GEMINI_TOTAL_BUDGET: std::time::Duration = std::time::Duration::from_secs(24);
+// Leave two seconds for durable final accounting inside the 28-second Lambda.
+const GEMINI_TOTAL_BUDGET: std::time::Duration = std::time::Duration::from_secs(22);
 pub const TRIAL_LIMIT: u32 = 5;
 pub const FAILED_ANALYSIS_LIMIT: u32 = 5;
 pub const DAILY_ATTEMPT_LIMIT: u32 = 40;
@@ -250,6 +253,7 @@ fn gemini_request_body(image: &str) -> Value {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum AnalysisFailure {
+    AccountingUnavailable,
     InvalidImage,
     GeminiNetwork,
     GeminiTimeout,
@@ -281,7 +285,8 @@ impl AnalysisFailure {
     pub fn counts_toward_failure_limit(&self) -> bool {
         !matches!(
             self,
-            Self::InvalidImage
+            Self::AccountingUnavailable
+                | Self::InvalidImage
                 | Self::GeminiNetwork
                 | Self::GeminiTimeout
                 | Self::GeminiStatus(_)
@@ -293,6 +298,7 @@ impl AnalysisFailure {
 
     pub fn code(&self) -> &'static str {
         match self {
+            Self::AccountingUnavailable => "ai_accounting_unavailable",
             Self::InvalidImage => "invalid_image",
             Self::GeminiNetwork => "gemini_network",
             Self::GeminiTimeout => "gemini_timeout",
@@ -874,8 +880,36 @@ impl Billing {
         )
     }
 
+    async fn trial_config(&self) -> Result<Option<Value>, String> {
+        let item = self
+            .db
+            .get_item()
+            .table_name(&self.table)
+            .key("pk", A::S("CONFIG#PHOTO_TRIAL".into()))
+            .consistent_read(true)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?
+            .item;
+        match item {
+            None => Ok(None),
+            Some(item) => {
+                let raw = item
+                    .get("data")
+                    .and_then(|v| v.as_s().ok())
+                    .ok_or("Configuração do teste inválida")?;
+                let config: Value =
+                    serde_json::from_str(raw).map_err(|_| "Configuração do teste inválida")?;
+                if !config.is_object() {
+                    return Err("Configuração do teste inválida".into());
+                }
+                Ok(Some(config))
+            }
+        }
+    }
+
     pub async fn trial_enabled(&self) -> Result<bool, String> {
-        match self.item("CONFIG#PHOTO_TRIAL").await? {
+        match self.trial_config().await? {
             None => Ok(true),
             Some(item) => item
                 .get("enabled")
@@ -904,9 +938,148 @@ impl Billing {
             .unwrap_or(0))
     }
 
+    async fn campaign(&self) -> Result<Option<Campaign>, String> {
+        let config = self.trial_config().await?;
+        let campaign = match config.as_ref().and_then(|c| c.get("campaign")) {
+            Some(Value::Null) => return Ok(None),
+            Some(value) => serde_json::from_value(value.clone())
+                .map_err(|_| "Campanha de teste inválida".to_owned())?,
+            None => Campaign::default(),
+        };
+        if !campaign.valid() {
+            return Err("Campanha de teste inválida".into());
+        }
+        Ok(Some(campaign))
+    }
+
+    async fn trial_enrollment(&self, account_key: &str) -> Result<Option<Enrollment>, String> {
+        let item = self
+            .db
+            .get_item()
+            .table_name(&self.table)
+            .key(
+                "pk",
+                A::S(format!("TRIAL_CAMPAIGN#{CAMPAIGN_ID}#{account_key}")),
+            )
+            .consistent_read(true)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?
+            .item;
+        match item {
+            None => Ok(None),
+            Some(item) => {
+                let raw = item
+                    .get("data")
+                    .and_then(|v| v.as_s().ok())
+                    .ok_or("Participação no teste inválida")?;
+                serde_json::from_str(raw)
+                    .map(Some)
+                    .map_err(|_| "Participação no teste inválida".into())
+            }
+        }
+    }
+
+    async fn trial_daily_used(&self, account_key: &str) -> Result<u32, String> {
+        let item = self
+            .db
+            .get_item()
+            .table_name(&self.table)
+            .key(
+                "pk",
+                A::S(format!(
+                    "TRIAL_DAILY#{CAMPAIGN_ID}#{account_key}#{}",
+                    today()
+                )),
+            )
+            .consistent_read(true)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?
+            .item;
+        Ok(item
+            .and_then(|i| {
+                i.get("used")
+                    .and_then(|v| v.as_n().ok())
+                    .and_then(|v| v.parse().ok())
+            })
+            .unwrap_or(0))
+    }
+
+    /// Read-only: viewing the offer never starts the fourteen-day clock.
+    pub async fn trial_status(&self, account_key: &str) -> Result<Value, String> {
+        let now = Utc::now();
+        if let Some(e) = self.trial_enrollment(account_key).await? {
+            let active = e.active(now);
+            let used = if active {
+                self.trial_daily_used(account_key).await?
+            } else {
+                e.daily_limit
+            };
+            return Ok(json!({"trialUsed":used,"trialLimit":e.daily_limit,
+                "trialPeriodDays":e.days,"trialEndsAt":e.ends_at,"trialExpired":!active}));
+        }
+        if let Some(c) = self.campaign().await?.filter(|c| c.open(now)) {
+            return Ok(json!({"trialUsed":0,"trialLimit":c.daily_limit,
+                "trialPeriodDays":c.days,"trialEndsAt":null,"trialExpired":false}));
+        }
+        Ok(
+            json!({"trialUsed":self.trial_used(account_key).await?,"trialLimit":TRIAL_LIMIT,
+            "trialPeriodDays":null,"trialEndsAt":null,"trialExpired":false}),
+        )
+    }
+
     pub async fn reserve_trial(&self, account_key: &str) -> Result<Option<String>, String> {
-        let key = format!("TRIAL#{account_key}");
-        let result = self
+        let mut enrollment = self.trial_enrollment(account_key).await?;
+        if enrollment.is_none() {
+            let now = Utc::now();
+            if let Some(c) = self.campaign().await?.filter(|c| c.open(now)) {
+                let e = c.enroll(now);
+                let result = self
+                    .db
+                    .put_item()
+                    .table_name(&self.table)
+                    .item(
+                        "pk",
+                        A::S(format!("TRIAL_CAMPAIGN#{CAMPAIGN_ID}#{account_key}")),
+                    )
+                    .item(
+                        "data",
+                        A::S(serde_json::to_string(&e).map_err(|e| e.to_string())?),
+                    )
+                    .condition_expression("attribute_not_exists(pk)")
+                    .send()
+                    .await;
+                match result {
+                    Ok(_) => enrollment = Some(e),
+                    Err(error)
+                        if error
+                            .as_service_error()
+                            .is_some_and(|s| s.is_conditional_check_failed_exception()) =>
+                    {
+                        enrollment = Some(
+                            self.trial_enrollment(account_key)
+                                .await?
+                                .ok_or("Participação não encontrada")?,
+                        );
+                    }
+                    Err(error) => return Err(error.to_string()),
+                }
+            }
+        }
+        let (key, limit, expiration) = if let Some(e) = enrollment {
+            if !e.active(Utc::now()) {
+                return Ok(None);
+            }
+            (
+                format!("TRIAL_DAILY#{CAMPAIGN_ID}#{account_key}#{}", today()),
+                e.daily_limit,
+                Some(e.ends_at.timestamp()),
+            )
+        } else {
+            (format!("TRIAL#{account_key}"), TRIAL_LIMIT, None)
+        };
+        let mut request = self
             .db
             .update_item()
             .table_name(&self.table)
@@ -916,15 +1089,19 @@ impl Billing {
             .expression_attribute_names("#used", "used")
             .expression_attribute_values(":zero", A::N("0".into()))
             .expression_attribute_values(":one", A::N("1".into()))
-            .expression_attribute_values(":limit", A::N(TRIAL_LIMIT.to_string()))
-            .send()
-            .await;
-        match result {
+            .expression_attribute_values(":limit", A::N(limit.to_string()));
+        if let Some(expires) = expiration {
+            request = request
+                .update_expression("SET #used = if_not_exists(#used, :zero) + :one, #ttl = :ttl")
+                .expression_attribute_names("#ttl", "ttl")
+                .expression_attribute_values(":ttl", A::N((expires + 3 * 86400).to_string()));
+        }
+        match request.send().await {
             Ok(_) => Ok(Some(key)),
             Err(error)
                 if error
                     .as_service_error()
-                    .is_some_and(|service| service.is_conditional_check_failed_exception()) =>
+                    .is_some_and(|s| s.is_conditional_check_failed_exception()) =>
             {
                 Ok(None)
             }
@@ -1195,12 +1372,118 @@ impl Billing {
         }
     }
 
-    pub async fn analyze(&self, image: &str, paid: bool) -> Result<Analysis, AnalysisFailure> {
-        self.analyze_input(Some(image), None, paid).await
+    async fn save_ai_call(&self, call: &AiCall, initial: bool) -> Result<(), String> {
+        let mut request = self
+            .db
+            .put_item()
+            .table_name(&self.table)
+            .item("pk", A::S(call.key()))
+            .item(
+                "data",
+                A::S(serde_json::to_string(call).map_err(|e| e.to_string())?),
+            )
+            .item(
+                "ttl",
+                A::N((call.occurred_at.timestamp() + 400 * 86400).to_string()),
+            );
+        if initial {
+            request = request.condition_expression("attribute_not_exists(pk)");
+        }
+        tokio::time::timeout(std::time::Duration::from_secs(2), request.send())
+            .await
+            .map_err(|_| "Tempo de gravação do consumo excedido".to_owned())?
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    async fn metered_gemini_call(
+        &self,
+        call: &mut AiCall,
+        body: &Value,
+        timeout: std::time::Duration,
+    ) -> Result<(u16, Value), AnalysisFailure> {
+        let started = std::time::Instant::now();
+        // Persist intent before dispatch. An interrupted invocation remains
+        // pending/unknown in reports instead of silently vanishing.
+        if self.save_ai_call(call, true).await.is_err() {
+            observability::error("billing", "analyze", "ai_accounting_start_failed", None);
+            return Err(AnalysisFailure::AccountingUnavailable);
+        }
+        let pro = call.model == GEMINI_FALLBACK_MODEL;
+        let result = self
+            .client
+            .post(format!(
+                "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
+                call.model
+            ))
+            .timeout(timeout.saturating_sub(started.elapsed()))
+            .header("x-goog-api-key", self.gemini_key.as_str())
+            .json(body)
+            .send()
+            .await;
+        let result = match result {
+            Err(error) => {
+                let reason = match (pro, error.is_timeout()) {
+                    (true, true) => AnalysisFailure::GeminiProTimeout,
+                    (true, false) => AnalysisFailure::GeminiProNetwork,
+                    (false, true) => AnalysisFailure::GeminiTimeout,
+                    (false, false) => AnalysisFailure::GeminiNetwork,
+                };
+                call.complete(
+                    None,
+                    reason.code(),
+                    None,
+                    started.elapsed().as_millis() as u64,
+                );
+                Err(reason)
+            }
+            Ok(response) => {
+                let status = response.status().as_u16();
+                match response.json::<Value>().await {
+                    Ok(value) => {
+                        let outcome = if (200..300).contains(&status) {
+                            extract_analysis_text(&value)
+                                .and_then(parse_analysis)
+                                .map(|_| "success")
+                                .unwrap_or_else(|e| e.code())
+                        } else {
+                            "http_error"
+                        };
+                        call.complete(
+                            Some(&value),
+                            outcome,
+                            Some(status),
+                            started.elapsed().as_millis() as u64,
+                        );
+                        Ok((status, value))
+                    }
+                    Err(_) => {
+                        call.complete(
+                            None,
+                            "invalid_response",
+                            Some(status),
+                            started.elapsed().as_millis() as u64,
+                        );
+                        if (200..300).contains(&status) {
+                            Err(AnalysisFailure::GeminiResponse)
+                        } else {
+                            Ok((status, Value::Null))
+                        }
+                    }
+                }
+            }
+        };
+        if self.save_ai_call(call, false).await.is_err() {
+            // The durable pending record still counts as unknown cost. Never
+            // resend a provider call just because final accounting failed.
+            observability::error("billing", "analyze", "ai_accounting_finish_failed", None);
+        }
+        result
     }
 
     pub async fn analyze_input(
         &self,
+        account_key: &str,
         image: Option<&str>,
         description: Option<&str>,
         paid: bool,
@@ -1219,6 +1502,8 @@ impl Billing {
             }
             _ => return Err(AnalysisFailure::InvalidImage),
         };
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let mut call_number = 0;
         let mut attempt = 0;
         let mut using_pro = false;
         let started = std::time::Instant::now();
@@ -1229,49 +1514,56 @@ impl Billing {
             } else {
                 GEMINI_MODEL
             };
-            let response = self.client.post(format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"))
-                .timeout(remaining)
-                .header("x-goog-api-key", self.gemini_key.as_str())
-                .json(&body)
-                .send()
-                .await
-                .map_err(|error| match (using_pro, error.is_timeout()) {
-                    (true, true) => AnalysisFailure::GeminiProTimeout,
-                    (true, false) => AnalysisFailure::GeminiProNetwork,
-                    (false, true) => AnalysisFailure::GeminiTimeout,
-                    (false, false) => AnalysisFailure::GeminiNetwork,
-                })?;
+            call_number += 1;
+            let mut call = AiCall {
+                schema_version: 1,
+                request_id: request_id.clone(),
+                call_id: uuid::Uuid::new_v4().to_string(),
+                account_key: account_key.into(),
+                occurred_at: Utc::now(),
+                model: model.into(),
+                allocation: if paid { "paid" } else { "trial" }.into(),
+                input_type: if image.is_some() {
+                    "image"
+                } else {
+                    "description"
+                }
+                .into(),
+                attempt: call_number,
+                outcome: "pending".into(),
+                http_status: None,
+                duration_ms: None,
+                usage: None,
+                pricing: None,
+                estimated_cost_nano_usd: None,
+            };
+            let (status, result) = self
+                .metered_gemini_call(&mut call, &body, remaining)
+                .await?;
             let jitter_ms = Utc::now().timestamp_subsec_millis() as u64 % 501;
             let pause = std::time::Duration::from_millis(700 + jitter_ms);
             let remaining = GEMINI_TOTAL_BUDGET.saturating_sub(started.elapsed());
-            if !using_pro
-                && should_retry_gemini(response.status().as_u16(), attempt, remaining, pause)
-            {
+            if !using_pro && should_retry_gemini(status, attempt, remaining, pause) {
                 observability::warning("billing", "analyze", "gemini_retry_503", Some(503));
                 tokio::time::sleep(pause).await;
                 attempt += 1;
                 continue;
             }
-            if !using_pro
-                && should_fallback_to_pro(response.status().as_u16(), attempt, paid, remaining)
-            {
+            if !using_pro && should_fallback_to_pro(status, attempt, paid, remaining) {
                 observability::warning("billing", "analyze", "gemini_fallback_pro", Some(503));
                 using_pro = true;
                 continue;
             }
-            break response;
+            break (status, result);
         };
-        if !response.status().is_success() {
+        if !(200..300).contains(&response.0) {
             return Err(if using_pro {
-                AnalysisFailure::GeminiProStatus(response.status().as_u16())
+                AnalysisFailure::GeminiProStatus(response.0)
             } else {
-                AnalysisFailure::GeminiStatus(response.status().as_u16())
+                AnalysisFailure::GeminiStatus(response.0)
             });
         }
-        let result: Value = response
-            .json()
-            .await
-            .map_err(|_| AnalysisFailure::GeminiResponse)?;
+        let result = response.1;
         let text = extract_analysis_text(&result)?;
         let analysis = parse_analysis(text)?;
         if using_pro {
@@ -1829,3 +2121,7 @@ mod tests {
         assert_eq!(account.paid_through.as_deref(), Some("2026-03-31"));
     }
 }
+
+#[cfg(test)]
+#[path = "billing_trial_tests.rs"]
+mod trial_tests;

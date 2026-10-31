@@ -139,11 +139,80 @@ describe("refeição por foto", () => {
     expect(JSON.stringify(saved)).not.toContain("Zm9v");
   });
 
-  it("permite a quinta análise grátis e oferece plano ou chave na seguinte", async () => {
+  it.each([false, true])(
+    "respeita a quinta análise e informa o limite correto (campanha: %s)",
+    async (campaign) => {
+      driveAccount = { id: "conta-1", token: "google-token" };
+      vi.mocked(getTrialConfig).mockResolvedValue(true);
+      let used = 4;
+      vi.mocked(getPlanStatus).mockImplementation(async () => ({
+        active: false,
+        cancelled: false,
+        renewalActive: false,
+        paidThrough: null,
+        nextCharge: null,
+        usedToday: 0,
+        dailyLimit: 10,
+        checkoutUrl: null,
+        trialEnabled: true,
+        trialUsed: used,
+        trialLimit: 5,
+        trialPeriodDays: campaign ? 14 : null,
+        trialEndsAt: null,
+        trialExpired: false,
+      }));
+      vi.mocked(analyzeWithPlan).mockImplementation(async () => {
+        used += 1;
+        return {
+          description: "Almoço",
+          foods: [{ name: "Arroz", amount: "100 g", caloriesKcal: 130 }],
+        };
+      });
+      const user = userEvent.setup();
+      render(
+        <AppDataProvider>
+          <MemoryRouter>
+            <Ready />
+            <FoodPage />
+          </MemoryRouter>
+        </AppDataProvider>,
+      );
+      await screen.findByTestId("ready");
+      await screen.findByRole("button", { name: "Testar grátis" });
+      expect(getTrialConfig).toHaveBeenCalledOnce();
+      await user.click(screen.getByText("Tirar foto"));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      await user.upload(
+        screen.getByLabelText("Escolher imagem"),
+        new File(["foto"], "prato.jpg", { type: "image/jpeg" }),
+      );
+      await user.click(screen.getByRole("button", { name: "Analisar foto" }));
+      await waitFor(() => expect(analyzeWithPlan).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(screen.getByText(/0 restantes/)).toBeInTheDocument(),
+      );
+      await user.click(screen.getByText("Tirar foto"));
+      expect(
+        await screen.findByRole("dialog", {
+          name: campaign
+            ? "Sua cota de hoje acabou"
+            : "Suas fotos grátis acabaram",
+        }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Ver plano" })).toHaveAttribute(
+        "href",
+        "/assinatura",
+      );
+      expect(
+        screen.getByRole("link", { name: "Usar minha chave" }),
+      ).toHaveAttribute("href", "/configuracoes");
+      expect(analyzeWithPlan).toHaveBeenCalledTimes(1);
+    },
+  );
+  it("impede análise após o vencimento mesmo com cota diária restante", async () => {
     driveAccount = { id: "conta-1", token: "google-token" };
     vi.mocked(getTrialConfig).mockResolvedValue(true);
-    let used = 4;
-    vi.mocked(getPlanStatus).mockImplementation(async () => ({
+    vi.mocked(getPlanStatus).mockResolvedValue({
       active: false,
       cancelled: false,
       renewalActive: false,
@@ -151,17 +220,12 @@ describe("refeição por foto", () => {
       nextCharge: null,
       usedToday: 0,
       dailyLimit: 10,
-      checkoutUrl: null,
       trialEnabled: true,
-      trialUsed: used,
+      trialUsed: 0,
       trialLimit: 5,
-    }));
-    vi.mocked(analyzeWithPlan).mockImplementation(async () => {
-      used += 1;
-      return {
-        description: "Almoço",
-        foods: [{ name: "Arroz", amount: "100 g", caloriesKcal: 130 }],
-      };
+      trialPeriodDays: 14,
+      trialEndsAt: "2026-11-15T15:00:00Z",
+      trialExpired: true,
     });
     const user = userEvent.setup();
     render(
@@ -172,31 +236,12 @@ describe("refeição por foto", () => {
         </MemoryRouter>
       </AppDataProvider>,
     );
-    await screen.findByTestId("ready");
     await screen.findByRole("button", { name: "Testar grátis" });
-    expect(getTrialConfig).toHaveBeenCalledOnce();
-    await user.click(screen.getByText("Tirar foto"));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    await user.upload(
-      screen.getByLabelText("Escolher imagem"),
-      new File(["foto"], "prato.jpg", { type: "image/jpeg" }),
-    );
-    await user.click(screen.getByRole("button", { name: "Analisar foto" }));
-    await waitFor(() => expect(analyzeWithPlan).toHaveBeenCalledTimes(1));
-    await waitFor(() =>
-      expect(screen.getByText(/0 restantes/)).toBeInTheDocument(),
-    );
+    await screen.findByText("Seu teste grátis terminou.");
     await user.click(screen.getByText("Tirar foto"));
     expect(
       await screen.findByRole("dialog", { name: "Suas fotos grátis acabaram" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ver plano" })).toHaveAttribute(
-      "href",
-      "/assinatura",
-    );
-    expect(
-      screen.getByRole("link", { name: "Usar minha chave" }),
-    ).toHaveAttribute("href", "/configuracoes");
-    expect(analyzeWithPlan).toHaveBeenCalledTimes(1);
+    expect(analyzeWithPlan).not.toHaveBeenCalled();
   });
 });

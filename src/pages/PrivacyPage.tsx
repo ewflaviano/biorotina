@@ -43,10 +43,13 @@ export function PrivacyPage() {
             No teste grátis e no plano mensal, a foto reduzida passa pelo
             serviço da Biorotina para análise no Gemini. Não guardamos a foto ou
             o resultado no servidor. Guardamos um identificador derivado da
-            conta Google e as contagens de análises do teste e do plano. Quando
-            houver assinatura, guardamos também seu identificador e as datas de
-            cobrança. O Asaas coleta os dados de pagamento no checkout; a
-            Biorotina não recebe os dados do cartão.
+            conta Google, o período do teste e as contagens de análises. Também
+            guardamos por até 400 dias o modelo, o consumo de tokens e o custo
+            estimado de cada chamada para acompanhar os gastos, sem foto,
+            descrição da refeição ou resultado da IA. Quando houver assinatura,
+            guardamos também seu identificador e as datas de cobrança. O Asaas
+            coleta os dados de pagamento no checkout; a Biorotina não recebe os
+            dados do cartão.
           </p>
         </section>
         <section className="panel">
