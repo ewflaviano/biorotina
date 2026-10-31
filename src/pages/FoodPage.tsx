@@ -851,9 +851,11 @@ export function FoodPage() {
                           <Link to="/assinatura">Ver plano de R$ 8,99/mês</Link>
                         )
                       ) : (
-                        <Link to="/configuracoes">
-                          Configurar minha chave Gemini
-                        </Link>
+                        (photoMode === "key" || hasGeminiKey) && (
+                          <Link to="/configuracoes">
+                            Configurar minha chave Gemini
+                          </Link>
+                        )
                       )}
                     </p>
                   )}

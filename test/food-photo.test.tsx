@@ -288,6 +288,9 @@ describe("refeição por foto", () => {
     expect(
       screen.getByText(/Sem cartão e sem cobrança automática/),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Configurar minha chave Gemini" }),
+    ).not.toBeInTheDocument();
     await userEvent
       .setup()
       .click(
