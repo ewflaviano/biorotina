@@ -15,6 +15,8 @@ import {
 } from "../support/pix";
 
 const FEEDBACK_EMAIL = "ewanderson.flaviano@gmail.com";
+const REPOSITORY_URL = "https://github.com/ewflaviano/biorotina";
+const ISSUES_URL = `${REPOSITORY_URL}/issues/new/choose`;
 
 export function SupportPage() {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">(
@@ -60,9 +62,9 @@ export function SupportPage() {
           <h2>Se o app ajuda você, considere apoiar o projeto.</h2>
           <p>
             Sua contribuição, de qualquer valor, ajuda a manter a Biorotina
-            disponível e a desenvolver novas melhorias. O projeto está sendo
-            preparado para ter o código aberto. Apoiar é opcional; você pode
-            continuar usando tudo gratuitamente.
+            disponível e a desenvolver novas melhorias. O projeto tem código
+            aberto e também aceita colaboração com ideias e código. Apoiar é
+            opcional; o diário manual continua gratuito.
           </p>
           <div className="support-note">
             <span className="eyebrow">Como contribuir</span>
@@ -148,7 +150,34 @@ export function SupportPage() {
           </div>
           <p className="support-feedback-invite">
             Quer sugerir uma melhoria ou contar sobre algo que não funcionou?
-            Envie um e-mail para:
+            Abra uma issue no GitHub para conversar sobre a ideia ou o problema
+            e acompanhar as respostas.
+          </p>
+          <a
+            className="button primary"
+            href={ISSUES_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Abrir uma issue no GitHub
+          </a>
+          <p>
+            <a
+              className="text-link"
+              href={REPOSITORY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Ver o código e colaborar
+            </a>
+          </p>
+          <p className="muted small support-feedback-note">
+            É preciso ter uma conta no GitHub. As issues são públicas: não
+            publique dados de saúde ou informações pessoais. Para assuntos
+            sensíveis ou problemas de segurança, use o e-mail abaixo.
+          </p>
+          <p className="support-feedback-invite">
+            Se preferir, envie um e-mail para:
           </p>
           <button
             className="button secondary support-email-button"

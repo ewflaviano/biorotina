@@ -8,6 +8,8 @@ O app não sabe se houve uma contribuição e não mostra metas, progresso ou co
 
 ## Opiniões dos usuários
 
-A mesma página mostra o e-mail do projeto para ideias, sugestões, melhorias e problemas. Ao tocar no endereço, o navegador apenas o copia para a área de transferência; a pessoa escreve e envia a mensagem no aplicativo de e-mail que preferir. O site não abre um cliente de e-mail nem envia o conteúdo para a API. A página orienta a não incluir dados de saúde ou informações pessoais.
+A mesma página oferece um botão para [abrir uma issue no GitHub](https://github.com/ewflaviano/biorotina/issues/new/choose), com os modelos de sugestão e relato de problema, e um link para o repositório para quem quiser colaborar com código. Os links abrem em outra aba. A página explica que é necessário ter uma conta no GitHub e que as issues são públicas; dados de saúde, informações pessoais e relatos de segurança devem seguir pelo e-mail privado.
+
+O e-mail do projeto continua disponível como alternativa. Ao tocar no endereço, o navegador apenas o copia para a área de transferência; a pessoa escreve e envia a mensagem no aplicativo de e-mail que preferir. O site não abre um cliente de e-mail nem envia o conteúdo para a API.
 
 O endpoint `/api/feedback` permanece no backend para diagnóstico futuro, mas não é chamado pelo site enquanto o erro 503 do SES está em investigação. Seus limites de cinco mensagens **enviadas com sucesso** por conexão, 20 tentativas por conexão e cem envios globais por dia continuam ativos. Os contadores anônimos expiram automaticamente e não guardam IP nem conteúdo das mensagens. Não enviar o corpo do pedido, a resposta do SES ou identificadores de entrega aos logs.
