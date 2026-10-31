@@ -31,6 +31,15 @@ describe("support page", () => {
     );
     expect(screen.getByText(PIX_KEY)).toBeInTheDocument();
     expect(
+      screen.getByRole("link", { name: "Abrir uma issue no GitHub" }),
+    ).toHaveAttribute(
+      "href",
+      "https://github.com/ewflaviano/biorotina/issues/new/choose",
+    );
+    expect(
+      screen.getByRole("link", { name: "Ver o código e colaborar" }),
+    ).toHaveAttribute("href", "https://github.com/ewflaviano/biorotina");
+    expect(
       screen
         .getAllByRole("heading", { level: 2 })
         .map((heading) => heading.textContent),
