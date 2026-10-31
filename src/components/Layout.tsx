@@ -79,15 +79,7 @@ const moreNavItem = {
   icon: LayoutGrid,
 } as const;
 
-const defaultMobileNav = [
-  desktopNav[0],
-  desktopNav[1],
-  desktopNav[2],
-  desktopNav[5],
-  moreNavItem,
-] as const;
-
-const mealMobileNav = [
+const mobileNav = [
   desktopNav[0],
   desktopNav[2],
   desktopNav[3],
@@ -114,7 +106,6 @@ export function Layout() {
     update();
     return () => query.removeEventListener("change", update);
   }, []);
-  useExperimentExposure("mobile-nav-meal-priority", mobileNavVisible);
   useExperimentExposure("calorie-balance-daily", !mobileNavVisible);
   useExperimentExposure(
     "onboarding-install-prompt",
@@ -134,9 +125,6 @@ export function Layout() {
   const onboardingInstallExperiment = experiment.enabled(
     "onboarding-install-prompt",
   );
-  const mobileNav = experiment.enabled("mobile-nav-meal-priority")
-    ? mealMobileNav
-    : defaultMobileNav;
 
   async function handleUndo() {
     setUndoFailure(null);
@@ -348,11 +336,6 @@ export function Layout() {
               key={to}
               to={to}
               aria-label={mobileLabel}
-              onClick={
-                to === "/mais"
-                  ? () => experiment.recordUse("mobile-nav-meal-priority")
-                  : undefined
-              }
               className={({ isActive }) =>
                 `bottom-link${isActive || (to === "/" && location.pathname === "/diario") || (to === "/mais" && location.pathname !== "/diario" && !mobileNav.some((item) => item.to === location.pathname)) ? " active" : ""}`
               }
