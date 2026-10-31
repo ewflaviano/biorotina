@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { openDB } from "idb";
 import { MemoryRouter } from "react-router-dom";
@@ -13,6 +13,7 @@ import {
   getTrialConfig,
 } from "../src/billing/client";
 
+const connect = vi.fn(async () => undefined);
 let driveAccount: { id: string; token: string } | null = null;
 
 vi.mock("../src/ai/gemini", () => ({
@@ -30,7 +31,13 @@ vi.mock("../src/ai/gemini", () => ({
 }));
 
 vi.mock("../src/sync/DriveSyncContext", () => ({
-  useDriveSync: () => ({ account: driveAccount }),
+  useDriveSync: () => ({
+    account: driveAccount,
+    connect,
+    available: true,
+    busy: false,
+    error: "",
+  }),
 }));
 vi.mock("../src/billing/client", () => ({
   analyzeWithPlan: vi.fn(),
@@ -72,11 +79,14 @@ describe("refeição por foto", () => {
       "href",
       "/assinatura",
     );
+    await user.click(
+      within(screen.getByRole("dialog")).getByText("Opções avançadas"),
+    );
     expect(
       screen.getByRole("link", { name: "Usar minha chave" }),
     ).toHaveAttribute("href", "/configuracoes");
     await user.click(
-      screen.getByRole("button", { name: "Continuar sem foto" }),
+      screen.getByRole("button", { name: "Continuar registrando grátis" }),
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Descrição")).toHaveFocus();
@@ -88,7 +98,7 @@ describe("refeição por foto", () => {
     await user.click(photoToggle);
     expect(photoToggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("Tirar foto")).toBeInTheDocument();
-    expect(getTrialConfig).not.toHaveBeenCalled();
+    expect(getTrialConfig).toHaveBeenCalledOnce();
   });
 
   it("só analisa após confirmação, permite corrigir e salva sem a foto ou a chave", async () => {
@@ -103,7 +113,7 @@ describe("refeição por foto", () => {
       </AppDataProvider>,
     );
     await screen.findByTestId("ready");
-    expect(getTrialConfig).not.toHaveBeenCalled();
+    expect(getTrialConfig).toHaveBeenCalledOnce();
     await user.click(screen.getByText("Tirar foto"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
@@ -195,18 +205,33 @@ describe("refeição por foto", () => {
       expect(
         await screen.findByRole("dialog", {
           name: campaign
-            ? "Sua cota de hoje acabou"
-            : "Suas fotos grátis acabaram",
+            ? "Você usou as análises grátis de hoje"
+            : "Seu teste grátis terminou",
         }),
       ).toBeInTheDocument();
       expect(screen.getByRole("link", { name: "Ver plano" })).toHaveAttribute(
         "href",
         "/assinatura",
       );
+      await user.click(
+        within(screen.getByRole("dialog")).getByText("Opções avançadas"),
+      );
       expect(
         screen.getByRole("link", { name: "Usar minha chave" }),
       ).toHaveAttribute("href", "/configuracoes");
       expect(analyzeWithPlan).toHaveBeenCalledTimes(1);
+      if (campaign) {
+        used = 0;
+        await user.click(
+          screen.getByRole("button", {
+            name: "Atualizar análises disponíveis",
+          }),
+        );
+        await waitFor(() =>
+          expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+        );
+        expect(analyzeWithPlan).toHaveBeenCalledTimes(1);
+      }
     },
   );
   it("impede análise após o vencimento mesmo com cota diária restante", async () => {
@@ -240,8 +265,35 @@ describe("refeição por foto", () => {
     await screen.findByText("Seu teste grátis terminou.");
     await user.click(screen.getByText("Tirar foto"));
     expect(
-      await screen.findByRole("dialog", { name: "Suas fotos grátis acabaram" }),
+      await screen.findByRole("dialog", { name: "Seu teste grátis terminou" }),
     ).toBeInTheDocument();
+    expect(analyzeWithPlan).not.toHaveBeenCalled();
+  });
+  it("apresenta o teste antes do login e permite entrar sem abrir checkout", async () => {
+    vi.mocked(getTrialConfig).mockImplementation(async (onOffer) => {
+      onOffer?.({ trialEnabled: true, trialPeriodDays: 14, trialLimit: 5 });
+      return true;
+    });
+    render(
+      <AppDataProvider>
+        <MemoryRouter>
+          <Ready />
+          <FoodPage />
+        </MemoryRouter>
+      </AppDataProvider>,
+    );
+    expect(
+      await screen.findByText(/teste por 14 dias, com até 5 análises por dia/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Sem cartão e sem cobrança automática/),
+    ).toBeInTheDocument();
+    await userEvent
+      .setup()
+      .click(
+        screen.getByRole("button", { name: "Entrar com Google para testar" }),
+      );
+    expect(connect).toHaveBeenCalledOnce();
     expect(analyzeWithPlan).not.toHaveBeenCalled();
   });
 });

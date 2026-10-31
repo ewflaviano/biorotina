@@ -51,6 +51,7 @@ import {
   getPlanStatus,
   getTrialConfig,
   type PlanStatus,
+  type TrialOffer,
 } from "../billing/client";
 import { useDriveSync } from "../sync/DriveSyncContext";
 import { reportClientError } from "../observability/client";
@@ -95,6 +96,9 @@ export function FoodPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [photoMode, setPhotoMode] = useState<"trial" | "plan" | "key">("trial");
   const [trialEnabled, setTrialEnabled] = useState(false);
+  const [trialOffer, setTrialOffer] = useState<TrialOffer | null>(null);
+  const [refreshingTrial, setRefreshingTrial] = useState(false);
+  const [trialRefreshError, setTrialRefreshError] = useState("");
   const [hasGeminiKey, setHasGeminiKey] = useState<boolean | null>(null);
   const [accountPlanStatus, setAccountPlanStatus] = useState<{
     accountId: string;
@@ -188,9 +192,10 @@ export function FoodPage() {
   }, []);
 
   useEffect(() => {
-    if (!drive.account?.id) return;
     let active = true;
-    getTrialConfig()
+    getTrialConfig((offer) => {
+      if (active) setTrialOffer(offer);
+    })
       .then((enabled) => {
         if (active) setTrialEnabled(enabled);
       })
@@ -353,6 +358,30 @@ export function FoodPage() {
     }
   }
 
+  async function refreshTrialBalance() {
+    if (!drive.account?.token || refreshingTrial) return;
+    setRefreshingTrial(true);
+    setTrialRefreshError("");
+    const { id, token } = drive.account;
+    try {
+      const status = await getPlanStatus(token);
+      setAccountPlanStatus({ accountId: id, value: status });
+      if (
+        status.active ||
+        (status.trialEnabled &&
+          !status.trialExpired &&
+          status.trialUsed < status.trialLimit)
+      )
+        setPhotoOffer(null);
+    } catch {
+      setTrialRefreshError(
+        "Não foi possível atualizar agora. Seu diário manual continua disponível; tente novamente em instantes.",
+      );
+    } finally {
+      setRefreshingTrial(false);
+    }
+  }
+
   async function analyzePhoto() {
     const input =
       descriptionMode && descriptionEnabled ? mealDescription.trim() : photo;
@@ -488,7 +517,7 @@ export function FoodPage() {
       <PageHeader
         eyebrow="Alimentação"
         title="Refeições"
-        description="Um diário simples para registrar o que você comeu. Contar calorias é opcional."
+        description="Seu diário manual é gratuito e não exige assinatura. Usar IA e contar calorias são opcionais."
       />
       <div className="page-grid">
         <div className="main-stack">
@@ -520,6 +549,43 @@ export function FoodPage() {
               </button>
               {photoExpanded && (
                 <div id="meal-photo-options">
+                  {!drive.account && (
+                    <div className="notice info" role="status">
+                      <strong>
+                        {trialEnabled
+                          ? "Experimente a IA sem pagar"
+                          : "Análise com IA é opcional"}
+                      </strong>
+                      <p>
+                        {trialEnabled
+                          ? trialOffer?.trialPeriodDays
+                            ? `Entre com Google e teste por ${trialOffer.trialPeriodDays} dias, com até ${trialOffer.trialLimit} análises por dia. O prazo começa na primeira análise.`
+                            : `Entre com Google para usar até ${trialOffer?.trialLimit ?? 5} análises grátis. A quantidade disponível será confirmada na sua conta.`
+                          : "Você pode registrar sua refeição manualmente e continuar usando o diário sem assinatura."}
+                      </p>
+                      {trialEnabled && (
+                        <>
+                          <p>
+                            Sem cartão e sem cobrança automática. Ao terminar o
+                            teste, você escolhe se quer assinar.
+                          </p>
+                          <button
+                            className="button primary"
+                            type="button"
+                            disabled={drive.busy || drive.available === false}
+                            onClick={() => void drive.connect()}
+                          >
+                            Entrar com Google para testar
+                          </button>
+                          {drive.error && (
+                            <p className="form-error" role="alert">
+                              {drive.error}
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                   {descriptionEnabled && (
                     <div
                       className="meal-ai-modes meal-input-modes"
@@ -644,20 +710,20 @@ export function FoodPage() {
                           Testar grátis
                         </button>
                       )}
-                      <button
-                        type="button"
-                        aria-pressed={selectedPhotoMode === "plan"}
-                        onClick={() => setPhotoMode("plan")}
-                      >
-                        Meu plano
-                      </button>
-                      <button
-                        type="button"
-                        aria-pressed={selectedPhotoMode === "key"}
-                        onClick={() => setPhotoMode("key")}
-                      >
-                        Minha chave Gemini
-                      </button>
+                      <details className="meal-ai-advanced">
+                        <summary>Opções avançadas</summary>
+                        <p className="muted small">
+                          Se você já tem uma chave de acesso do Google Gemini,
+                          pode usar sua própria conta de IA.
+                        </p>
+                        <button
+                          type="button"
+                          aria-pressed={selectedPhotoMode === "key"}
+                          onClick={() => setPhotoMode("key")}
+                        >
+                          Minha chave Gemini
+                        </button>
+                      </details>
                     </div>
                   )}
                   {checkingPlan ? null : planStatus?.active ? (
@@ -678,7 +744,7 @@ export function FoodPage() {
                           <span>
                             {planStatus.trialEndsAt
                               ? ` Disponível até ${new Date(planStatus.trialEndsAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} (horário de Brasília).`
-                              : " Os dias começam na primeira análise. A cota diária renova à meia-noite de Brasília."}
+                              : " Os dias começam na primeira análise. As análises diárias renovam à meia-noite de Brasília."}
                           </span>
                         )}
                     </p>
@@ -690,6 +756,15 @@ export function FoodPage() {
                       · Até 10 análises por dia.
                     </p>
                   )}
+                  {!checkingPlan &&
+                    trialEnabled &&
+                    drive.account &&
+                    selectedPhotoMode === "trial" && (
+                      <p className="muted small">
+                        Sem cartão e sem cobrança automática. O diário manual
+                        continua gratuito quando o teste terminar.
+                      </p>
+                    )}
                   {((descriptionMode && descriptionEnabled) || photo) && (
                     <div
                       className={`meal-photo-preview${descriptionMode ? " meal-description-actions" : ""}${analyzing ? " analyzing" : ""}`}
@@ -1122,24 +1197,63 @@ export function FoodPage() {
             <h2 id="trial-offer-title">
               {photoOffer === "exhausted"
                 ? planStatus?.trialPeriodDays && !planStatus.trialExpired
-                  ? "Sua cota de hoje acabou"
-                  : "Suas fotos grátis acabaram"
+                  ? "Você usou as análises grátis de hoje"
+                  : "Seu teste grátis terminou"
                 : "Análise de fotos"}
             </h2>
             <p>
               {photoOffer === "exhausted"
                 ? planStatus?.trialPeriodDays && !planStatus.trialExpired
-                  ? "Você atingiu o limite diário do teste grátis. A cota renova à meia-noite de Brasília, enquanto seu teste estiver ativo. Você pode continuar registrando manualmente."
-                  : "Seu teste grátis terminou ou a cota acabou. Você ainda pode registrar refeições manualmente. Para analisar mais refeições, escolha o plano ou use sua chave Gemini."
-                : "A foto é opcional: você pode registrar sua refeição sem ela. Para receber sugestões pela foto, escolha o plano ou use sua chave Gemini."}
+                  ? "Você usou todas as análises de hoje. Elas estarão disponíveis novamente à meia-noite de Brasília, enquanto seu teste estiver ativo. Seu diário manual continua gratuito."
+                  : "Seu teste grátis de IA terminou. Não haverá cobrança automática. Você pode continuar usando o diário manual gratuitamente ou assinar para analisar mais refeições."
+                : drive.account
+                  ? "O diário manual é gratuito. Não há um teste de IA disponível agora para sua conta. Você pode continuar registrando manualmente ou conhecer o plano opcional."
+                  : trialEnabled
+                    ? "O diário manual é gratuito. Entre com Google para conferir seu teste de IA, sem cartão e sem cobrança automática."
+                    : "O diário manual é gratuito. O teste de IA está indisponível agora; a assinatura é opcional."}
             </p>
+            {trialRefreshError && (
+              <p className="form-error" role="alert">
+                {trialRefreshError}
+              </p>
+            )}
             <div className="push-actions photo-offer-actions">
+              {photoOffer === "exhausted" &&
+                planStatus?.trialPeriodDays &&
+                !planStatus.trialExpired && (
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={refreshingTrial}
+                    onClick={() => void refreshTrialBalance()}
+                  >
+                    {refreshingTrial
+                      ? "Atualizando…"
+                      : "Atualizar análises disponíveis"}
+                  </button>
+                )}
+              {!drive.account && trialEnabled && (
+                <button
+                  className="button primary"
+                  type="button"
+                  disabled={drive.busy || drive.available === false}
+                  onClick={() => {
+                    setPhotoOffer(null);
+                    void drive.connect();
+                  }}
+                >
+                  Entrar com Google para testar
+                </button>
+              )}
               <Link className="button primary" to="/assinatura">
                 Ver plano
               </Link>
-              <Link className="button primary" to="/configuracoes">
-                Usar minha chave
-              </Link>
+              <details>
+                <summary>Opções avançadas</summary>
+                <Link className="text-link" to="/configuracoes">
+                  Usar minha chave
+                </Link>
+              </details>
               <button
                 className="button secondary photo-offer-manual"
                 type="button"
@@ -1151,7 +1265,7 @@ export function FoodPage() {
                   document.getElementById("meal-name")?.focus();
                 }}
               >
-                Continuar sem foto
+                Continuar registrando grátis
               </button>
             </div>
           </section>

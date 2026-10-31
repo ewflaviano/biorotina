@@ -116,7 +116,14 @@ export async function getPlanStatus(googleToken: string): Promise<PlanStatus> {
   return parsed.data;
 }
 
-export async function getTrialConfig(): Promise<boolean> {
+export type TrialOffer = {
+  trialEnabled: boolean;
+  trialPeriodDays: number | null;
+  trialLimit: number;
+};
+export async function getTrialConfig(
+  onOffer?: (offer: TrialOffer) => void,
+): Promise<boolean> {
   const response = await fetch(API + "/api/ai/trial-config", {
     cache: "no-store",
   }).catch((cause: unknown) => {
@@ -134,7 +141,13 @@ export async function getTrialConfig(): Promise<boolean> {
     throw new Error("Teste grátis indisponível.");
   }
   const payload: unknown = await response.json().catch(() => null);
-  const parsed = z.object({ trialEnabled: z.boolean() }).safeParse(payload);
+  const parsed = z
+    .object({
+      trialEnabled: z.boolean(),
+      trialPeriodDays: z.number().int().positive().nullable().default(null),
+      trialLimit: z.number().int().positive().default(5),
+    })
+    .safeParse(payload);
   if (!parsed.success) {
     reportClientError(
       "billing",
@@ -144,6 +157,7 @@ export async function getTrialConfig(): Promise<boolean> {
     );
     throw parsed.error;
   }
+  onOffer?.(parsed.data);
   return parsed.data.trialEnabled;
 }
 export async function createPlanCheckout(googleToken: string): Promise<string> {

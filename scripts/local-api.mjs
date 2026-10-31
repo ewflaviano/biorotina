@@ -371,7 +371,11 @@ export async function createLocalApi({
         return json(response, 204);
       }
       if (path === "/api/ai/trial-config" && method === "GET")
-        return json(response, 200, { trialEnabled: true });
+        return json(response, 200, {
+          trialEnabled: true,
+          trialPeriodDays: campaignOpen() ? 14 : null,
+          trialLimit: 5,
+        });
       if (path === "/api/local/ai/meal" && method === "POST") {
         await readJson(request);
         return json(response, 200, {

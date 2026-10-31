@@ -57,6 +57,23 @@ concedidas. Configuração inválida impede novas adesões; `days` aceita 1–90
 `dailyLimit`, 1–10. O ID desta campanha é fixo: uma campanha futura precisa de
 outro ID, sem reaproveitar ou apagar participações antigas.
 
+## Comunicação do acesso gratuito
+
+A página inicial sem registros apresenta o diário manual gratuito e direciona
+para o teste opcional de IA. Refeições consulta a oferta pública mesmo antes do
+login e oferece entrada com Google junto do prazo e limite vigentes. A API
+pública retorna `trialEnabled`, `trialPeriodDays` e `trialLimit`, sem iniciar
+participação nem depender de uma conta; fora de novembro, a comunicação mantém
+a oferta vitalícia antiga, sem anunciar 14 dias indevidamente.
+
+Depois do login, saldo e vencimento vêm do estado da conta. A tela de assinatura
+mostra o acesso atual antes da oferta paga e distingue teste disponível,
+limite diário atingido e período encerrado. Os avisos explicam que o teste não
+exige cartão, não vira assinatura automaticamente e que o diário manual continua
+gratuito. A chave pessoal Gemini fica em opções avançadas, fora do percurso
+principal. O fim da cota/período oferece continuação manual gratuita e acesso
+opcional ao plano.
+
 ## Consumo e custo da IA
 
 Cada tentativa enviada pelo backend ao Gemini tem um registro próprio

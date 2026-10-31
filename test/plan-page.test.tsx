@@ -40,6 +40,7 @@ describe("assinatura sem conta conectada", () => {
     expect(screen.getByText("R$ 8,99")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Assinar/ })).toBeNull();
     expect(screen.queryByLabelText(/CPF/)).toBeNull();
+    await userEvent.setup().click(screen.getByText("Opções avançadas"));
     expect(
       screen.getByRole("link", { name: "Configurar chave Gemini" }),
     ).toBeInTheDocument();
@@ -73,6 +74,96 @@ describe("assinatura sem conta conectada", () => {
       screen.getByRole("button", { name: "Assinar por R$ 8,99/mês" }),
     ).toBeInTheDocument();
   });
+  it("mostra o teste ativo antes da oferta de assinatura sem dizer que falta um plano", async () => {
+    account = { token: "google-token", email: "pessoa@example.com" };
+    mockSessionAndApi({
+      active: false,
+      cancelled: false,
+      renewalActive: false,
+      paidThrough: null,
+      nextCharge: null,
+      usedToday: 0,
+      dailyLimit: 10,
+      trialEnabled: true,
+      trialUsed: 2,
+      trialLimit: 5,
+      trialPeriodDays: 14,
+      trialEndsAt: "2026-11-15T15:00:00Z",
+      trialExpired: false,
+    });
+    render(
+      <MemoryRouter>
+        <PlanPage />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByText(
+        "Você tem um teste grátis de IA disponível nesta conta.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Nenhum plano ativo nesta conta."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/3 disponíveis hoje/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Usar meu teste grátis" }),
+    ).toHaveAttribute("href", "/alimentacao");
+    expect(
+      screen
+        .getByRole("heading", { level: 2, name: "Seu acesso à IA" })
+        .compareDocumentPosition(
+          screen.getByRole("heading", {
+            name: "Mais facilidade no seu diário",
+          }),
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+  it.each([false, true])(
+    "explica o fim da cota ou do período sem confundir os dois (vencido: %s)",
+    async (expired) => {
+      account = { token: "google-token", email: "pessoa@example.com" };
+      mockSessionAndApi({
+        active: false,
+        cancelled: false,
+        renewalActive: false,
+        paidThrough: null,
+        nextCharge: null,
+        usedToday: 0,
+        dailyLimit: 10,
+        trialEnabled: true,
+        trialUsed: 5,
+        trialLimit: 5,
+        trialPeriodDays: 14,
+        trialEndsAt: "2026-11-15T15:00:00Z",
+        trialExpired: expired,
+      });
+      render(
+        <MemoryRouter>
+          <PlanPage />
+        </MemoryRouter>,
+      );
+      expect(
+        await screen.findByText(
+          expired
+            ? "Seu teste grátis terminou. Seu diário manual continua gratuito."
+            : "Você usou as análises grátis de hoje. Elas renovam à meia-noite de Brasília.",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("Nenhum plano ativo nesta conta."),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("link", {
+          name: expired
+            ? "Continuar com meu diário gratuito"
+            : "Continuar registrando grátis",
+        }),
+      ).toHaveAttribute("href", "/alimentacao");
+      expect(
+        screen.getByText("Opções avançadas").closest("details"),
+      ).not.toHaveAttribute("open");
+    },
+  );
   it("não oferece chave pessoal a quem já tem plano ativo", async () => {
     account = { token: "google-token", email: "pessoa@example.com" };
     mockSessionAndApi({

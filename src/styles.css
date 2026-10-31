@@ -3006,3 +3006,19 @@ button.habit-week-cell {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.meal-ai-advanced {
+  flex-basis: 100%;
+}
+.meal-ai-advanced summary,
+.photo-offer summary,
+.plan-alternative summary {
+  cursor: pointer;
+  padding-block: 12px;
+  min-height: 44px;
+  font-weight: 600;
+}
+
+.plan-access .button {
+  margin: 8px 8px 0 0;
+}
